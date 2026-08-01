@@ -77,6 +77,12 @@ class AppCoordinator: ObservableObject {
     func initialize() async {
         print("🚀 AppCoordinator.initialize() started")
 
+        // Resolve the iCloud container once, off the main actor, before
+        // anything asks for it. Everything downstream then hits the cache.
+        await Task.detached(priority: .userInitiated) {
+            StateManager.shared.prewarmiCloudContainer()
+        }.value
+
         // Check iCloud status
         let status = await checkiCloudStatus()
         iCloudStatus = status
@@ -181,7 +187,11 @@ class AppCoordinator: ObservableObject {
         return shouldScan
     }
     
-    private func checkiCloudStatus() async -> iCloudStatus {
+    // url(forUbiquityContainerIdentifier:) blocks while iCloud sets the
+    // container up - seconds on a first install - and Apple's documentation is
+    // explicit that it must not be called on the main thread. This whole check
+    // therefore runs off the main actor; only the resulting status is published.
+    nonisolated private func checkiCloudStatus() async -> iCloudStatus {
         // Check if user is signed into iCloud
         guard FileManager.default.ubiquityIdentityToken != nil else {
             return .notSignedIn
@@ -222,30 +232,29 @@ class AppCoordinator: ObservableObject {
         }
     }
     
-    private func syncFavorites() async {
+    // nonisolated so the blocking work inside - a coordinated iCloud read and
+    // the database writes - runs off the main actor. It used to run inline on
+    // the main thread during launch, which is a large part of why a first
+    // install appeared frozen.
+    nonisolated private func syncFavorites() async {
         print("🔄 Starting favorites sync...")
         do {
             print("📂 Loading saved favorites from storage...")
             let savedFavorites = try stateManager.loadFavorites()
             print("🗃️ Getting favorites from database...")
             let databaseFavorites = try databaseManager.getFavorites()
-            
+
             print("📊 Favorites sync - Saved: \(savedFavorites.count), Database: \(databaseFavorites.count)")
             print("📊 Saved favorites: \(savedFavorites)")
             print("📊 Database favorites: \(databaseFavorites)")
-            
+
             // Only sync if we actually have saved favorites to restore
             if !savedFavorites.isEmpty {
                 print("🔄 Restoring saved favorites to database...")
-                // Restore any favorites that exist in saved but not in database
-                for favorite in savedFavorites {
-                    if !databaseFavorites.contains(favorite) {
-                        try databaseManager.addToFavorites(trackStableId: favorite)
-                        print("✅ Restored favorite: \(favorite)")
-                    } else {
-                        print("⚡ Favorite already in database: \(favorite)")
-                    }
-                }
+                // One transaction for the whole restore rather than one per track.
+                let existing = Set(databaseFavorites)
+                let missing = savedFavorites.filter { !existing.contains($0) }
+                try databaseManager.addToFavorites(trackStableIds: missing)
                 
                 // Get final state after restoration
                 print("🔍 Getting final state after restoration...")
@@ -275,7 +284,7 @@ class AppCoordinator: ObservableObject {
         }
         
         // Mark initial sync as completed to allow future saves
-        isInitialSyncCompleted = true
+        await MainActor.run { self.isInitialSyncCompleted = true }
         print("✅ Initial favorites sync completed")
     }
     
@@ -391,10 +400,44 @@ class AppCoordinator: ObservableObject {
         print("🔄 AppCoordinator: Starting deferred post-index maintenance...")
         await verifyDatabaseRelationships()
         await fileCleanupManager.checkForOrphanedFiles()
+        await pruneCachesForDeletedContent()
         print("✅ AppCoordinator: Deferred post-index maintenance completed")
     }
+
+    /// Drops cached data belonging to content that no longer exists. Deleting a
+    /// track removes its database rows, but the artwork it pulled in and the
+    /// artist metadata fetched for it used to live on disk forever.
+    private func pruneCachesForDeletedContent() async {
+        do {
+            // Fetching every track is a full table read; keep it off the main
+            // actor so maintenance never stutters the UI on a large library.
+            let validStableIds = try await Task.detached(priority: .utility) {
+                Set(try DatabaseManager.shared.getAllTracks().map(\.stableId))
+            }.value
+
+            // An empty library here almost always means the scan failed or the
+            // database is unreadable, not that the user deleted everything.
+            // Passing an empty set through would erase the entire artwork
+            // cache, so treat it the same way the playlist cleanup does.
+            guard !validStableIds.isEmpty else {
+                print("⚠️ SAFETY: Skipping cache pruning - no tracks in database")
+                return
+            }
+
+            await ArtworkManager.shared.cleanupOrphanedArtwork(validStableIds: validStableIds)
+        } catch {
+            print("⚠️ Failed to prune artwork cache: \(error)")
+        }
+
+        // Artist metadata is keyed by artist name rather than track id, so it
+        // is pruned by age rather than by liveness.
+        await DiscogsAPIService.shared.purgeExpiredDiskCache()
+        await HybridMusicAPIService.shared.purgeExpiredDiskCache()
+    }
     
-    private func forceiCloudFolderCreation() async {
+    // Creating the container folder and writing the placeholder files are
+    // synchronous iCloud file operations; keep them off the main actor.
+    nonisolated private func forceiCloudFolderCreation() async {
         do {
             try stateManager.createAppFolderIfNeeded()
             if let folderURL = stateManager.getMusicFolderURL() {
@@ -416,9 +459,11 @@ class AppCoordinator: ObservableObject {
         }
     }
     
-    private func restorePlaylistsFromiCloud() async {
+    // Reads every playlist file out of the iCloud container and writes the
+    // results to the database - all blocking work, so it runs off the main actor.
+    nonisolated private func restorePlaylistsFromiCloud() async {
         // Skip if iCloud is not available or authentication required
-        guard isiCloudAvailable && iCloudStatus == .available else {
+        guard await isiCloudAvailable, await iCloudStatus == .available else {
             print("⚠️ Skipping playlist restoration - iCloud not available or authentication required")
             return
         }
@@ -497,7 +542,7 @@ class AppCoordinator: ObservableObject {
             // Check if this is an authentication error
             if let stateError = error as? StateManagerError, stateError == .iCloudNotAvailable {
                 print("🔐 StateManager authentication error - switching to offline mode")
-                handleiCloudAuthenticationError()
+                await handleiCloudAuthenticationError()
             }
         }
     }
@@ -550,9 +595,11 @@ class AppCoordinator: ObservableObject {
         }
     }
     
-    private func retryPlaylistRestoration() async {
+    // Same as restorePlaylistsFromiCloud: iCloud reads plus per-track database
+    // writes, so it must not hold the main actor.
+    nonisolated private func retryPlaylistRestoration() async {
         // Skip if iCloud is not available or authentication required
-        guard isiCloudAvailable && iCloudStatus == .available else {
+        guard await isiCloudAvailable, await iCloudStatus == .available else {
             print("⚠️ Skipping retry playlist restoration - iCloud not available or authentication required")
             return
         }
@@ -592,7 +639,7 @@ class AppCoordinator: ObservableObject {
             // Check if this is an authentication error
             if let stateError = error as? StateManagerError, stateError == .iCloudNotAvailable {
                 print("🔐 StateManager authentication error in retry - switching to offline mode")
-                handleiCloudAuthenticationError()
+                await handleiCloudAuthenticationError()
             }
         }
     }
@@ -771,6 +818,13 @@ class AppCoordinator: ObservableObject {
             do {
                 let playlists = try databaseManager.getAllPlaylists()
 
+                // A library with no tracks at all is the signature of a failed
+                // scan or an unreadable database - never of the user having
+                // curated their way down to zero. Only in that state do we
+                // refuse to overwrite the cloud copies. Computed once here
+                // rather than per playlist.
+                let libraryLooksUnreadable = ((try? databaseManager.getTrackCount()) ?? 0) == 0
+
                 // Sync to iCloud
                 for playlist in playlists {
                     guard let playlistId = playlist.id else { continue }
@@ -786,13 +840,23 @@ class AppCoordinator: ObservableObject {
                         .map { ($0, Date()) }
                     let stateItems = validItems
 
-                    // SAFETY CHECK: Don't overwrite cloud data with empty playlists for non-folder-synced playlists
-                    // This prevents data loss if database gets corrupted
-                    if !playlist.isFolderSynced && stateItems.isEmpty {
-                        // Check if cloud has data for this playlist
+                    // SAFETY CHECK: don't overwrite cloud data when the library
+                    // itself looks unreadable, which is the corruption case this
+                    // guard exists for.
+                    //
+                    // It used to trigger for ANY playlist that ended up empty,
+                    // which also covered the perfectly ordinary case of the user
+                    // deleting every track in a playlist. The cloud copy was then
+                    // pinned forever, still listing the deleted tracks, and was
+                    // re-mirrored into Documents/cosmos-playlists on each launch -
+                    // so the entries appeared to come back from the dead.
+                    // Scoping it to "the whole library is missing" keeps the
+                    // corruption protection while letting a genuinely emptied
+                    // playlist clear its cloud copy.
+                    if !playlist.isFolderSynced && stateItems.isEmpty && libraryLooksUnreadable {
                         if let existingCloudPlaylist = try? stateManager.loadPlaylist(slug: playlist.slug),
                            !existingCloudPlaylist.items.isEmpty {
-                            print("⚠️ Skipping sync for '\(playlist.title)' - database is empty but cloud has \(existingCloudPlaylist.items.count) tracks")
+                            print("⚠️ Skipping sync for '\(playlist.title)' - library is empty but cloud has \(existingCloudPlaylist.items.count) tracks")
                             print("🛡️ This prevents accidental data loss. The cloud version is preserved.")
                             continue
                         }

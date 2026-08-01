@@ -63,12 +63,10 @@ class CloudDownloadManager: NSObject, ObservableObject {
                 downloadTasks.removeAll()
             }
         } else if AppCoordinator.shared.iCloudStatus == .available && !hasDetectedSystematicFailure {
-            // Restart query when authentication is restored
-            if !isQueryRunning {
-                query.start()
-                isQueryRunning = true
-                print("▶️ Restarted NSMetadataQuery after authentication restored")
-            }
+            // Only resume monitoring if downloads are actually in flight -
+            // restoring auth is not by itself a reason to start watching the
+            // whole container again.
+            startProgressQueryIfNeeded()
         }
     }
     
@@ -160,9 +158,33 @@ class CloudDownloadManager: NSObject, ObservableObject {
             object: progressQuery
         )
         
-        // Start the query to monitor iCloud downloads
-        progressQuery?.start()
+        // Deliberately NOT started here. A live NSMetadataQuery continuously
+        // monitors the whole ubiquitous Documents scope, and every iCloud
+        // change woke us to walk all results even with nothing downloading.
+        // It is now started on demand by startProgressQueryIfNeeded() and torn
+        // down again as soon as the last download finishes.
+    }
+
+    /// Begin monitoring download progress. Safe to call repeatedly; does
+    /// nothing unless a download is actually in flight.
+    private func startProgressQueryIfNeeded() {
+        guard !isQueryRunning, !downloadingFiles.isEmpty, let query = progressQuery else { return }
+        guard AppCoordinator.shared.iCloudStatus != .authenticationRequired,
+              AppCoordinator.shared.isiCloudAvailable,
+              !hasDetectedSystematicFailure else { return }
+
+        query.start()
         isQueryRunning = true
+        print("▶️ Started NSMetadataQuery to track \(downloadingFiles.count) download(s)")
+    }
+
+    /// Stop monitoring once nothing is being downloaded, so idle iCloud
+    /// activity no longer wakes the app.
+    private func stopProgressQueryIfIdle() {
+        guard isQueryRunning, downloadingFiles.isEmpty, let query = progressQuery else { return }
+        query.stop()
+        isQueryRunning = false
+        print("🛑 Stopped NSMetadataQuery - no downloads in flight")
     }
     
     @objc private func queryDidUpdate(_ notification: Notification) {
@@ -184,14 +206,22 @@ class CloudDownloadManager: NSObject, ObservableObject {
             return
         }
         
-        guard let query = progressQuery else { 
+        guard let query = progressQuery else {
             print("❌ No progressQuery available")
-            return 
+            return
         }
-        
+
+        // Nothing to track: don't walk every file in the container (this loop
+        // used to run over the entire library on every iCloud change, logging
+        // two lines per file), and shut the query down until a download starts.
+        guard !downloadingFiles.isEmpty else {
+            stopProgressQueryIfIdle()
+            return
+        }
+
         print("🔍 NSMetadataQuery update - resultCount: \(query.resultCount)")
         print("📋 Currently tracking downloads for: \(downloadingFiles.map { $0.lastPathComponent })")
-        
+
         query.disableUpdates()
         defer { query.enableUpdates() }
         
@@ -260,6 +290,9 @@ class CloudDownloadManager: NSObject, ObservableObject {
         if query.resultCount == 0 {
             print("⚠️ NSMetadataQuery has no results - may need to restart query")
         }
+
+        // The loop above may have completed the last tracked download.
+        stopProgressQueryIfIdle()
     }
 
     
@@ -454,6 +487,8 @@ class CloudDownloadManager: NSObject, ObservableObject {
         print("🔽 Starting download for: \(url.lastPathComponent)")
         downloadingFiles.insert(url)
         downloadProgress[url] = 0.0
+        // Progress monitoring only runs while something is actually downloading.
+        startProgressQueryIfNeeded()
         
         do {
             // Start downloading the iCloud file
@@ -470,6 +505,7 @@ class CloudDownloadManager: NSObject, ObservableObject {
                 // For local files, mark as complete immediately
                 downloadProgress[url] = 1.0
                 downloadingFiles.remove(url)
+                stopProgressQueryIfIdle()
             }
         } catch {
             print("💥 Failed to start download for \(url.lastPathComponent): \(error)")
@@ -487,9 +523,10 @@ class CloudDownloadManager: NSObject, ObservableObject {
             
             downloadingFiles.remove(url)
             downloadProgress.removeValue(forKey: url)
+            stopProgressQueryIfIdle()
         }
     }
-    
+
     private func startFallbackProgressMonitor(_ url: URL) {
         let task = Task {
             var attempts = 0
@@ -508,6 +545,7 @@ class CloudDownloadManager: NSObject, ObservableObject {
                                 downloadProgress[url] = 1.0
                                 downloadingFiles.remove(url)
                                 downloadTasks.removeValue(forKey: url)
+                                stopProgressQueryIfIdle()
                             }
                             print("✅ Download complete via fallback: \(url.lastPathComponent)")
                             return
@@ -560,6 +598,7 @@ class CloudDownloadManager: NSObject, ObservableObject {
                     // If any files are timing out, detect systematic failure
                     print("🚫 Download timeout detected - detecting systematic failure")
                     detectSystematicFailure()
+                    stopProgressQueryIfIdle()
                 }
             }
         }
@@ -572,6 +611,7 @@ class CloudDownloadManager: NSObject, ObservableObject {
         downloadTasks.removeValue(forKey: url)
         downloadingFiles.remove(url)
         downloadProgress.removeValue(forKey: url)
+        stopProgressQueryIfIdle()
         
         // Try to cancel the iCloud download
         if isUbiquitous(url) {

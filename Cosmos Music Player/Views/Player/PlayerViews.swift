@@ -626,21 +626,22 @@ struct PlayerView: View {
     }
 
     private var additionalControlsView: some View {
+        // Both optional controls can be shown at once. The two settings toggles
+        // are independent, but this row used to have a single shared middle
+        // slot in which the sleep timer took priority - enabling it silently
+        // hid the lyrics button. Each button fills the row evenly, so the
+        // layout absorbs two, three or four of them.
         HStack(spacing: 12) {
             queueButton
-            middleControlButton
+            if settings.showSleepTimerButton {
+                sleepTimerButton
+            }
+            if settings.showLyricsButton {
+                lyricsButton
+            }
             airPlayButton
         }
         .padding(.horizontal, 5)
-    }
-
-    @ViewBuilder
-    private var middleControlButton: some View {
-        if settings.showSleepTimerButton {
-            sleepTimerButton
-        } else if settings.showLyricsButton {
-            lyricsButton
-        }
     }
 
     private var queueButton: some View {
@@ -1095,23 +1096,54 @@ struct MiniPlayerView: View {
                                     .lineLimit(1)
                             }
                         }
-                        
-                        Spacer()
-                        
-                        // Play/Pause button
-                        Button(action: {
-                            if playerEngine.isPlaying {
-                                playerEngine.pause()
-                            } else {
-                                playerEngine.play()
+                        // Take the slack rather than leaving it between the
+                        // labels and the transport controls, so titles have as
+                        // much room as possible before truncating.
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        // Transport: previous / play-pause / next.
+                        // buttonStyle(.plain) and a contentShape per button stop
+                        // the row's tap gesture (which expands the player) from
+                        // swallowing these taps.
+                        HStack(spacing: 14) {
+                            Button(action: {
+                                Task { await playerEngine.previousTrack() }
+                            }) {
+                                Image(systemName: "backward.fill")
+                                    .font(.title3)
+                                    .foregroundColor(.primary)
+                                    .contentShape(Rectangle())
                             }
-                        }) {
-                            Image(systemName: playerEngine.isPlaying ? "pause.circle" : "play.circle")
-                                .font(.title)
-                                .foregroundColor(.primary)
+                            .buttonStyle(PlainButtonStyle())
+
+                            Button(action: {
+                                if playerEngine.isPlaying {
+                                    playerEngine.pause()
+                                } else {
+                                    playerEngine.play()
+                                }
+                            }) {
+                                Image(systemName: playerEngine.isPlaying ? "pause.circle" : "play.circle")
+                                    .font(.title)
+                                    .foregroundColor(.primary)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(PlainButtonStyle())
+
+                            Button(action: {
+                                Task { await playerEngine.nextTrack() }
+                            }) {
+                                Image(systemName: "forward.fill")
+                                    .font(.title3)
+                                    .foregroundColor(.primary)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
-                    .padding(.horizontal, 16)
+                    // Trimmed from 16 to give the title and the three transport
+                    // buttons a little more room on narrow phones.
+                    .padding(.horizontal, 12)
                     .padding(.vertical, 12)
                     .background(
                         // Very strong glassy background

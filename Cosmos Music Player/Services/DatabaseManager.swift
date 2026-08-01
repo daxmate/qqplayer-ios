@@ -1316,6 +1316,19 @@ class DatabaseManager: @unchecked Sendable {
         }
     }
 
+    /// Inserts many favorites in a single transaction. Restoring them one at a
+    /// time meant one committed (and fsync'd) write per track, which on a cold
+    /// launch with a synced library was a long stall.
+    func addToFavorites(trackStableIds: [String]) throws {
+        guard !trackStableIds.isEmpty else { return }
+        try write { db in
+            for trackStableId in trackStableIds {
+                try Favorite(trackStableId: trackStableId).insert(db)
+            }
+        }
+        print("🗃️ Database: Inserted \(trackStableIds.count) favorite(s) in one transaction")
+    }
+
     func removeFromFavorites(trackStableId: String) throws {
         print("🗃️ Database: Removing from favorites - \(trackStableId)")
         let deletedCount = try write { db in

@@ -85,6 +85,12 @@ class PlayerEngine: NSObject, ObservableObject {
     private var hasSetupSiriBackgroundSession = false
     private(set) var isAudioSessionInterrupted = false
     private var wasPlayingBeforeInterruption = false
+    /// Set when the current interruption is accompanied by the output device
+    /// disappearing (headphones unplugged, Bluetooth disconnected). Scoped to a
+    /// single interruption: cleared on .began, consulted on .ended. iOS 17+
+    /// reports an unplug as an *interruption* whose .ended carries
+    /// .shouldResume, so without this the app would resume into the speaker.
+    private var outputDeviceBecameUnavailable = false
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private(set) var isInBackground = false
     private var hasSetupRemoteCommands = false
@@ -313,10 +319,21 @@ class PlayerEngine: NSObject, ObservableObject {
         case .began:
             print("🚫 Audio session interruption began - pausing playback")
             isAudioSessionInterrupted = true
+            // Scope the route flag to this interruption. On an unplug the
+            // .oldDeviceUnavailable route change arrives after this .began and
+            // before .ended, so it is set again in time to be read below.
+            outputDeviceBecameUnavailable = false
 
-            // Save current playback position before interruption
-            let savedPosition = playbackTime
+            // Save current playback position before interruption.
+            // Read the LIVE render position, not the cached playbackTime: the
+            // 0.25s UI timer that maintains playbackTime is deliberately not
+            // running while the app is backgrounded, so the cached value is
+            // frozen at whatever it held when the screen locked. Resuming from
+            // it rewound the track - to 0 if the screen was locked soon after
+            // playback started. This must be read before the engine is stopped,
+            // while the player node still has a valid render time.
             let wasPlaying = isPlaying
+            let savedPosition = wasPlaying ? nowPlayingElapsedTime() : playbackTime
             wasPlayingBeforeInterruption = wasPlaying
 
             if isPlaying {
@@ -365,19 +382,14 @@ class PlayerEngine: NSObject, ObservableObject {
                 print("⚠️ Failed to re-activate audio session: \(error)")
             }
 
-            // Restart the audio engine so it's ready for playback resume.
-            // SFBAudioPlayer restarts its own engine when the interruption
-            // ends (and play() starts it if that failed) - touching it here
-            // trips its engine-state assertion, so only the native engine is
-            // restarted manually.
-            if !usingSFBEngine {
-                do {
-                    try audioEngine.start()
-                    print("🔊 Native AVAudioEngine restarted after interruption")
-                } catch {
-                    print("⚠️ Failed to restart native AVAudioEngine: \(error)")
-                }
-            }
+            // NOTE: the native engine is deliberately NOT restarted here.
+            // play() starts it itself, right before it re-schedules the audio
+            // segment. Starting it here was actively harmful: after a plain
+            // pause the player node is still "playing", so start() resumed it
+            // behind our back - audio came out of the speaker while isPlaying
+            // stayed false and the timeline sat frozen. It also risked starting
+            // the engine on a route that had not finished settling, which
+            // rendered silence.
 
             // Check if we should resume playback
             let shouldResume: Bool
@@ -393,7 +405,22 @@ class PlayerEngine: NSObject, ObservableObject {
             // Only auto-resume if:
             // 1. The system tells us to (e.g., after a Siri interruption)
             // 2. The user was actually playing before the interruption (not manually paused)
-            if shouldResume && wasPlayingBeforeInterruption && playbackState == .paused {
+            // 3. The output device did not disappear. Unplugging headphones is
+            //    delivered as an interruption on iOS 17+, and its .ended still
+            //    carries .shouldResume - honouring it would blast the track out
+            //    of the built-in speaker, which is exactly what the user is
+            //    trying to avoid by unplugging.
+            let resumeAllowed = shouldResume
+                && wasPlayingBeforeInterruption
+                && playbackState == .paused
+                && !outputDeviceBecameUnavailable
+
+            // Consume the flags so they can never leak into a later
+            // interruption and trigger a phantom resume.
+            wasPlayingBeforeInterruption = false
+            outputDeviceBecameUnavailable = false
+
+            if resumeAllowed {
                 print("▶️ Auto-resuming playback after interruption (was playing before)")
                 play()
             } else {
@@ -425,6 +452,12 @@ class PlayerEngine: NSObject, ObservableObject {
             let fellBackToSpeaker = currentOutputs.isEmpty || currentOutputs.contains { $0.portType == .builtInSpeaker }
             if fellBackToSpeaker {
                 print("🎧 Audio device disconnected (fell back to speaker) - pausing playback")
+                // Record this even when playback is already stopped. On iOS 17+
+                // the unplug arrives as an interruption whose .began has
+                // already paused us, so `isPlaying` is false by the time we get
+                // here - but .ended is still coming with .shouldResume and must
+                // not be honoured.
+                outputDeviceBecameUnavailable = true
                 if isPlaying {
                     pause()
                 }
@@ -1342,6 +1375,10 @@ class PlayerEngine: NSObject, ObservableObject {
             isPlaying = false
             playbackState = .paused
             stopPlaybackTimer()
+            // Let the app suspend while paused - see the note in the native
+            // pause path below.
+            stopSilentPlaybackForPause()
+            endBackgroundMonitoring()
             print("✅ SFBAudioEngine paused")
             updateNowPlayingInfoEnhanced()
             updateWidgetData()
@@ -1373,15 +1410,15 @@ class PlayerEngine: NSObject, ObservableObject {
         updateNowPlayingInfoEnhanced()
         updateWidgetData()
 
-        // Only start silent audio if paused from within the app, not from Control Center
-        // This prevents Control Center button state confusion
-        if !fromControlCenter {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                if self?.playbackState == .paused {
-                    self?.startSilentPlaybackForPause()
-                }
-            }
-        }
+        // Release everything that keeps the process awake. A paused player has
+        // no reason to stay resident: the lock screen and Control Center are
+        // driven by MPRemoteCommandCenter + MPNowPlayingInfoCenter, and iOS
+        // resumes us to service a remote command. Previously we looped a
+        // near-silent buffer here purely to dodge suspension, which pinned the
+        // audio route awake indefinitely and kept every timer below alive -
+        // the app effectively never slept after a pause.
+        stopSilentPlaybackForPause()
+        endBackgroundMonitoring()
 
         // Save state when pausing
         savePlayerState()
@@ -1552,43 +1589,14 @@ class PlayerEngine: NSObject, ObservableObject {
         print("✅ Seek completed")
     }
 
-    private func startSilentPlaybackForPause() {
-        // Create a very quiet, looping audio player to maintain background execution
-        guard pausedSilentPlayer == nil else {
-            if pausedSilentPlayer?.isPlaying == false {
-                pausedSilentPlayer?.play()
-            }
-            return
-        }
-
-        do {
-            // Create a tiny silent buffer programmatically
-            let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1)!
-            let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4410)! // 0.1 seconds at 44.1kHz
-            buffer.frameLength = 4410
-
-            // Buffer is already silent (zero-filled by default)
-
-            // Write to temporary file
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("pause_silence.caf")
-            let audioFile = try AVAudioFile(forWriting: tempURL, settings: format.settings)
-            try audioFile.write(from: buffer)
-
-            // Create player with very low volume
-            pausedSilentPlayer = try AVAudioPlayer(contentsOf: tempURL)
-            pausedSilentPlayer?.volume = 0.001  // Nearly silent
-            pausedSilentPlayer?.numberOfLoops = -1  // Loop indefinitely
-            pausedSilentPlayer?.prepareToPlay()
-            pausedSilentPlayer?.play()
-
-            print("🔇 Started silent playback to maintain background execution during pause")
-
-        } catch {
-            print("❌ Failed to create silent player for pause: \(error)")
-            // Fallback to the original method
-            maintainAudioSessionForBackground()
-        }
-    }
+    // NOTE: startSilentPlaybackForPause() used to live here. It looped a
+    // near-silent buffer forever (numberOfLoops = -1) so the process would not
+    // be suspended while paused. That defeated the whole point of pausing: the
+    // audio route stayed powered and the app kept running indefinitely. Pausing
+    // now simply lets the app suspend. Playback control while suspended is
+    // handled by MPRemoteCommandCenter, which iOS resumes us to service.
+    // stopSilentPlaybackForPause() is retained so a player left running by a
+    // previously-installed build is torn down on the next pause/stop.
 
     // MARK: - SFBAudioEngine Integration
     // SFBAudioEngine now handles playback directly via SFBAudioEngineManager
@@ -1874,44 +1882,11 @@ class PlayerEngine: NSObject, ObservableObject {
         print("🔇 Stopped silent playback for pause")
     }
 
-    private func maintainAudioSessionForBackground() {
-        // Keep the audio session active to prevent app termination
-        Task { @MainActor in
-            do {
-                // Don't re-grab the audio session during an interruption (alarm, phone call)
-                // This would prevent the alarm from ringing properly
-                guard !isAudioSessionInterrupted else {
-                    print("🎧 Audio session interrupted, not maintaining session")
-                    return
-                }
-
-                let session = AVAudioSession.sharedInstance()
-
-                // Only maintain session if we're not already active
-                guard !session.isOtherAudioPlaying else {
-                    print("🎧 Other audio playing, not maintaining session")
-                    return
-                }
-
-                // Don't change category if already correct - this prevents the error
-                if session.category != .playback {
-                    try session.setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetoothA2DP])
-                }
-
-                // Only activate if not already active
-                if !session.secondaryAudioShouldBeSilencedHint {
-                    try session.setActive(true, options: [])
-                    print("🎧 Audio session maintained during pause to prevent termination")
-                } else {
-                    print("🎧 Audio session already active during pause")
-                }
-
-            } catch {
-                print("❌ Failed to maintain audio session during pause: \(error)")
-                // Don't try to maintain session if it fails - let the app handle it naturally
-            }
-        }
-    }
+    // NOTE: maintainAudioSessionForBackground() used to live here. It force-
+    // reactivated the audio session while paused "to prevent termination" -
+    // the same keep-alive anti-pattern as the silent player, and its only
+    // caller was that player's error path. Being suspended while paused is the
+    // correct outcome, so it has been removed rather than left to be re-wired.
 
     private func checkIfTrackEnded() async {
         // Check if audio has finished playing
@@ -3038,9 +3013,15 @@ class PlayerEngine: NSObject, ObservableObject {
             currentIndex: originalQueueCurrentIndex
         )
 
+        // Same reason as the interruption handler: playbackTime is only
+        // refreshed by the foreground UI timer, so while backgrounded it goes
+        // stale. Persist the live render position instead, or a track playing
+        // with the screen locked is restored minutes behind where it actually is.
+        let positionToPersist = isPlaying ? nowPlayingElapsedTime() : playbackTime
+
         let playerState: [String: Any] = [
             "currentTrackStableId": currentTrack.stableId,
-            "playbackTime": playbackTime,
+            "playbackTime": positionToPersist,
             "isPlaying": false, // Always save as paused to prevent auto-play on launch
             "queueTrackIds": cappedQueueTrackIds,
             "currentIndex": cappedCurrentIndex,

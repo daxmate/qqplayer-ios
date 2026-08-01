@@ -422,7 +422,7 @@ class ArtworkManager: ObservableObject {
 
     private nonisolated func extractFlacArtwork(from url: URL) async -> UIImage? {
         return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .background).async {
+            DispatchQueue.global(qos: .utility).async {
                 do {
                     let data = try Data(contentsOf: url, options: .mappedIfSafe)
 

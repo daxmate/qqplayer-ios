@@ -143,6 +143,8 @@ struct AlbumDetailScreen: View {
     @State private var settings = DeleteSettings.load()
     @State private var albumTracks: [Track] = []
     @State private var artistNameCache: [Int64: String] = [:]
+    @State private var isBulkMode = false
+    @State private var selectedTracks: Set<String> = []
 
     private var playerEngine: PlayerEngine {
         appCoordinator.playerEngine
@@ -237,9 +239,12 @@ struct AlbumDetailScreen: View {
                                 HStack {
                                     Image(systemName: "play.fill")
                                     Text(Localized.play)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.6)
                                 }
                                 .font(.title3.weight(.semibold))
                                 .foregroundColor(.white)
+                                .padding(.horizontal, 8)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 56)
                                 .background(settings.backgroundColorChoice.color)
@@ -256,9 +261,12 @@ struct AlbumDetailScreen: View {
                                 HStack {
                                     Image(systemName: "shuffle")
                                     Text(Localized.shuffle)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.6)
                                 }
                                 .font(.title3.weight(.semibold))
                                 .foregroundColor(settings.backgroundColorChoice.color)
+                                .padding(.horizontal, 8)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 56)
                                 .background(settings.backgroundColorChoice.color.opacity(0.1))
@@ -299,15 +307,42 @@ struct AlbumDetailScreen: View {
 
                                 // Tracks for this disc
                                 ForEach(Array(disc.tracks.enumerated()), id: \.element.stableId) { index, track in
-                                    AlbumTrackRowView(
-                                        track: track,
-                                        trackNumber: track.trackNo ?? (index + 1),
-                                        artistName: (try? DatabaseManager.shared.getArtistDisplayName(forTrackStableId: track.stableId, fallbackArtistId: track.artistId)) ?? track.artistId.flatMap { artistNameCache[$0] },
-                                        onTap: {
-                                            Task {
-                                                await playerEngine.playTrack(track, queue: filteredAlbumTracks)
-                                            }
+                                    HStack(spacing: 12) {
+                                        if isBulkMode {
+                                            TrackSelectionIndicator(
+                                                isSelected: selectedTracks.contains(track.stableId),
+                                                accentColor: settings.backgroundColorChoice.color,
+                                                onTap: { toggleSelection(track) }
+                                            )
+                                            .padding(.leading)
                                         }
+
+                                        AlbumTrackRowView(
+                                            track: track,
+                                            trackNumber: track.trackNo ?? (index + 1),
+                                            artistName: (try? DatabaseManager.shared.getArtistDisplayName(forTrackStableId: track.stableId, fallbackArtistId: track.artistId)) ?? track.artistId.flatMap { artistNameCache[$0] },
+                                            onTap: {
+                                                // While selecting, a tap toggles instead of playing.
+                                                if isBulkMode {
+                                                    toggleSelection(track)
+                                                } else {
+                                                    Task {
+                                                        await playerEngine.playTrack(track, queue: filteredAlbumTracks)
+                                                    }
+                                                }
+                                            },
+                                            onEnterBulkMode: { beginSelection(with: track) }
+                                        )
+                                    }
+                                    .contentShape(Rectangle())
+                                    // simultaneousGesture rather than
+                                    // onLongPressGesture: this row's root is a
+                                    // Button, whose own press recogniser wins an
+                                    // ordinary long press, so selection could
+                                    // never be entered by holding a track.
+                                    .simultaneousGesture(
+                                        LongPressGesture(minimumDuration: 0.5)
+                                            .onEnded { _ in beginSelection(with: track) }
                                     )
 
                                     // Add divider between tracks (not after last track of last disc)
@@ -325,10 +360,20 @@ struct AlbumDetailScreen: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .trackBulkActions(
+            tracks: filteredAlbumTracks,
+            isBulkMode: $isBulkMode,
+            selectedTracks: $selectedTracks
+        )
         .onAppear {
             loadArtistNameCache()
             loadAlbumTracks()
             loadAlbumArtwork()
+        }
+        // albumTracks is @State loaded once, so without this a bulk delete left
+        // the removed tracks on screen until the view was revisited.
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LibraryNeedsRefresh"))) { _ in
+            loadAlbumTracks()
         }
         .task {
             // Ensure data loads even if onAppear doesn't trigger
@@ -339,6 +384,20 @@ struct AlbumDetailScreen: View {
                 loadAlbumArtwork()
             }
         }
+    }
+
+    private func toggleSelection(_ track: Track) {
+        if selectedTracks.contains(track.stableId) {
+            selectedTracks.remove(track.stableId)
+        } else {
+            selectedTracks.insert(track.stableId)
+        }
+    }
+
+    private func beginSelection(with track: Track) {
+        guard !isBulkMode else { return }
+        isBulkMode = true
+        selectedTracks.insert(track.stableId)
     }
 
     private func loadAlbumTracks() {
@@ -376,6 +435,9 @@ struct AlbumTrackRowView: View {
     let trackNumber: Int
     let artistName: String?
     let onTap: () -> Void
+    /// Menu entry point into multi-select. The long press is unreliable over
+    /// this row's Button root, so the menu is the dependable route.
+    var onEnterBulkMode: (() -> Void)? = nil
     @EnvironmentObject private var appCoordinator: AppCoordinator
     @State private var isFavorite = false
     @State private var showPlaylistDialog = false
@@ -427,6 +489,13 @@ struct AlbumTrackRowView: View {
                 
                 // Menu button - reduced spacing
                 Menu {
+                    if let onEnterBulkMode {
+                        Button(action: { onEnterBulkMode() }) {
+                            Label(Localized.select, systemImage: "checkmark.circle")
+                        }
+                        Divider()
+                    }
+
                     Button(action: {
                         do {
                             try appCoordinator.toggleFavorite(trackStableId: track.stableId)

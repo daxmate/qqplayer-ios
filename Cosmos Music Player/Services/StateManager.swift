@@ -10,15 +10,40 @@ import Foundation
 class StateManager: @unchecked Sendable {
     static let shared = StateManager()
     
-    private var iCloudContainerURL: URL?
-    
+    private var resolvedContainerURL: URL?
+    private var hasResolvedContainer = false
+    private let containerLock = NSLock()
+
     private init() {
-        // Only set if iCloud is available
-        if FileManager.default.ubiquityIdentityToken != nil {
-            iCloudContainerURL = FileManager.default.url(forUbiquityContainerIdentifier: nil)
-        }
+        // Deliberately empty. Resolving the ubiquity container is expensive -
+        // Apple documents url(forUbiquityContainerIdentifier:) as slow enough
+        // that it must not be called on the main thread, and on a first install
+        // it blocks while the container is registered. This singleton is a
+        // stored property of the main-actor AppCoordinator, so doing it here
+        // froze the UI during launch. It is resolved lazily instead, by which
+        // point the callers that need it run off the main actor.
     }
-    
+
+    /// The iCloud container URL, resolved once on first use.
+    private var iCloudContainerURL: URL? {
+        containerLock.lock()
+        defer { containerLock.unlock() }
+
+        if !hasResolvedContainer {
+            hasResolvedContainer = true
+            if FileManager.default.ubiquityIdentityToken != nil {
+                resolvedContainerURL = FileManager.default.url(forUbiquityContainerIdentifier: nil)
+            }
+        }
+        return resolvedContainerURL
+    }
+
+    /// Resolves the container ahead of time so the first real caller doesn't
+    /// pay for it. Call from a background context during launch.
+    func prewarmiCloudContainer() {
+        _ = iCloudContainerURL
+    }
+
     private func getAppFolderURL() -> URL? {
         guard let containerURL = iCloudContainerURL else { return nil }
         return containerURL.appendingPathComponent("Documents", isDirectory: true)
@@ -127,9 +152,11 @@ class StateManager: @unchecked Sendable {
                     if downloadingStatus == .notDownloaded {
                         print("🔽 iCloud favorites file needs downloading, starting download...")
                         try FileManager.default.startDownloadingUbiquitousItem(at: favoritesURL)
-                        
-                        // Wait a moment for download to start
-                        Thread.sleep(forTimeInterval: 0.5)
+                        // No sleep here: startDownloadingUbiquitousItem only
+                        // requests the download, and the coordinated read below
+                        // already blocks until the file is available. The old
+                        // half-second Thread.sleep just stalled the caller -
+                        // on first launch that was the main thread.
                     }
                 }
             }
@@ -395,11 +422,13 @@ class StateManager: @unchecked Sendable {
             return false
         }
         
-        // Update our cached URL if needed
-        if iCloudContainerURL == nil {
-            iCloudContainerURL = containerURL
-        }
-        
+        // Refresh the cache with what we just resolved, so a container that
+        // only became available after launch is picked up.
+        containerLock.lock()
+        hasResolvedContainer = true
+        resolvedContainerURL = containerURL
+        containerLock.unlock()
+
         return true
     }
 }
@@ -500,9 +529,8 @@ extension StateManager {
                     if downloadingStatus == .notDownloaded {
                         print("🔽 iCloud player state file needs downloading, starting download...")
                         try FileManager.default.startDownloadingUbiquitousItem(at: playerStateURL)
-                        
-                        // Wait a moment for download to start
-                        Thread.sleep(forTimeInterval: 0.5)
+                        // See loadFavorites: the coordinated read below waits
+                        // for the file, so sleeping here only stalled the caller.
                     }
                 }
             }

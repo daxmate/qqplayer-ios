@@ -40,6 +40,8 @@ struct PlaylistsScreen: View {
     @State private var showDeleteConfirmation = false
     @State private var editPlaylistName = ""
     @State private var showAIPlaylistSheet = false
+    @State private var showCreatePlaylist = false
+    @State private var newPlaylistName = ""
 
     var body: some View {
         ZStack {
@@ -87,6 +89,17 @@ struct PlaylistsScreen: View {
                                     .buttonStyle(PlainButtonStyle())
                                 }
                             }
+
+                            // Trailing "new playlist" tile, only while editing.
+                            if isEditMode {
+                                Button {
+                                    newPlaylistName = ""
+                                    showCreatePlaylist = true
+                                } label: {
+                                    NewPlaylistCardView()
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
                         }
                         .padding(16)
                         .padding(.bottom, 100) // Add padding for mini player
@@ -116,6 +129,16 @@ struct PlaylistsScreen: View {
                 Button(Localized.cancel, role: .cancel) { }
             } message: {
                 Text(Localized.enterNewName)
+            }
+            .alert(Localized.createPlaylist, isPresented: $showCreatePlaylist) {
+                TextField(Localized.playlistNamePlaceholder, text: $newPlaylistName)
+                Button(Localized.create) {
+                    createPlaylist()
+                }
+                .disabled(newPlaylistName.isEmpty)
+                Button(Localized.cancel, role: .cancel) { }
+            } message: {
+                Text(Localized.enterPlaylistName)
             }
             .alert(Localized.deletePlaylist, isPresented: $showDeleteConfirmation) {
                 Button(Localized.delete, role: .destructive) {
@@ -204,6 +227,18 @@ struct PlaylistsScreen: View {
             playlists = try appCoordinator.databaseManager.getAllPlaylists()
         } catch {
             print("Failed to load playlists: \(error)")
+        }
+    }
+
+    private func createPlaylist() {
+        let title = newPlaylistName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        do {
+            _ = try appCoordinator.createPlaylist(title: title)
+            loadPlaylists()
+            newPlaylistName = ""
+        } catch {
+            print("Failed to create playlist: \(error)")
         }
     }
 
@@ -348,6 +383,48 @@ struct AIPlaylistSheet: View {
     }
 }
 #endif // canImport(FoundationModels)
+
+/// Trailing tile in the playlists grid, shown only while editing. Mirrors
+/// PlaylistCardView's geometry (square artwork area plus two text lines) so the
+/// grid rows stay aligned alongside real playlist cards.
+struct NewPlaylistCardView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.gray.opacity(0.2))
+                    .aspectRatio(1, contentMode: .fit)
+
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6]))
+                    .foregroundColor(.secondary.opacity(0.5))
+                    .aspectRatio(1, contentMode: .fit)
+
+                Image(systemName: "plus")
+                    .font(.system(size: 40, weight: .light))
+                    .foregroundColor(.secondary)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Localized.createPlaylist)
+                    .font(.headline)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                // Keeps this tile the same height as the playlist cards, which
+                // carry a song-count caption on their second line.
+                Text(" ")
+                    .font(.caption)
+                    .hidden()
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Localized.createPlaylist)
+        .accessibilityAddTraits(.isButton)
+    }
+}
 
 struct PlaylistCardView: View {
     let playlist: Playlist
@@ -797,9 +874,12 @@ struct PlaylistDetailScreen: View {
                                 HStack {
                                     Image(systemName: "play.fill")
                                     Text(Localized.play)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.6)
                                 }
                                 .font(.title3.weight(.semibold))
                                 .foregroundColor(.white)
+                                .padding(.horizontal, 8)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 56)
                                 .background(settings.backgroundColorChoice.color)
@@ -817,9 +897,12 @@ struct PlaylistDetailScreen: View {
                                 HStack {
                                     Image(systemName: "shuffle")
                                     Text(Localized.shuffle)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.6)
                                 }
                                 .font(.title3.weight(.semibold))
                                 .foregroundColor(settings.backgroundColorChoice.color)
+                                .padding(.horizontal, 8)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 56)
                                 .background(settings.backgroundColorChoice.color.opacity(0.1))
@@ -827,6 +910,12 @@ struct PlaylistDetailScreen: View {
                             }
                             .disabled(tracks.isEmpty)
                         }
+                        // This row sits in a list row with zeroed insets, so it
+                        // needs its own horizontal margin. Without it the two
+                        // pills ran edge to edge and single-word translations
+                        // that cannot wrap ("Lecture", "Aléatoire",
+                        // "Воспроизвести") pushed them off screen.
+                        .padding(.horizontal)
                     }
                     .padding(.vertical)
                 }

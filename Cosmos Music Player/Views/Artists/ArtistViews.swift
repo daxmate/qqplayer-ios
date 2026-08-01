@@ -162,7 +162,9 @@ struct ArtistDetailScreen: View {
     @State private var hasTriedAlternatives = false
     @State private var hasShownWrongArtistButton = false
     @State private var settings = DeleteSettings.load()
-    
+    @State private var isBulkMode = false
+    @State private var selectedTracks: Set<String> = []
+
     private var playerEngine: PlayerEngine {
         appCoordinator.playerEngine
     }
@@ -206,12 +208,25 @@ struct ArtistDetailScreen: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .trackBulkActions(
+            tracks: artistTracks,
+            isBulkMode: $isBulkMode,
+            selectedTracks: $selectedTracks
+        )
         .onAppear { loadArtistData() }
         .onReceive(NotificationCenter.default.publisher(for: .cosmosSettingsDidChange)) { _ in
             settings = DeleteSettings.load()
         }
     }
-    
+
+    private func toggleSelection(_ track: Track) {
+        if selectedTracks.contains(track.stableId) {
+            selectedTracks.remove(track.stableId)
+        } else {
+            selectedTracks.insert(track.stableId)
+        }
+    }
+
     @ViewBuilder
     private func richArtistView(_ unifiedArtist: UnifiedArtist) -> some View {
         GeometryReader { geometry in
@@ -444,9 +459,10 @@ struct ArtistDetailScreen: View {
                 guard let first = artistTracks.first else { return }
                 Task { await playerEngine.playTrack(first, queue: artistTracks) }
             } label: {
-                HStack { Image(systemName: "play.fill"); Text(Localized.play) }
+                HStack { Image(systemName: "play.fill"); Text(Localized.play).lineLimit(1).minimumScaleFactor(0.6) }
                     .font(.title3).fontWeight(.semibold)
                     .foregroundColor(.white)
+                    .padding(.horizontal, 8)
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
                     .background(settings.backgroundColorChoice.color)
@@ -457,9 +473,10 @@ struct ArtistDetailScreen: View {
                 guard let first = shuffled.first else { return }
                 Task { await playerEngine.playTrack(first, queue: shuffled) }
             } label: {
-                HStack { Image(systemName: "shuffle"); Text(Localized.shuffle) }
+                HStack { Image(systemName: "shuffle"); Text(Localized.shuffle).lineLimit(1).minimumScaleFactor(0.6) }
                     .font(.title3).fontWeight(.semibold)
                     .foregroundColor(settings.backgroundColorChoice.color)
+                    .padding(.horizontal, 8)
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
                     .background(settings.backgroundColorChoice.color.opacity(0.1))
@@ -481,9 +498,32 @@ struct ArtistDetailScreen: View {
             LazyVStack(spacing: 0) {
                 ForEach(artistTracks.indices, id: \.self) { index in
                     let track = artistTracks[index]
-                    ArtistTrackRowView(track: track) {
-                        Task { await playerEngine.playTrack(track, queue: artistTracks) }
+                    HStack(spacing: 12) {
+                        if isBulkMode {
+                            TrackSelectionIndicator(
+                                isSelected: selectedTracks.contains(track.stableId),
+                                accentColor: settings.backgroundColorChoice.color,
+                                onTap: { toggleSelection(track) }
+                            )
+                            .padding(.leading)
+                        }
+
+                        ArtistTrackRowView(track: track) {
+                            // While selecting, a tap toggles instead of playing.
+                            if isBulkMode {
+                                toggleSelection(track)
+                            } else {
+                                Task { await playerEngine.playTrack(track, queue: artistTracks) }
+                            }
+                        }
                     }
+                    .contentShape(Rectangle())
+                    .onLongPressGesture(minimumDuration: 0.5) {
+                        guard !isBulkMode else { return }
+                        isBulkMode = true
+                        selectedTracks.insert(track.stableId)
+                    }
+
                     if index < artistTracks.count - 1 {
                         Divider().padding(.leading, 20)
                     }

@@ -324,7 +324,15 @@ class HybridMusicAPIService: ObservableObject, @unchecked Sendable {
               let cached = try? JSONDecoder().decode(CachedUnifiedArtistInfo.self, from: data) else {
             return nil
         }
-        
+
+        // Reclaim the file as soon as it is known to be stale. Callers discard
+        // expired entries anyway, and previously the file was left behind
+        // until it happened to be overwritten by a fresh lookup.
+        if cached.isExpired {
+            try? FileManager.default.removeItem(at: fileURL)
+            return nil
+        }
+
         // Store in memory cache
         cache.setObject(cached, forKey: key)
         return cached
@@ -348,6 +356,44 @@ class HybridMusicAPIService: ObservableObject, @unchecked Sendable {
         } catch {
             print("❌ Hybrid: Failed to cache artist data: \(error)")
         }
+    }
+
+    /// Deletes cache files whose contents have expired. Entries were only ever
+    /// checked for staleness on read and then ignored, so the directory grew
+    /// without bound - including for artists no longer in the library.
+    func purgeExpiredDiskCache() async {
+        // Walking the directory and decoding each entry is file work, so keep
+        // it off the main thread - this runs during post-index maintenance,
+        // alongside the UI.
+        let directory = cacheDirectory
+        await Task.detached(priority: .utility) {
+            let files = (try? FileManager.default.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: nil
+            )) ?? []
+
+            var removed = 0
+            for fileURL in files where fileURL.pathExtension == "json" {
+                guard let data = try? Data(contentsOf: fileURL) else { continue }
+
+                // Undecodable entries are stale by definition (format changed
+                // or the file is truncated) and can never be served, so drop
+                // them too.
+                let cached = try? JSONDecoder().decode(CachedUnifiedArtistInfo.self, from: data)
+                guard cached == nil || cached!.isExpired else { continue }
+
+                do {
+                    try FileManager.default.removeItem(at: fileURL)
+                    removed += 1
+                } catch {
+                    print("❌ Hybrid: Failed to remove expired cache file: \(error)")
+                }
+            }
+
+            if removed > 0 {
+                print("🗑️ Hybrid: Removed \(removed) expired cache file(s)")
+            }
+        }.value
     }
 }
 
