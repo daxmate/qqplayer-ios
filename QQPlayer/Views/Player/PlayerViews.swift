@@ -443,7 +443,9 @@ struct PlayerView: View {
                     )
                     guard let hostView = pullHostView else { return }
                     if shouldDismiss {
-                        // 跟手滑出屏幕后关闭（Apple Music 风格）
+                        // 跟手滑出屏幕后关闭（Apple Music 风格）。
+                        // completion 不复位 transform：视图即将被 dismiss 销毁，
+                        // 复位会在关闭前闪回原位（造成"动画出现两次"）
                         UIView.animate(
                             withDuration: 0.24,
                             delay: 0,
@@ -455,7 +457,6 @@ struct PlayerView: View {
                                 )
                             },
                             completion: { _ in
-                                hostView.transform = .identity
                                 NotificationCenter.default.post(
                                     name: NSNotification.Name("MinimizePlayer"),
                                     object: nil
