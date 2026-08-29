@@ -15,7 +15,11 @@ class DatabaseManager: @unchecked Sendable {
     static let shared = DatabaseManager()
 
     private var dbWriter: DatabaseWriter!
-    private let maxRetries = 3
+    // A corrupted database fails deterministically, so repeating the same
+    // open is pointless - one retry is enough to ride out transient failures
+    // (file lock, iCloud download in progress) while capping startup latency
+    // at ~0.5s. Persistent failures go to attemptDatabaseRecovery().
+    private let maxRetries = 2
     private let retryDelay: UInt64 = 500_000_000 // 0.5 seconds in nanoseconds
 
     static func generatePathStableId(forPath path: String) -> String {
@@ -126,23 +130,39 @@ class DatabaseManager: @unchecked Sendable {
             try setupDatabase()
             print("✅ Database recovery successful - created fresh database")
         } catch {
-            // Last resort: create an in-memory database to prevent crashes
+            // The database file is corrupted beyond repair. Fall back to an
+            // in-memory database so the app keeps running (degraded, empty
+            // library) instead of force-exiting at launch. Migrations are
+            // intentionally skipped: an in-memory database has no old data.
             print("❌ Database recovery failed: \(error)")
-            print("⚠️ Creating in-memory database as fallback")
+            print("⚠️ Database corrupted, running with in-memory fallback")
+            setupInMemoryFallback()
+        }
+    }
 
-            do {
-                var configuration = Configuration()
-                configuration.prepareDatabase { db in
-                    try db.execute(sql: "PRAGMA foreign_keys = ON")
-                }
+    /// Creates a fresh in-memory database as a degraded-but-usable fallback
+    /// when the on-disk database is corrupted beyond repair. Never crashes:
+    /// if even the in-memory schema cannot be created, the app continues with
+    /// whatever writer we can build rather than calling fatalError.
+    private func setupInMemoryFallback() {
+        do {
+            var configuration = Configuration()
+            configuration.prepareDatabase { db in
+                try db.execute(sql: "PRAGMA foreign_keys = ON")
+            }
 
-                // Create in-memory database
-                dbWriter = try DatabaseQueue(configuration: configuration)
-                try createTables()
-                print("✅ In-memory database created successfully")
-            } catch {
-                // Absolute last resort - this should never happen
-                fatalError("Critical error: Unable to initialize any database: \(error)")
+            // Create in-memory database (fresh schema via createTables(); the
+            // additive ALTER TABLE migrations inside it are idempotent and
+            // safe on a brand-new schema).
+            dbWriter = try DatabaseQueue(configuration: configuration)
+            try createTables()
+            print("✅ In-memory database created successfully (degraded mode: library starts empty)")
+        } catch {
+            // Absolute last resort - keep the app alive instead of crashing.
+            print("❌ Failed to create in-memory fallback database: \(error)")
+            print("⚠️ Continuing without a usable database (degraded mode)")
+            if dbWriter == nil {
+                dbWriter = try? DatabaseQueue()
             }
         }
     }

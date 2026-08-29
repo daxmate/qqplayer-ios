@@ -1450,7 +1450,8 @@ struct SearchView: View {
                             }
 
                             let artistAlbums = try DatabaseManager.shared.getAlbumsByArtistId(artistId)
-                            for album in artistAlbums where !existingAlbumIds.contains(album.id!) {
+                            for album in artistAlbums {
+                                guard let albumId = album.id, !existingAlbumIds.contains(albumId) else { continue }
                                 albums.append(album)
                             }
                         }
