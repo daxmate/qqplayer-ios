@@ -113,32 +113,9 @@ struct PlayerView: View {
         ZStack {
             ScreenSpecificBackgroundView(screen: .player)
             mainContent
-            dismissButton
         }
         // Cap Dynamic Type so large accessibility sizes don't overflow the player layout
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-    }
-
-    // 全屏关闭入口：左上角下拉箭头（点封面收起仍保留；sheet 时代靠下滑关闭，全屏后必须有显式按钮）
-    private var dismissButton: some View {
-        VStack {
-            HStack {
-                Button {
-                    NotificationCenter.default.post(name: NSNotification.Name("MinimizePlayer"), object: nil)
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.primary)
-                        .frame(width: 40, height: 40)
-                        .background(.ultraThinMaterial, in: Circle())
-                }
-                .padding(.leading, 8)
-                .padding(.top, 2)
-
-                Spacer()
-            }
-            Spacer()
-        }
     }
 
     private var mainContent: some View {
@@ -556,11 +533,12 @@ struct PlayerView: View {
 
     // MARK: - Mini Lyrics Section
 
-    // 封面下方的小歌词窗口：显示当前句（+翻译），点击进入全屏歌词
+    // 封面下方的小歌词窗口：三行（上一句/当前句/下一句），当前句放大 + 主题色，点击进入全屏歌词
     private var lyricMiniSection: some View {
         LyricMiniSection(
             lyrics: currentLyrics,
             isLoading: isLoadingLyrics,
+            accentColor: settings.backgroundColorChoice.color,
             onTap: {
                 showLyricsSheet = true
                 if currentLyrics == nil && !isLoadingLyrics {
@@ -973,18 +951,24 @@ private struct LyricMiniSection: View {
     @ObservedObject private var progress = PlayerEngine.shared.progress
     let lyrics: Lyrics?
     let isLoading: Bool
+    let accentColor: Color
     let onTap: () -> Void
 
-    /// 当前应显示的歌词行：最后一句已到时间戳的；还没到第一句时显示第一句（等待高亮）
-    private var displayLine: LyricsLine? {
+    /// 当前句 index（syncedLyrics 中）；还没到第一句时返回 0
+    private var activeIndex: Int? {
         guard let lines = lyrics?.syncedLyrics, !lines.isEmpty else { return nil }
         let time = progress.playbackTime
-        var current: LyricsLine?
-        for line in lines {
+        var idx: Int?
+        for (i, line) in lines.enumerated() {
             guard let ts = line.timestamp else { continue }
-            if time >= ts { current = line } else { break }
+            if time >= ts { idx = i } else { break }
         }
-        return current ?? lines.first
+        return idx ?? 0
+    }
+
+    private func line(_ index: Int, in lines: [LyricsLine]) -> LyricsLine? {
+        guard index >= 0, index < lines.count else { return nil }
+        return lines[index]
     }
 
     var body: some View {
@@ -994,20 +978,15 @@ private struct LyricMiniSection: View {
                     Text("加载歌词中…")
                         .font(.callout)
                         .foregroundColor(.secondary)
-                } else if let line = displayLine {
-                    VStack(spacing: 4) {
-                        Text(line.text)
-                            .font(.callout.weight(.medium))
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-
-                        if let translation = line.translation, !translation.isEmpty {
-                            Text(translation)
-                                .font(.footnote)
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                        }
+                        .frame(maxWidth: .infinity)
+                } else if let lines = lyrics?.syncedLyrics, !lines.isEmpty {
+                    let idx = activeIndex ?? 0
+                    VStack(spacing: 6) {
+                        miniLine(line(idx - 1, in: lines)?.text, isActive: false)
+                        miniLine(line(idx, in: lines)?.text, isActive: true)
+                        miniLine(line(idx + 1, in: lines)?.text, isActive: false)
                     }
+                    .frame(maxWidth: .infinity)
                 } else if let lyrics = lyrics,
                           let firstLine = lyrics.plainLyrics.split(separator: "\n").first {
                     // 无时间轴歌词：显示第一行
@@ -1015,24 +994,28 @@ private struct LyricMiniSection: View {
                         .font(.callout.weight(.medium))
                         .foregroundColor(.primary)
                         .lineLimit(1)
+                        .frame(maxWidth: .infinity)
                 } else {
                     Text("暂无歌词")
                         .font(.callout)
                         .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
+            .padding(.vertical, 12)
             .padding(.horizontal, 16)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-            )
             .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
-        .animation(.easeInOut(duration: 0.2), value: displayLine?.text)
+        .animation(.easeInOut(duration: 0.2), value: activeIndex)
+    }
+
+    private func miniLine(_ text: String?, isActive: Bool) -> some View {
+        Text(text ?? "")
+            .font(isActive ? .body.weight(.semibold) : .subheadline)
+            .foregroundColor(isActive ? accentColor : .secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
     }
 }
 
