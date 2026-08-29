@@ -327,6 +327,25 @@ struct KaraokeControllerTests {
 
     // MARK: - 模式开关 / 切歌
 
+    @Test("单句循环与 AB 互斥：开单句清 AB；进 AB 关单句")
+    func singleLineLoopAndABMutuallyExclusive() async {
+        let fake = await makeFake(expireJumpQuiet: false)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5, 9))
+
+        // 开 AB → 单句被关
+        kc.toggleSingleLineLoop()
+        kc.enterABLoop(currentLine: 0)
+        #expect(kc.abLoop == ABLoopState(a: 0, b: nil))
+        #expect(!kc.isSingleLineLoop)
+
+        // 开单句 → AB 被清
+        kc.toggleSingleLineLoop()
+        #expect(kc.isSingleLineLoop)
+        #expect(kc.abLoop == nil)
+    }
+
     @Test("退出跟唱：清 AB/单句循环，速度恢复 1.0 并应用到引擎")
     func exitKaraokeCleansUp() async {
         let fake = await makeFake(expireJumpQuiet: false)
@@ -357,8 +376,6 @@ struct KaraokeControllerTests {
         kc.setKaraokeOn(true)
         kc.setLyrics(makeLines(0, 5, 9))
         kc.toggleSingleLineLoop()
-        kc.enterABLoop(currentLine: 0)
-        kc.clickLine(index: 1) // AB {0, 1}
         kc.cycleSpeed() // 0.5
 
         kc.resetForNewTrack()
@@ -367,6 +384,13 @@ struct KaraokeControllerTests {
         #expect(kc.isSingleLineLoop)
         #expect(kc.speed == 0.5)
         #expect(kc.abLoop == nil)
+
+        // AB 场景：进 AB 后 reset → AB 清、单句仍关（互斥）
+        kc.enterABLoop(currentLine: 0)
+        kc.clickLine(index: 1) // AB {0, 1}
+        kc.resetForNewTrack()
+        #expect(kc.abLoop == nil)
+        #expect(!kc.isSingleLineLoop)
     }
 
     // MARK: - 静默窗口 / 边界

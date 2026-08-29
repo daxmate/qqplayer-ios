@@ -130,13 +130,19 @@ final class KaraokeController: ObservableObject {
 
     func toggleSingleLineLoop() {
         isSingleLineLoop.toggle()
+        if isSingleLineLoop {
+            // 单句循环与 AB 循环互斥（用户 2026-08-29 拍板）：开单句清 AB
+            abLoop = nil
+        }
     }
 
-    /// 长按 AB 按钮：当前句 = A，等待点击歌词设 B（b == nil）
+    /// 单击 AB 按钮：当前句 = A，等待点击歌词设 B（b == nil）
+    /// 与单句循环互斥：进入 AB 关闭单句循环
     func enterABLoop(currentLine: Int) {
         guard isKaraokeOn,
               currentLine >= 0, currentLine < currentLines.count,
               currentLines[currentLine].timestamp != nil else { return }
+        isSingleLineLoop = false
         abLoop = ABLoopState(a: currentLine, b: nil)
     }
 
