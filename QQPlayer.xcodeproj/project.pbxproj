@@ -18,6 +18,9 @@
 		23C312EC2E7806AB00342F7C /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 23C312EB2E7806AB00342F7C /* GRDB */; };
 		23D82A5DA49496D9E0370887 /* IdentifiedRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A19C99C3D410D8854B01C0CF /* IdentifiedRowTests.swift */; };
 		46624DEF47FDBF724404E5E0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E0A264D696DB89EB255BEA4 /* Foundation.framework */; };
+		50455E615D9FAE84C741EB6E /* FormatInfoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 071C4A9B25AFB9B772D8625E /* FormatInfoTests.swift */; };
+		5C3389AA47637899080AFA31 /* EQFrequencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95D963241E1B89FFA0906475 /* EQFrequencyTests.swift */; };
+		C21A43E3C4B1AEB96EDDE12E /* ModelCodableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6713EFB0F4A28ACE3266FB2 /* ModelCodableTests.swift */; };
 		EE49A8EDD4423396C78DABE2 /* StableIdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6793C3A51095FE68378E031D /* StableIdTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -76,6 +79,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		071C4A9B25AFB9B772D8625E /* FormatInfoTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FormatInfoTests.swift; sourceTree = "<group>"; };
 		0E0A264D696DB89EB255BEA4 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		2312D60C2E6090E2007F756D /* QQPlayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QQPlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		239B247B2EE59BEC009F83F1 /* PlayerWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PlayerWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -87,8 +91,10 @@
 		23C312DC2E78015500342F7C /* Intents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Intents.framework; path = System/Library/Frameworks/Intents.framework; sourceTree = SDKROOT; };
 		6793C3A51095FE68378E031D /* StableIdTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StableIdTests.swift; sourceTree = "<group>"; };
 		7E57AB1E0000000000000003 /* QQPlayerSiriTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QQPlayerSiriTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		95D963241E1B89FFA0906475 /* EQFrequencyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EQFrequencyTests.swift; sourceTree = "<group>"; };
 		A19C99C3D410D8854B01C0CF /* IdentifiedRowTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = IdentifiedRowTests.swift; sourceTree = "<group>"; };
 		B708099358914775F10BAE5F /* QQPlayerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QQPlayerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C6713EFB0F4A28ACE3266FB2 /* ModelCodableTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ModelCodableTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -269,6 +275,9 @@
 			children = (
 				6793C3A51095FE68378E031D /* StableIdTests.swift */,
 				A19C99C3D410D8854B01C0CF /* IdentifiedRowTests.swift */,
+				95D963241E1B89FFA0906475 /* EQFrequencyTests.swift */,
+				071C4A9B25AFB9B772D8625E /* FormatInfoTests.swift */,
+				C6713EFB0F4A28ACE3266FB2 /* ModelCodableTests.swift */,
 			);
 			name = QQPlayerTests;
 			path = QQPlayerTests;
@@ -554,6 +563,9 @@
 			files = (
 				EE49A8EDD4423396C78DABE2 /* StableIdTests.swift in Sources */,
 				23D82A5DA49496D9E0370887 /* IdentifiedRowTests.swift in Sources */,
+				5C3389AA47637899080AFA31 /* EQFrequencyTests.swift in Sources */,
+				50455E615D9FAE84C741EB6E /* FormatInfoTests.swift in Sources */,
+				C21A43E3C4B1AEB96EDDE12E /* ModelCodableTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
