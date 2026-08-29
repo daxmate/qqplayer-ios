@@ -353,6 +353,11 @@ class PlayerEngine: NSObject, ObservableObject {
             // while the player node still has a valid render time.
             let wasPlaying = isPlaying
             let savedPosition = wasPlaying ? nowPlayingElapsedTime() : playbackTime
+            // 中断诊断（2026-08-29 中断后从头播排查）：记录保存位置时的引擎状态，
+            // 判断 savedPosition 是否走了 fallback（引擎已停导致 currentNodeSampleTime 为 nil）
+            print("🔍 [intr] .began wasPlaying=\(wasPlaying) savedPosition=\(savedPosition)s "
+                + "engineRunning=\(audioEngine.isRunning) usingSFB=\(usingSFBEngine) "
+                + "sampleTimeValid=\((currentNodeSampleTime() != nil))")
             wasPlayingBeforeInterruption = wasPlaying
 
             if isPlaying {
@@ -441,6 +446,9 @@ class PlayerEngine: NSObject, ObservableObject {
 
             if resumeAllowed {
                 print("▶️ Auto-resuming playback after interruption (was playing before)")
+                // 中断诊断（2026-08-29）：恢复前快照，确认 play() 用的 playbackTime 是否被
+                // 重置/回退（从头播根因排查）
+                print("🔍 [intr] .ended resume: playbackTime=\(playbackTime)s seekOffset=\(seekTimeOffset)s audioFile=\(audioFile != nil) usingSFB=\(usingSFBEngine) isPlaying=\(isPlaying) state=\(playbackState)")
                 play()
             } else {
                 print("⏸️ Not auto-resuming - user must manually resume")
@@ -1379,6 +1387,10 @@ class PlayerEngine: NSObject, ObservableObject {
                 print("✅ Resuming playback from current position: \(playbackTime)s")
             } else {
                 // Actually starting from beginning
+                // 中断诊断（2026-08-29）：从头播路径——记录触发条件（playbackTime<=1 或 startFrame 越界）
+                print("🔍 [intr] PLAY FROM BEGINNING: playbackTime=\(playbackTime)s "
+                    + "currentPosition=\(currentPosition)s startFrame=\(startFrame) "
+                    + "fileLength=\(audioFile.length) sampleRate=\(audioFile.processingFormat.sampleRate)")
                 seekTimeOffset = 0
                 playbackTime = 0
                 nodeTimelineStartSampleTime = 0
@@ -1871,6 +1883,10 @@ class PlayerEngine: NSObject, ObservableObject {
     private func currentTimeForCurrentNativeFile() -> TimeInterval {
         guard let audioFile = audioFile,
               let currentSampleTime = currentNodeSampleTime() else {
+            // 中断诊断（2026-08-29）：此处是可疑 fallback——引擎已停/节点无效时退回
+            // 冻结的 playbackTime（后台 UI timer 不跑，锁屏早于播放开始则其值为 0）
+            print("🔍 [intr] currentTime fallback to playbackTime=\(playbackTime)s "
+                + "(audioFile=\(audioFile != nil) sampleTime=nil engineRunning=\(audioEngine.isRunning))")
             return playbackTime
         }
 
