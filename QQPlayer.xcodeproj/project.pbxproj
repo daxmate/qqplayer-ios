@@ -31,6 +31,7 @@
 		16E1BCAA737144BAA7AB627F /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 23C312EB2E7806AB00342F7C /* GRDB */; };
 		A1D0117D952345D1B1D9D76F /* SmartPlaylistUILogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2AE1DBB52BD462D8FAA704D /* SmartPlaylistUILogicTests.swift */; };
 		CA3755439F62402997608072 /* LyricsSearchCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478898B985884E89AA416C7F /* LyricsSearchCacheTests.swift */; };
+		43259368C3DB42DCB3BAA37A /* KaraokeControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21702C2548494B02886D5344 /* KaraokeControllerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -112,6 +113,7 @@
 		B51C1329002F4C3E963D14AC /* SmartPlaylistDataTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SmartPlaylistDataTests.swift; sourceTree = "<group>"; };
 		B2AE1DBB52BD462D8FAA704D /* SmartPlaylistUILogicTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SmartPlaylistUILogicTests.swift; sourceTree = "<group>"; };
 		478898B985884E89AA416C7F /* LyricsSearchCacheTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LyricsSearchCacheTests.swift; sourceTree = "<group>"; };
+		21702C2548494B02886D5344 /* KaraokeControllerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KaraokeControllerTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -304,6 +306,7 @@
 				B51C1329002F4C3E963D14AC /* SmartPlaylistDataTests.swift */,
 				B2AE1DBB52BD462D8FAA704D /* SmartPlaylistUILogicTests.swift */,
 				478898B985884E89AA416C7F /* LyricsSearchCacheTests.swift */,
+				21702C2548494B02886D5344 /* KaraokeControllerTests.swift */,
 			);
 			name = QQPlayerTests;
 			path = QQPlayerTests;
@@ -604,6 +607,7 @@
 				664B6BEF05384F2098030629 /* SmartPlaylistDataTests.swift in Sources */,
 				A1D0117D952345D1B1D9D76F /* SmartPlaylistUILogicTests.swift in Sources */,
 				CA3755439F62402997608072 /* LyricsSearchCacheTests.swift in Sources */,
+				43259368C3DB42DCB3BAA37A /* KaraokeControllerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

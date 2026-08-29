@@ -1,0 +1,350 @@
+//
+//  KaraokeControllerTests.swift
+//  QQPlayerTests
+//
+//  跟唱模式控制器状态机测试（@MainActor 共享单例，串行执行）：
+//  - 句末自动停 / 单句循环 / AB 循环（等选终点 / B 终点 / 区间中间句 / 区间外点击）
+//  - 倍速档位循环 / 退出跟唱清理 / 切歌重置 / 跳转静默窗口 / 最后一句句末 = duration
+//
+//  通过 FakeActions 注入动作层，验证 KaraokeController 的决策输出
+//  （seek 目标 + 是否保持播放 + 倍速设置），不碰真实 PlayerEngine。
+//
+
+import Foundation
+import Testing
+
+@testable import QQPlayer
+
+/// 播放器动作 fake：记录 seek 目标与倍速设置（KaraokeController 的薄桥测试替身）
+@MainActor
+final class FakeActions: KaraokeActions {
+    var seeks: [(time: TimeInterval, play: Bool)] = []
+    var rates: [Double] = []
+
+    func seekAndPlay(to time: TimeInterval) async {
+        seeks.append((time, true))
+    }
+
+    func seekAndPause(to time: TimeInterval) async {
+        seeks.append((time, false))
+    }
+
+    func setRate(_ rate: Double) {
+        rates.append(rate)
+    }
+}
+
+@MainActor
+@Suite(.serialized)
+struct KaraokeControllerTests {
+    // MARK: - 基础设施
+
+    /// 按时间戳构造测试歌词行（text 与 index 对应，便于断言）
+    private func makeLines(_ timestamps: TimeInterval...) -> [LyricsLine] {
+        timestamps.enumerated().map { LyricsLine(timestamp: $0.element, text: "行\($0.offset)") }
+    }
+
+    /// 恢复共享单例到干净状态并注入新 fake。
+    /// expireJumpQuiet: 需要本用例首个 tick 真正生效时传 true —— 等跳转静默窗口
+    /// （0.3s）过期，避免上一个用例的 jump 抑制它（窗口是私有状态，测试无法直接重置）。
+    /// 纯 clickLine / 断言不受抑制影响的用例传 false，不加时延（套件整体需在
+    /// App 宿主 Siri 集成异步崩溃点前跑完）。
+    private func makeFake(expireJumpQuiet: Bool) async -> FakeActions {
+        let fake = FakeActions()
+        let kc = KaraokeController.shared
+        kc.actions = fake
+        kc.setKaraokeOn(true) // 幂等进入，确保下面的退出路径完整清理
+        kc.setKaraokeOn(false) // 退出：清 AB/单句 + 速度恢复 1.0
+        kc.exitABLoop()
+        kc.setLyrics([])
+        fake.rates = []
+        fake.seeks = []
+        if expireJumpQuiet {
+            try? await Task.sleep(nanoseconds: 320_000_000)
+        }
+        return fake
+    }
+
+    /// 让 jumpTo 里 spawn 的 @MainActor Task 执行完（把 seek 记录进 fake）
+    private func drainMainActor() async {
+        for _ in 0 ..< 20 {
+            await Task.yield()
+        }
+    }
+
+    /// 断言 fake 收到恰好一次 seek 且目标时间/播放态一致（元组数组不支持 ==）
+    private func expectSingleSeek(_ fake: FakeActions, time: TimeInterval, play: Bool) {
+        #expect(fake.seeks.count == 1)
+        #expect(fake.seeks.first?.time == time)
+        #expect(fake.seeks.first?.play == play)
+    }
+
+    // MARK: - 句末自动停
+
+    @Test("句末自动停：句末回句首暂停")
+    func lineEndAutoStop() async {
+        let fake = await makeFake(expireJumpQuiet: true)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5))
+
+        kc.handlePlaybackTick(time: 10.0, duration: 10.0)
+        await drainMainActor()
+
+        expectSingleSeek(fake, time: 5.0, play: false)
+    }
+
+    @Test("未到句末不动作（含句中与两句之间）")
+    func noActionBeforeLineEnd() async {
+        let fake = await makeFake(expireJumpQuiet: false)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5))
+
+        kc.handlePlaybackTick(time: 4.0, duration: 10.0) // 第 0 句内，未到 5.0
+        kc.handlePlaybackTick(time: 6.0, duration: 10.0) // 第 1 句内，未到 duration
+        await drainMainActor()
+
+        #expect(fake.seeks.isEmpty)
+    }
+
+    // MARK: - 单句循环
+
+    @Test("单句循环：句末重播本句（保持播放）")
+    func singleLineLoop() async {
+        let fake = await makeFake(expireJumpQuiet: true)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5))
+        kc.toggleSingleLineLoop()
+
+        kc.handlePlaybackTick(time: 10.0, duration: 10.0)
+        await drainMainActor()
+
+        expectSingleSeek(fake, time: 5.0, play: true)
+    }
+
+    @Test("单句循环关闭兜底：回句末自动停")
+    func singleLineLoopOffFallsBackToAutoStop() async {
+        let fake = await makeFake(expireJumpQuiet: true)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5))
+        kc.toggleSingleLineLoop()
+        kc.toggleSingleLineLoop() // 再关掉
+
+        kc.handlePlaybackTick(time: 10.0, duration: 10.0)
+        await drainMainActor()
+
+        expectSingleSeek(fake, time: 5.0, play: false)
+    }
+
+    @Test("非跟唱模式：即使单句循环开启也不动作")
+    func noTickWhenKaraokeOff() async {
+        let fake = await makeFake(expireJumpQuiet: false)
+        let kc = KaraokeController.shared
+        kc.setLyrics(makeLines(0, 5))
+        kc.toggleSingleLineLoop() // 跟唱关时仍可开单句循环
+
+        kc.handlePlaybackTick(time: 10.0, duration: 10.0)
+        await drainMainActor()
+
+        #expect(fake.seeks.isEmpty)
+        #expect(!kc.isKaraokeOn)
+    }
+
+    // MARK: - AB 循环
+
+    @Test("AB 等选终点：任何句末跳回 A 循环")
+    func abWaitingForEnd() async {
+        let fake = await makeFake(expireJumpQuiet: true)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5, 9))
+        kc.enterABLoop(currentLine: 0)
+
+        kc.handlePlaybackTick(time: 10.0, duration: 10.0)
+        await drainMainActor()
+
+        #expect(kc.abLoop == ABLoopState(a: 0, b: nil))
+        expectSingleSeek(fake, time: 0.0, play: true)
+    }
+
+    @Test("AB 设 B：点击句设为终点，不触发跳转")
+    func abSetEnd() async {
+        let fake = await makeFake(expireJumpQuiet: false)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5, 9))
+        kc.enterABLoop(currentLine: 0)
+
+        kc.clickLine(index: 1)
+        await drainMainActor()
+
+        #expect(kc.abLoop == ABLoopState(a: 0, b: 1))
+        #expect(fake.seeks.isEmpty)
+    }
+
+    @Test("AB B 终点：B 句播完跳回 A 重播")
+    func abEndPointLoop() async {
+        let fake = await makeFake(expireJumpQuiet: true)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5, 9))
+        kc.enterABLoop(currentLine: 0)
+        kc.clickLine(index: 2) // B = 2（最后一句，句末 = duration）
+
+        kc.handlePlaybackTick(time: 10.0, duration: 10.0)
+        await drainMainActor()
+
+        #expect(kc.abLoop == ABLoopState(a: 0, b: 2))
+        expectSingleSeek(fake, time: 0.0, play: true)
+    }
+
+    @Test("AB 区间中间句：句末自然推进，不干预")
+    func abMiddleLineNaturalProgress() async {
+        let fake = await makeFake(expireJumpQuiet: true)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5, 9, 12))
+        kc.enterABLoop(currentLine: 0)
+        kc.clickLine(index: 3) // B = 3
+
+        kc.handlePlaybackTick(time: 9.0, duration: 15.0) // 第 1 句末（9.0），仍处区间内
+        await drainMainActor()
+
+        #expect(fake.seeks.isEmpty)
+    }
+
+    @Test("AB 区间外点击：退出 AB 并跳到该句播放")
+    func abClickOutsideRange() async {
+        let fake = await makeFake(expireJumpQuiet: false)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5, 9, 12, 14, 16))
+        kc.enterABLoop(currentLine: 0)
+        kc.clickLine(index: 2) // B = 2，区间 [0, 2]
+
+        kc.clickLine(index: 5) // 区间外
+        await drainMainActor()
+
+        #expect(kc.abLoop == nil)
+        expectSingleSeek(fake, time: 16.0, play: true)
+    }
+
+    @Test("无 AB 点击歌词：直接跳到该句播放")
+    func clickLineWithoutAB() async {
+        let fake = await makeFake(expireJumpQuiet: false)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5, 9))
+
+        kc.clickLine(index: 1)
+        await drainMainActor()
+
+        #expect(kc.abLoop == nil)
+        expectSingleSeek(fake, time: 5.0, play: true)
+    }
+
+    // MARK: - 倍速
+
+    @Test("cycleSpeed 档位循环：1.0 → 0.5 → … → 1.0，每次追加 setRate")
+    func cycleSpeedLevels() async {
+        let fake = await makeFake(expireJumpQuiet: false)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        #expect(fake.rates == [1.0]) // 进入跟唱应用当前速度
+
+        kc.cycleSpeed() // 0.5
+        kc.cycleSpeed() // 0.6
+        kc.cycleSpeed() // 0.7
+        kc.cycleSpeed() // 0.8
+        kc.cycleSpeed() // 0.9
+        kc.cycleSpeed() // 1.0
+
+        #expect(kc.speed == 1.0)
+        #expect(fake.rates == [1.0, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+    }
+
+    // MARK: - 模式开关 / 切歌
+
+    @Test("退出跟唱：清 AB/单句循环，速度恢复 1.0 并应用到引擎")
+    func exitKaraokeCleansUp() async {
+        let fake = await makeFake(expireJumpQuiet: false)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5, 9))
+        kc.toggleSingleLineLoop()
+        kc.enterABLoop(currentLine: 0)
+        kc.clickLine(index: 1) // AB {0, 1}
+        kc.cycleSpeed() // 0.5
+        kc.cycleSpeed() // 0.6
+        kc.cycleSpeed() // 0.7
+
+        kc.toggleKaraokeMode()
+        await drainMainActor()
+
+        #expect(!kc.isKaraokeOn)
+        #expect(kc.abLoop == nil)
+        #expect(!kc.isSingleLineLoop)
+        #expect(kc.speed == 1.0)
+        #expect(fake.rates == [1.0, 0.5, 0.6, 0.7, 1.0])
+    }
+
+    @Test("resetForNewTrack：保留跟唱/速度/单句循环，仅清 AB")
+    func resetForNewTrackKeepsState() async {
+        let fake = await makeFake(expireJumpQuiet: false)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5, 9))
+        kc.toggleSingleLineLoop()
+        kc.enterABLoop(currentLine: 0)
+        kc.clickLine(index: 1) // AB {0, 1}
+        kc.cycleSpeed() // 0.5
+
+        kc.resetForNewTrack()
+
+        #expect(kc.isKaraokeOn)
+        #expect(kc.isSingleLineLoop)
+        #expect(kc.speed == 0.5)
+        #expect(kc.abLoop == nil)
+    }
+
+    // MARK: - 静默窗口 / 边界
+
+    @Test("跳转静默窗口：jump 后 0.3s 内再 tick 同时间不重复 seek")
+    func jumpQuietWindowSuppressesDuplicate() async {
+        let fake = await makeFake(expireJumpQuiet: true)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5))
+
+        kc.handlePlaybackTick(time: 10.0, duration: 10.0) // 触发 jump（设静默窗口）
+        kc.handlePlaybackTick(time: 10.0, duration: 10.0) // 静默窗口内：忽略
+        await drainMainActor()
+
+        expectSingleSeek(fake, time: 5.0, play: false)
+    }
+
+    @Test("最后一句句末 = duration：按单句/自动停规则处理")
+    func lastLineEndAtDuration() async {
+        var fake = await makeFake(expireJumpQuiet: true)
+        let kc = KaraokeController.shared
+
+        // 单句循环开：重播本句
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5))
+        kc.toggleSingleLineLoop()
+        kc.handlePlaybackTick(time: 10.0, duration: 10.0)
+        await drainMainActor()
+        expectSingleSeek(fake, time: 5.0, play: true)
+
+        // 单句循环关：回句首暂停
+        fake = await makeFake(expireJumpQuiet: true)
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5))
+        kc.handlePlaybackTick(time: 10.0, duration: 10.0)
+        await drainMainActor()
+        expectSingleSeek(fake, time: 5.0, play: false)
+    }
+}

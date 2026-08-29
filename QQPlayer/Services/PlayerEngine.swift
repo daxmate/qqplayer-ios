@@ -58,6 +58,8 @@ class PlayerEngine: NSObject, ObservableObject {
 
     private lazy var audioEngine = AVAudioEngine()
     private lazy var playerNode = AVAudioPlayerNode()
+    /// 倍速音频节点（跟唱模式变速不变调：rate 档位，pitch 保持 0）
+    private lazy var timePitchNode = AVAudioUnitTimePitch()
     private var audioFile: AVAudioFile?
     private var playbackStrategy: PlaybackRouter.PlaybackStrategy?
     private var playbackTimer: Timer?
@@ -184,13 +186,10 @@ class PlayerEngine: NSObject, ObservableObject {
             print("🛑 Stopped audio engine for reconfiguration")
         }
         print("🔧 Reconfiguring audio engine for new format: \(format.sampleRate)Hz")
-        // Disconnect all nodes to rebuild the graph
-        audioEngine.disconnectNodeInput(audioEngine.mainMixerNode)
-        audioEngine.disconnectNodeInput(playerNode)
-        // Reconnect with EQ: playerNode -> EQ -> mainMixerNode
-        eqManager.insertEQIntoAudioGraph(between: playerNode, and: audioEngine.mainMixerNode, format: format)
+        // Rebuild the graph: playerNode -> timePitch（倍速）-> EQ -> mainMixerNode
+        connectPlaybackChain(format: format)
         audioEngine.prepare()
-        print("✅ Audio engine reconfigured with EQ for sample rate: \(format.sampleRate)Hz")
+        print("✅ Audio engine reconfigured with EQ + timePitch for sample rate: \(format.sampleRate)Hz")
         // Restart engine if it was running
         if wasRunning {
             do {
@@ -204,18 +203,31 @@ class PlayerEngine: NSObject, ObservableObject {
 
     private func setupAudioEngine(with format: AVAudioFormat? = nil) {
         audioEngine.attach(playerNode)
+        audioEngine.attach(timePitchNode)
         // Set up EQ manager with the audio engine
         eqManager.setAudioEngine(audioEngine)
-        // Connect playerNode -> EQ -> mainMixerNode. AVAudioEngine owns the
-        // mainMixerNode -> outputNode connection and negotiates that format
-        // with the current hardware route. Supplying the mixer's format to the
-        // output node can raise an Objective-C exception when CarPlay is fixed
-        // at a different sample rate from the source file.
-        eqManager.insertEQIntoAudioGraph(between: playerNode, and: audioEngine.mainMixerNode, format: format)
+        // Connect playerNode -> timePitch（倍速）-> EQ -> mainMixerNode.
+        // AVAudioEngine owns the mainMixerNode -> outputNode connection and
+        // negotiates that format with the current hardware route. Supplying
+        // the mixer's format to the output node can raise an Objective-C
+        // exception when CarPlay is fixed at a different sample rate from the
+        // source file.
+        connectPlaybackChain(format: format)
         // CRITICAL: Prepare the engine to guarantee render loop activity
         audioEngine.prepare()
         // Don't start the engine here - wait until we actually need to play
-        print("✅ Audio engine configured and prepared with EQ integration, format: \(format?.description ?? "auto")")
+        print("✅ Audio engine configured and prepared with EQ + timePitch integration, format: \(format?.description ?? "auto")")
+    }
+
+    /// 播放链接线：playerNode → timePitch（倍速）→ EQ → mainMixerNode
+    /// AVAudioEngine.connect 会自动断开源节点旧连接，无需手动 disconnect playerNode
+    private func connectPlaybackChain(format: AVAudioFormat?) {
+        guard let eqNode = eqManager.currentEQNode else { return }
+        audioEngine.disconnectNodeInput(audioEngine.mainMixerNode)
+        audioEngine.disconnectNodeInput(eqNode)
+        audioEngine.connect(playerNode, to: timePitchNode, format: format)
+        audioEngine.connect(timePitchNode, to: eqNode, format: format)
+        audioEngine.connect(eqNode, to: audioEngine.mainMixerNode, format: format)
     }
 
     private func ensureAudioSessionSetup() {
@@ -842,6 +854,7 @@ class PlayerEngine: NSObject, ObservableObject {
 
         // Remove all connections
         audioEngine.detach(playerNode)
+        audioEngine.detach(timePitchNode)
 
         // Clear any scheduled buffers
         playerNode.reset()
@@ -856,6 +869,7 @@ class PlayerEngine: NSObject, ObservableObject {
         // hasSetupAudioEngine made the next load attach the same node twice.
         audioEngine = AVAudioEngine()
         playerNode = AVAudioPlayerNode()
+        timePitchNode = AVAudioUnitTimePitch()
         eqManager.setAudioEngine(nil)
         // Reset flags
         hasSetupAudioEngine = false
@@ -875,6 +889,11 @@ class PlayerEngine: NSObject, ObservableObject {
     /// 主引擎路径：AVAudioUnitTimePitch.rate（变速不变调）；SFBAudioEngine 路径暂不支持。
     func setPlaybackRate(_ rate: Double) {
         currentPlaybackRate = rate
+        // engine 未 setup 时设属性也安全：attach 后生效
+        timePitchNode.rate = Float(rate)
+        if usingSFBEngine {
+            print("⚠️ SFBAudioEngine 暂不支持倍速（Opus/DSD 不变速）")
+        }
     }
 
     @discardableResult
@@ -912,6 +931,9 @@ class PlayerEngine: NSObject, ObservableObject {
 
         isLoadingTrack = true
         print("🔄 Starting load process for: \(track.title)")
+
+        // 切歌：清 AB 行号（保留跟唱模式/速度/单句循环）
+        KaraokeController.shared.resetForNewTrack()
 
         // Play history: settle the outgoing session before the engine is torn
         // down, while the live position is still readable.
@@ -2353,6 +2375,8 @@ class PlayerEngine: NSObject, ObservableObject {
                 lastControlCenterUpdate = playbackTime
                 updateNowPlayingElapsedTime()
             }
+            // 跟唱 tick：SFB 无 timePitch 变速，但句末自动停/单句循环/AB 循环有效
+            KaraokeController.shared.handlePlaybackTick(time: playbackTime, duration: duration)
             return
         }
 
@@ -2383,6 +2407,8 @@ class PlayerEngine: NSObject, ObservableObject {
             lastControlCenterUpdate = playbackTime
             updateNowPlayingElapsedTime()
         }
+        // 跟唱 tick：句末自动停/单句循环/AB 循环决策
+        KaraokeController.shared.handlePlaybackTick(time: playbackTime, duration: duration)
     }
 
     private func handleTrackEnd() async {
