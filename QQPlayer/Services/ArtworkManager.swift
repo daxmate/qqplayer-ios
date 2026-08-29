@@ -5,12 +5,12 @@
 //  Manages album artwork extraction and caching
 //
 
-import Foundation
-import UIKit
 import AVFoundation
 import CryptoKit
+import Foundation
 import ImageIO
 import SFBAudioEngine
+import UIKit
 
 @MainActor
 class ArtworkManager: ObservableObject {
@@ -225,7 +225,7 @@ class ArtworkManager: ObservableObject {
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
         ]
         guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions as CFDictionary) else { return nil }
         return UIImage(cgImage: cgImage)
@@ -335,11 +335,9 @@ class ArtworkManager: ObservableObject {
     func cleanupOrphanedArtwork(validStableIds: Set<String>) async {
         // First, clean up mapping entries for deleted tracks
         var removedMappings = 0
-        for stableId in artworkMapping.keys {
-            if !validStableIds.contains(stableId) {
-                artworkMapping.removeValue(forKey: stableId)
-                removedMappings += 1
-            }
+        for stableId in artworkMapping.keys where !validStableIds.contains(stableId) {
+            artworkMapping.removeValue(forKey: stableId)
+            removedMappings += 1
         }
 
         if removedMappings > 0 {
@@ -397,17 +395,15 @@ class ArtworkManager: ObservableObject {
                 do {
                     let metadata = try await asset.load(.commonMetadata)
 
-                    for item in metadata {
-                        if item.commonKey == .commonKeyArtwork {
-                            do {
-                                if let data = try await item.load(.dataValue),
-                                   let image = UIImage(data: data) {
-                                    continuation.resume(returning: image)
-                                    return
-                                }
-                            } catch {
-                                print("Failed to load artwork data: \(error)")
+                    for item in metadata where item.commonKey == .commonKeyArtwork {
+                        do {
+                            if let data = try await item.load(.dataValue),
+                               let image = UIImage(data: data) {
+                                continuation.resume(returning: image)
+                                return
                             }
+                        } catch {
+                            print("Failed to load artwork data: \(error)")
                         }
                     }
 
@@ -497,7 +493,7 @@ class ArtworkManager: ObservableObject {
         guard pos + pictureLength <= data.count else { return nil }
 
         // Extract picture data
-        let pictureData = data.subdata(in: pos..<pos + pictureLength)
+        let pictureData = data.subdata(in: pos ..< pos + pictureLength)
         return UIImage(data: pictureData)
     }
 
@@ -548,7 +544,7 @@ class ArtworkManager: ObservableObject {
             let pngSignature = Data([0x89, 0x50, 0x4E, 0x47])
 
             // Search for embedded images in DSD files
-            let searchRange = 0..<min(data.count, 2097152) // Search first 2MB
+            let searchRange = 0 ..< min(data.count, 2097152) // Search first 2MB
 
             // Look for JPEG images
             if let jpegRange = data.range(of: jpegSignature, in: searchRange) {
@@ -556,9 +552,9 @@ class ArtworkManager: ObservableObject {
 
                 // Look for JPEG end marker (FF D9)
                 let jpegEndSignature = Data([0xFF, 0xD9])
-                if let endRange = data.range(of: jpegEndSignature, in: startOffset..<min(data.count, startOffset + 1048576)) {
+                if let endRange = data.range(of: jpegEndSignature, in: startOffset ..< min(data.count, startOffset + 1048576)) {
                     let endOffset = endRange.upperBound
-                    let imageData = data.subdata(in: startOffset..<endOffset)
+                    let imageData = data.subdata(in: startOffset ..< endOffset)
 
                     if let image = UIImage(data: imageData) {
                         print("🎨 Extracted JPEG artwork from DSD file (binary search): \(url.lastPathComponent)")
@@ -573,9 +569,9 @@ class ArtworkManager: ObservableObject {
 
                 // PNG files end with IEND chunk (49 45 4E 44)
                 let pngEndSignature = Data([0x49, 0x45, 0x4E, 0x44])
-                if let endRange = data.range(of: pngEndSignature, in: startOffset..<min(data.count, startOffset + 1048576)) {
+                if let endRange = data.range(of: pngEndSignature, in: startOffset ..< min(data.count, startOffset + 1048576)) {
                     let endOffset = endRange.upperBound + 4 // Include CRC after IEND
-                    let imageData = data.subdata(in: startOffset..<min(endOffset, data.count))
+                    let imageData = data.subdata(in: startOffset ..< min(endOffset, data.count))
 
                     if let image = UIImage(data: imageData) {
                         print("🎨 Extracted PNG artwork from DSD file (binary search): \(url.lastPathComponent)")
@@ -622,7 +618,7 @@ class ArtworkManager: ObservableObject {
 
         print("🏷️ Found ID3v2 tag in DSF file: \(filename)")
 
-        let id3Data = data.subdata(in: metadataOffset..<data.count)
+        let id3Data = data.subdata(in: metadataOffset ..< data.count)
         return extractArtworkFromID3v2(data: id3Data, filename: filename)
     }
 
@@ -642,15 +638,15 @@ class ArtworkManager: ObservableObject {
 
         while offset < endOffset - 10 {
             // Read frame header (10 bytes for v2.3/v2.4)
-            let frameId = String(data: data.subdata(in: offset..<offset+4), encoding: .ascii) ?? ""
+            let frameId = String(data: data.subdata(in: offset ..< offset + 4), encoding: .ascii) ?? ""
 
             let frameSize: Int
             if majorVersion >= 4 {
                 // ID3v2.4 uses synchsafe integers for frame size
-                frameSize = Int((UInt32(data[offset+4]) << 21) | (UInt32(data[offset+5]) << 14) | (UInt32(data[offset+6]) << 7) | UInt32(data[offset+7]))
+                frameSize = Int((UInt32(data[offset + 4]) << 21) | (UInt32(data[offset + 5]) << 14) | (UInt32(data[offset + 6]) << 7) | UInt32(data[offset + 7]))
             } else {
                 // ID3v2.3 uses regular 32-bit big-endian integer
-                frameSize = Int((UInt32(data[offset+4]) << 24) | (UInt32(data[offset+5]) << 16) | (UInt32(data[offset+6]) << 8) | UInt32(data[offset+7]))
+                frameSize = Int((UInt32(data[offset + 4]) << 24) | (UInt32(data[offset + 5]) << 16) | (UInt32(data[offset + 6]) << 8) | UInt32(data[offset + 7]))
             }
 
             // Move to frame data
@@ -663,7 +659,7 @@ class ArtworkManager: ObservableObject {
             if frameId == "APIC" {
                 print("🎨 Found APIC frame in \(filename), size: \(frameSize) bytes")
 
-                let frameData = data.subdata(in: offset..<offset+frameSize)
+                let frameData = data.subdata(in: offset ..< offset + frameSize)
 
                 // Parse APIC frame structure:
                 // [Encoding] [MIME type] [Picture type] [Description] [Picture data]
@@ -700,7 +696,7 @@ class ArtworkManager: ObservableObject {
                     break
                 }
 
-                let imageData = frameData.subdata(in: frameOffset..<frameData.count)
+                let imageData = frameData.subdata(in: frameOffset ..< frameData.count)
 
                 if let image = UIImage(data: imageData) {
                     print("✅ Successfully extracted artwork from ID3v2 APIC frame: \(filename)")
@@ -776,9 +772,7 @@ class ArtworkManager: ObservableObject {
         // We need to read the length to get the complete value, not just stop at null byte
 
         // Search for "METADATA_BLOCK_PICTURE=" tag
-        guard let pictureTagData = "METADATA_BLOCK_PICTURE=".data(using: .utf8) else {
-            return nil
-        }
+        let pictureTagData = Data("METADATA_BLOCK_PICTURE=".utf8)
 
         guard let tagRange = data.range(of: pictureTagData) else {
             print("⚠️ No METADATA_BLOCK_PICTURE tag found in: \(filename)")
@@ -797,7 +791,7 @@ class ArtworkManager: ObservableObject {
             // Read 4-byte little-endian length
             valueLength = Int(readLittleEndianUInt32(from: data, offset: lengthOffset))
             // Subtract the tag name length ("METADATA_BLOCK_PICTURE=".count)
-            valueLength = valueLength - pictureTagData.count
+            valueLength -= pictureTagData.count
             print("🔍 Read Vorbis comment length field: \(valueLength) bytes")
         } else {
             // Fallback: find null byte terminator
@@ -819,15 +813,15 @@ class ArtworkManager: ObservableObject {
         }
 
         // Extract the value data with correct length
-        let valueData = data.subdata(in: valueStart..<valueStart + valueLength)
+        let valueData = data.subdata(in: valueStart ..< valueStart + valueLength)
 
         // Check if this is binary data (starts with 0x00 0x00 0x00) or base64 text
         // Binary format starts with picture type as 4 bytes (usually 0x00000003 for front cover)
         // Base64 will start with ASCII letters like 'A' (0x41)
         let isBinary = valueData.count >= 4 &&
-                      valueData[0] == 0x00 &&
-                      valueData[1] == 0x00 &&
-                      valueData[2] == 0x00
+            valueData[0] == 0x00 &&
+            valueData[1] == 0x00 &&
+            valueData[2] == 0x00
 
         let pictureBlockData: Data
 
@@ -896,7 +890,7 @@ class ArtworkManager: ObservableObject {
         }
 
         // Read MIME type string
-        let mimeData = data.subdata(in: offset..<offset + mimeLength)
+        let mimeData = data.subdata(in: offset ..< offset + mimeLength)
         let mimeType = String(data: mimeData, encoding: .utf8) ?? ""
         offset += mimeLength
         print("🖼️ MIME type: \(mimeType)")
@@ -946,7 +940,7 @@ class ArtworkManager: ObservableObject {
         }
 
         // Extract picture data
-        let pictureData = data.subdata(in: offset..<offset + actualPictureLength)
+        let pictureData = data.subdata(in: offset ..< offset + actualPictureLength)
 
         if let image = UIImage(data: pictureData) {
             print("✅ Successfully extracted \(mimeType) artwork from Vorbis comments: \(filename)")

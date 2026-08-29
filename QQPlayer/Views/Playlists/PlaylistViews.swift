@@ -1,9 +1,9 @@
-import SwiftUI
 import GRDB
 import PhotosUI
+import SwiftUI
 import WidgetKit
 #if canImport(FoundationModels)
-import FoundationModels
+    import FoundationModels
 #endif
 
 fileprivate extension UIImage {
@@ -68,7 +68,7 @@ struct PlaylistsScreen: View {
                     ScrollView {
                         LazyVGrid(columns: [
                             GridItem(.flexible(), spacing: 8),
-                            GridItem(.flexible(), spacing: 8)
+                            GridItem(.flexible(), spacing: 8),
                         ], spacing: 16) {
                             ForEach(playlists, id: \.id) { playlist in
                                 if isEditMode {
@@ -160,38 +160,38 @@ struct PlaylistsScreen: View {
             }
 
             #if canImport(FoundationModels)
-            if isAIAvailable {
-                VStack {
-                    Spacer()
-                    HStack {
+                if isAIAvailable {
+                    VStack {
                         Spacer()
-                        Button {
-                            showAIPlaylistSheet = true
-                        } label: {
-                            Image(systemName: "wand.and.stars")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                                .frame(width: 56, height: 56)
-                                .background(Circle().fill(Color.accentColor))
-                                .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
+                        HStack {
+                            Spacer()
+                            Button {
+                                showAIPlaylistSheet = true
+                            } label: {
+                                Image(systemName: "wand.and.stars")
+                                    .font(.title2)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                                    .frame(width: 56, height: 56)
+                                    .background(Circle().fill(Color.accentColor))
+                                    .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
+                            }
+                            .accessibilityLabel(Localized.aiPlaylistButton)
+                            .padding(.trailing, 20)
+                            .padding(.bottom, 110) // clear the mini player
                         }
-                        .accessibilityLabel(Localized.aiPlaylistButton)
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 110) // clear the mini player
                     }
                 }
-            }
             #endif
         }
         .sheet(isPresented: $showAIPlaylistSheet) {
             #if canImport(FoundationModels)
-            if #available(iOS 26.0, *) {
-                AIPlaylistSheet {
-                    loadPlaylists()
+                if #available(iOS 26.0, *) {
+                    AIPlaylistSheet {
+                        loadPlaylists()
+                    }
+                    .environmentObject(appCoordinator)
                 }
-                .environmentObject(appCoordinator)
-            }
             #endif
         }
     }
@@ -201,11 +201,11 @@ struct PlaylistsScreen: View {
     /// the OS version supports it.
     private var isAIAvailable: Bool {
         #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            if case .available = SystemLanguageModel.default.availability {
-                return true
+            if #available(iOS 26.0, *) {
+                if case .available = SystemLanguageModel.default.availability {
+                    return true
+                }
             }
-        }
         #endif
         return false
     }
@@ -267,121 +267,121 @@ struct PlaylistsScreen: View {
 }
 
 #if canImport(FoundationModels)
-/// Bottom sheet behind the playlists screen's floating AI button: describe a
-/// playlist, the on-device model picks tracks (MixGenerator), and the result
-/// is saved as a regular playlist.
-@available(iOS 26.0, *)
-struct AIPlaylistSheet: View {
-    @EnvironmentObject private var appCoordinator: AppCoordinator
-    @Environment(\.dismiss) private var dismiss
+    /// Bottom sheet behind the playlists screen's floating AI button: describe a
+    /// playlist, the on-device model picks tracks (MixGenerator), and the result
+    /// is saved as a regular playlist.
+    @available(iOS 26.0, *)
+    struct AIPlaylistSheet: View {
+        @EnvironmentObject private var appCoordinator: AppCoordinator
+        @Environment(\.dismiss) private var dismiss
 
-    @State private var prompt = ""
-    @State private var isGenerating = false
-    @State private var showError = false
-    @State private var showCreated = false
-    @State private var createdTitle = ""
-    @State private var createdTracks: [Track] = []
-    @FocusState private var promptFocused: Bool
+        @State private var prompt = ""
+        @State private var isGenerating = false
+        @State private var showError = false
+        @State private var showCreated = false
+        @State private var createdTitle = ""
+        @State private var createdTracks: [Track] = []
+        @FocusState private var promptFocused: Bool
 
-    var onCreated: () -> Void
+        var onCreated: () -> Void
 
-    var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 20) {
-                Text(Localized.aiPlaylistDescription)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+        var body: some View {
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 20) {
+                    Text(Localized.aiPlaylistDescription)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
 
-                TextField(Localized.aiPlaylistPlaceholder, text: $prompt, axis: .vertical)
-                    .lineLimit(2...4)
-                    .textFieldStyle(.roundedBorder)
-                    .focused($promptFocused)
-                    .disabled(isGenerating)
-                    .onSubmit(generate)
-
-                if showError {
-                    Text(Localized.aiPlaylistFailed)
-                        .font(.footnote)
-                        .foregroundColor(.red)
-                }
-
-                Button(action: generate) {
-                    HStack {
-                        if isGenerating {
-                            ProgressView()
-                                .tint(.white)
-                            Text(Localized.aiPlaylistGenerating)
-                        } else {
-                            Image(systemName: "wand.and.stars")
-                            Text(Localized.aiPlaylistGenerate)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isGenerating || prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                Spacer()
-            }
-            .padding(20)
-            .navigationTitle(Localized.aiPlaylistTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(Localized.cancel) { dismiss() }
+                    TextField(Localized.aiPlaylistPlaceholder, text: $prompt, axis: .vertical)
+                        .lineLimit(2 ... 4)
+                        .textFieldStyle(.roundedBorder)
+                        .focused($promptFocused)
                         .disabled(isGenerating)
-                }
-            }
-            .onAppear { promptFocused = true }
-            .alert(Localized.aiPlaylistCreatedTitle, isPresented: $showCreated) {
-                Button(Localized.play) {
-                    let tracks = createdTracks
-                    Task { @MainActor in
-                        if let first = tracks.first {
-                            await appCoordinator.playTrack(first, queue: tracks)
+                        .onSubmit(generate)
+
+                    if showError {
+                        Text(Localized.aiPlaylistFailed)
+                            .font(.footnote)
+                            .foregroundColor(.red)
+                    }
+
+                    Button(action: generate) {
+                        HStack {
+                            if isGenerating {
+                                ProgressView()
+                                    .tint(.white)
+                                Text(Localized.aiPlaylistGenerating)
+                            } else {
+                                Image(systemName: "wand.and.stars")
+                                Text(Localized.aiPlaylistGenerate)
+                            }
                         }
-                        dismiss()
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isGenerating || prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                    Spacer()
+                }
+                .padding(20)
+                .navigationTitle(Localized.aiPlaylistTitle)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(Localized.cancel) { dismiss() }
+                            .disabled(isGenerating)
                     }
                 }
-                Button(Localized.done, role: .cancel) { dismiss() }
-            } message: {
-                Text(Localized.aiPlaylistCreatedMessage(createdTitle, createdTracks.count))
-            }
-        }
-        .presentationDetents([.medium])
-    }
-
-    private func generate() {
-        let request = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !request.isEmpty, !isGenerating else { return }
-        isGenerating = true
-        showError = false
-
-        Task { @MainActor in
-            do {
-                let mix = try await MixGenerator().generate(matching: request)
-                guard !mix.tracks.isEmpty else { throw MixGenerationError.emptyLibrary }
-
-                let playlist = try appCoordinator.createPlaylist(title: mix.title)
-                if let playlistId = playlist.id {
-                    for track in mix.tracks {
-                        try appCoordinator.addToPlaylist(playlistId: playlistId, trackStableId: track.stableId)
+                .onAppear { promptFocused = true }
+                .alert(Localized.aiPlaylistCreatedTitle, isPresented: $showCreated) {
+                    Button(Localized.play) {
+                        let tracks = createdTracks
+                        Task { @MainActor in
+                            if let first = tracks.first {
+                                await appCoordinator.playTrack(first, queue: tracks)
+                            }
+                            dismiss()
+                        }
                     }
+                    Button(Localized.done, role: .cancel) { dismiss() }
+                } message: {
+                    Text(Localized.aiPlaylistCreatedMessage(createdTitle, createdTracks.count))
                 }
-                onCreated()
-                createdTitle = playlist.title
-                createdTracks = mix.tracks
-                isGenerating = false
-                showCreated = true
-            } catch {
-                print("❌ AI playlist generation failed: \(error)")
-                showError = true
-                isGenerating = false
+            }
+            .presentationDetents([.medium])
+        }
+
+        private func generate() {
+            let request = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !request.isEmpty, !isGenerating else { return }
+            isGenerating = true
+            showError = false
+
+            Task { @MainActor in
+                do {
+                    let mix = try await MixGenerator().generate(matching: request)
+                    guard !mix.tracks.isEmpty else { throw MixGenerationError.emptyLibrary }
+
+                    let playlist = try appCoordinator.createPlaylist(title: mix.title)
+                    if let playlistId = playlist.id {
+                        for track in mix.tracks {
+                            try appCoordinator.addToPlaylist(playlistId: playlistId, trackStableId: track.stableId)
+                        }
+                    }
+                    onCreated()
+                    createdTitle = playlist.title
+                    createdTracks = mix.tracks
+                    isGenerating = false
+                    showCreated = true
+                } catch {
+                    print("❌ AI playlist generation failed: \(error)")
+                    showError = true
+                    isGenerating = false
+                }
             }
         }
     }
-}
 #endif // canImport(FoundationModels)
 
 /// Trailing tile in the playlists grid, shown only while editing. Mirrors
@@ -513,8 +513,7 @@ struct PlaylistCardView: View {
                 // Show custom cover if available, otherwise show auto-generated mashup
                 if let customCover = customCoverImage {
                     Image(uiImage: customCover)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .resizable().scaledToFill()
                         .frame(maxWidth: .infinity)
                         .aspectRatio(1, contentMode: .fit)
                         .clipped()
@@ -577,8 +576,7 @@ struct PlaylistCardView: View {
     private func artworkView(at index: Int, size: CGFloat?) -> some View {
         if index < artworks.count {
             Image(uiImage: artworks[index])
-                .resizable()
-                .aspectRatio(contentMode: .fill)
+                .resizable().scaledToFill()
                 .frame(width: size, height: size)
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: index < 4 && allTracks.count >= 4 ? 6 : 12))
@@ -589,7 +587,7 @@ struct PlaylistCardView: View {
                 .overlay(
                     Image(systemName: "music.note")
                         .foregroundColor(.secondary)
-                        .font(.system(size: size != nil ? size!/4 : 40))
+                        .font(.system(size: size != nil ? size! / 4 : 40))
                 )
         }
     }
@@ -794,8 +792,7 @@ struct PlaylistDetailScreen: View {
                             // Show custom cover if available, otherwise show auto-generated mashup
                             if let customCover = customCoverImage {
                                 Image(uiImage: customCover)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
+                                    .resizable().scaledToFill()
                                     .frame(width: 250, height: 250)
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                             } else if tracks.count >= 4 {
@@ -1095,8 +1092,7 @@ struct PlaylistDetailScreen: View {
     private func artworkView(at index: Int, size: CGFloat) -> some View {
         if index < artworks.count {
             Image(uiImage: artworks[index])
-                .resizable()
-                .aspectRatio(contentMode: .fill)
+                .resizable().scaledToFill()
                 .frame(width: size, height: size)
                 .clipped()
         } else if index < tracks.count {
@@ -1106,7 +1102,7 @@ struct PlaylistDetailScreen: View {
                 .overlay(
                     Image(systemName: "music.note")
                         .foregroundColor(.secondary)
-                        .font(.system(size: size/4))
+                        .font(.system(size: size / 4))
                 )
         }
     }
@@ -1257,7 +1253,7 @@ struct PlaylistDetailScreen: View {
             if let customPath = playlist.customCoverImagePath,
                !customPath.isEmpty,
                let containerURL = FileManager.default.containerURL(
-                forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios"
+                   forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios"
                ) {
                 let fileURL = containerURL.appendingPathComponent(customPath)
                 try? FileManager.default.removeItem(at: fileURL)
@@ -1309,8 +1305,7 @@ struct PlaylistTrackRowView: View {
 
                     if let image = artworkImage {
                         Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
+                            .resizable().scaledToFill()
                             .frame(width: 60, height: 60)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     } else {
@@ -1397,8 +1392,8 @@ struct PlaylistTrackRowView: View {
 
                     if let artistId = track.artistId,
                        let artist = try? DatabaseManager.shared.read({ db in
-                               try Artist.fetchOne(db, key: artistId)
-                           }),
+                           try Artist.fetchOne(db, key: artistId)
+                       }),
                        let allArtistTracks = try? DatabaseManager.shared.getTracksByArtistId(artistId) {
                         NavigationLink(destination: ArtistDetailScreenWrapper(artistName: artist.name, allTracks: allArtistTracks)) {
                             Label(Localized.showArtistPage, systemImage: "person.circle")
@@ -1609,7 +1604,7 @@ struct PlaylistSelectionView: View {
                     List {
                         ForEach(sortedPlaylists, id: \.id) { playlist in
                             let isInPlaylist = (try? appCoordinator.isTrackInPlaylist(playlistId: playlist.id ?? 0, trackStableId:
-                                                                                        track.stableId)) ?? false
+                                track.stableId)) ?? false
 
                             HStack(spacing: 8) {
                                 // Main clickable area for add/remove

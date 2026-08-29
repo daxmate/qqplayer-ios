@@ -1,7 +1,7 @@
-import SwiftUI
-import GRDB
-import UniformTypeIdentifiers
 import Combine
+import GRDB
+import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - Responsive Font Helper
 extension View {
@@ -319,7 +319,6 @@ struct LibraryView: View {
                 ScreenSpecificBackgroundView(screen: .library)
 
                 VStack(spacing: 0) {
-
                     // Compact processing status at the top of library
                     if libraryIndexer.isIndexing && !libraryIndexer.currentlyProcessing.isEmpty {
                         HStack(spacing: 8) {
@@ -495,7 +494,6 @@ struct LibraryView: View {
                 set: { if !$0 { searchArtistToNavigate = nil } }
             )) {
                 if let artist = searchArtistToNavigate {
-
                     ArtistDetailScreen(artist: artist, allTracks: searchArtistTracks)
                 }
             }
@@ -587,7 +585,7 @@ struct LibraryView: View {
                     }
                 }
             }
-                .animation(.easeInOut(duration: 0.3), value: showSyncToast)
+            .animation(.easeInOut(duration: 0.3), value: showSyncToast)
         )
         .sheet(isPresented: $showSearch) {
             SearchView(
@@ -979,7 +977,7 @@ struct TrackListView: View {
                         Image(systemName: "ellipsis.circle")
                             .font(.title3)
                             .foregroundColor(settings.backgroundColorChoice.color)
-                        // Increase hit area
+                            // Increase hit area
                             .padding(4)
                             .contentShape(Rectangle())
                     }
@@ -1075,7 +1073,7 @@ struct TrackListContentView: View {
         }
 
         let endIndex = min(selectedIndex + largeQueueCap, tracks.count)
-        return Array(tracks[selectedIndex..<endIndex])
+        return Array(tracks[selectedIndex ..< endIndex])
     }
 
     private func loadArtistNameCache() {
@@ -1128,68 +1126,68 @@ struct TrackListContentView: View {
         } else {
             List {
                 ForEach(displayedTracks, id: \.stableId) { track in
-                ZStack(alignment: .leading) {
-                    HStack(spacing: 0) {
-                        if isBulkMode {
-                            Image(systemName: selectedTracks.contains(track.stableId) ? "checkmark.circle.fill" : "circle")
-                                .font(.title2)
-                                .foregroundColor(selectedTracks.contains(track.stableId) ? settings.backgroundColorChoice.color : .secondary)
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
-                                .onTapGesture { toggleSelection(for: track) }
-                        }
+                    ZStack(alignment: .leading) {
+                        HStack(spacing: 0) {
+                            if isBulkMode {
+                                Image(systemName: selectedTracks.contains(track.stableId) ? "checkmark.circle.fill" : "circle")
+                                    .font(.title2)
+                                    .foregroundColor(selectedTracks.contains(track.stableId) ? settings.backgroundColorChoice.color : .secondary)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { toggleSelection(for: track) }
+                            }
 
-                        TrackRowView(
-                            track: track,
-                            activeTrackId: playerEngine.currentTrack?.stableId,
-                            isAudioPlaying: playerEngine.isPlaying,
-                            artistName: artistDisplayNameCache[track.stableId] ?? track.artistId.flatMap { artistNameCache[$0] },
-                            onTap: {
-                                if isBulkMode {
-                                    toggleSelection(for: track)
-                                } else {
-                                    Task {
-                                        if let playlist = playlist, let playlistId = playlist.id {
-                                            try? appCoordinator.updatePlaylistAccessed(playlistId: playlistId)
-                                            try? appCoordinator.updatePlaylistLastPlayed(playlistId: playlistId)
+                            TrackRowView(
+                                track: track,
+                                activeTrackId: playerEngine.currentTrack?.stableId,
+                                isAudioPlaying: playerEngine.isPlaying,
+                                artistName: artistDisplayNameCache[track.stableId] ?? track.artistId.flatMap { artistNameCache[$0] },
+                                onTap: {
+                                    if isBulkMode {
+                                        toggleSelection(for: track)
+                                    } else {
+                                        Task {
+                                            if let playlist = playlist, let playlistId = playlist.id {
+                                                try? appCoordinator.updatePlaylistAccessed(playlistId: playlistId)
+                                                try? appCoordinator.updatePlaylistLastPlayed(playlistId: playlistId)
+                                            }
+                                            await appCoordinator.playTrack(track, queue: queueForPlayback(startingAt: track))
                                         }
-                                        await appCoordinator.playTrack(track, queue: queueForPlayback(startingAt: track))
                                     }
-                                }
-                            },
-                            playlist: playlist,
-                            showDirectDeleteButton: playlist != nil && isEditMode,
-                            onEnterBulkMode: { onEnterBulkMode(track.stableId) }
-                        )
-                        .equatable() // Crucial for performance
-                        .onLongPressGesture(minimumDuration: 0.5) {
-                            if !isBulkMode { onEnterBulkMode(track.stableId) }
+                                },
+                                playlist: playlist,
+                                showDirectDeleteButton: playlist != nil && isEditMode,
+                                onEnterBulkMode: { onEnterBulkMode(track.stableId) }
+                            )
+                            .equatable() // Crucial for performance
+                            .onLongPressGesture(minimumDuration: 0.5) {
+                                if !isBulkMode { onEnterBulkMode(track.stableId) }
+                            }
                         }
                     }
-                }
-                .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                    if !isBulkMode && !recentlyActedTracks.contains(track.stableId) {
-                        Button {
-                            playerEngine.insertNext(track)
-                            markAsActed(track.stableId)
-                        } label: { Label(Localized.playNext, systemImage: "text.line.first.and.arrowtriangle.forward") }
-                            .tint(settings.backgroundColorChoice.color)
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        if !isBulkMode && !recentlyActedTracks.contains(track.stableId) {
+                            Button {
+                                playerEngine.insertNext(track)
+                                markAsActed(track.stableId)
+                            } label: { Label(Localized.playNext, systemImage: "text.line.first.and.arrowtriangle.forward") }
+                                .tint(settings.backgroundColorChoice.color)
+                        }
                     }
-                }
-                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    if !isBulkMode && !recentlyActedTracks.contains(track.stableId) {
-                        Button {
-                            playerEngine.addToQueue(track)
-                            markAsActed(track.stableId)
-                        } label: { Label(Localized.addToQueue, systemImage: "text.append") }
-                            .tint(.blue)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        if !isBulkMode && !recentlyActedTracks.contains(track.stableId) {
+                            Button {
+                                playerEngine.addToQueue(track)
+                                markAsActed(track.stableId)
+                            } label: { Label(Localized.addToQueue, systemImage: "text.append") }
+                                .tint(.blue)
+                        }
                     }
+                    .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial).opacity(0.7))
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
                 }
-                .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial).opacity(0.7))
-                .padding(.horizontal, 8).padding(.vertical, 4)
-                .listRowSeparator(.hidden).listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-            }
             }
             .listStyle(PlainListStyle())
             .scrollContentBackground(.hidden)
@@ -1518,13 +1516,13 @@ struct SearchView: View {
                                         .padding(.vertical, 8)
                                         .background(
                                             selectedCategory == category ?
-                                            settings.backgroundColorChoice.color :
+                                                settings.backgroundColorChoice.color :
                                                 Color(.systemGray6)
                                         )
                                         .foregroundColor(
                                             selectedCategory == category ?
                                                 .white :
-                                                    .primary
+                                                .primary
                                         )
                                         .cornerRadius(20)
                                 }
@@ -1630,7 +1628,6 @@ struct SearchView: View {
             songs.isEmpty && artists.isEmpty && albums.isEmpty && playlists.isEmpty
         }
     }
-
 
     struct SearchResultsView: View {
         let results: SearchResults
@@ -1869,8 +1866,7 @@ struct SearchView: View {
                         Group {
                             if let artworkImage = artworkImage {
                                 Image(uiImage: artworkImage)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
+                                    .resizable().scaledToFill()
                             } else {
                                 Image(systemName: "music.note")
                                     .font(.system(size: 16))
@@ -2191,8 +2187,7 @@ struct SearchView: View {
 
                         if let image = artworkImage {
                             Image(uiImage: image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
+                                .resizable().scaledToFill()
                                 .frame(width: 80, height: 80)
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
                         } else {
@@ -2246,8 +2241,7 @@ struct SearchView: View {
                     Group {
                         if let artworkImage = artworkImage {
                             Image(uiImage: artworkImage)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
+                                .resizable().scaledToFill()
                         } else {
                             Image(systemName: "opticaldisc.fill")
                                 .font(.system(size: 20))
@@ -2371,7 +2365,7 @@ struct MusicFilePicker: UIViewControllerRepresentable {
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [
             UTType.audio,
             UTType("public.mp3")!,
-            UTType("org.xiph.flac")!
+            UTType("org.xiph.flac")!,
         ])
 
         picker.delegate = context.coordinator

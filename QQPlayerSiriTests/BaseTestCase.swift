@@ -13,7 +13,6 @@ import AppIntentsTesting
 import XCTest
 
 class BaseTestCase: XCTestCase {
-
     @MainActor
     let app = XCUIApplication()
 

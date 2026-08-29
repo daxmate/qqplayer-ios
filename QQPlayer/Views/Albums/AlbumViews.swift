@@ -1,16 +1,16 @@
-import SwiftUI
 import GRDB
+import SwiftUI
 
 struct AlbumsScreen: View {
     let allTracks: [Track]
     @EnvironmentObject private var appCoordinator: AppCoordinator
     @State private var albums: [Album] = []
     @State private var settings = DeleteSettings.load()
-    
+
     var body: some View {
         ZStack {
             ScreenSpecificBackgroundView(screen: .albums)
-            
+
             VStack {
                 if albums.isEmpty {
                     EmptyAlbumsView()
@@ -19,7 +19,7 @@ struct AlbumsScreen: View {
                         LazyVGrid(
                             columns: [
                                 GridItem(.flexible(), spacing: 20),
-                                GridItem(.flexible())
+                                GridItem(.flexible()),
                             ],
                             spacing: 16
                         ) {
@@ -50,11 +50,11 @@ struct AlbumsScreen: View {
             settings = DeleteSettings.load()
         }
     }
-    
+
     private func getAlbumTracks(_ album: Album) -> [Track] {
         allTracks.filter { $0.albumId == album.id }
     }
-    
+
     private func loadAlbums() {
         do {
             albums = try appCoordinator.getAllAlbums()
@@ -86,7 +86,7 @@ private struct AlbumCardView: View {
     let album: Album
     let tracks: [Track]
     @State private var artworkImage: UIImage?
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Album artwork area with fixed aspect ratio
@@ -96,8 +96,7 @@ private struct AlbumCardView: View {
                     .overlay {
                         if let image = artworkImage {
                             Image(uiImage: image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
+                                .resizable().scaledToFill()
                                 .frame(width: geometry.size.width, height: geometry.size.width)
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                         } else {
@@ -108,12 +107,12 @@ private struct AlbumCardView: View {
                     }
             }
             .aspectRatio(1, contentMode: .fit)
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(album.title)
                     .font(.headline)
                     .lineLimit(2)
-                
+
                 Text(Localized.songsCount(tracks.count))
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -124,7 +123,7 @@ private struct AlbumCardView: View {
             loadAlbumArtwork()
         }
     }
-    
+
     private func loadAlbumArtwork() {
         // Use the first track in the album to get artwork
         guard let firstTrack = tracks.first else { return }
@@ -173,7 +172,7 @@ struct AlbumDetailScreen: View {
     private var hasMultipleDiscs: Bool {
         return groupedByDisc.count > 1
     }
-    
+
     private var albumArtist: String {
         if let albumArtist = album.albumArtist, !albumArtist.isEmpty {
             return albumArtist
@@ -184,11 +183,11 @@ struct AlbumDetailScreen: View {
         }
         return Localized.unknownArtist
     }
-    
+
     var body: some View {
         ZStack {
             ScreenSpecificBackgroundView(screen: .albumDetail)
-            
+
             ScrollView {
                 VStack(spacing: 24) {
                     // Artwork + info
@@ -199,8 +198,7 @@ struct AlbumDetailScreen: View {
                             .overlay {
                                 if let image = artworkImage {
                                     Image(uiImage: image)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
+                                        .resizable().scaledToFill()
                                         .frame(width: 250, height: 250)
                                         .clipShape(RoundedRectangle(cornerRadius: 12))
                                 } else {
@@ -210,13 +208,13 @@ struct AlbumDetailScreen: View {
                                 }
                             }
                             .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-                        
+
                         VStack(spacing: 8) {
                             Text(album.title)
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .multilineTextAlignment(.center)
-                            
+
                             NavigationLink {
                                 ArtistDetailScreenWrapper(artistName: albumArtist, allTracks: allTracks)
                             } label: {
@@ -227,7 +225,7 @@ struct AlbumDetailScreen: View {
                             }
                             .buttonStyle(.plain)
                         }
-                        
+
                         HStack(spacing: 12) {
                             Button {
                                 if let first = filteredAlbumTracks.first {
@@ -276,7 +274,7 @@ struct AlbumDetailScreen: View {
                         .padding(.horizontal, 8)
                     }
                     .padding(.horizontal)
-                    
+
                     // Track list
                     VStack(alignment: .leading, spacing: 0) {
                         HStack {
@@ -437,13 +435,13 @@ struct AlbumTrackRowView: View {
     let onTap: () -> Void
     /// Menu entry point into multi-select. The long press is unreliable over
     /// this row's Button root, so the menu is the dependable route.
-    var onEnterBulkMode: (() -> Void)? = nil
+    var onEnterBulkMode: (() -> Void)?
     @EnvironmentObject private var appCoordinator: AppCoordinator
     @State private var isFavorite = false
     @State private var showPlaylistDialog = false
     @State private var showDeleteConfirmation = false
     @State private var deleteSettings = DeleteSettings.load()
-    
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 8) {
@@ -453,7 +451,7 @@ struct AlbumTrackRowView: View {
                     .fontWeight(.medium)
                     .foregroundColor(.secondary)
                     .frame(width: 22, alignment: .leading)
-                
+
                 // Track info
                 VStack(alignment: .leading, spacing: 4) {
                     Text(track.title)
@@ -462,21 +460,21 @@ struct AlbumTrackRowView: View {
                         .foregroundColor(.primary)
                         .lineLimit(1)
                         .multilineTextAlignment(.leading)
-                    
+
                     // Artist name and duration with dot separator
                     HStack(spacing: 0) {
                         if let artistName, !artistName.isEmpty {
                             Text(artistName)
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            
+
                             if track.durationMs != nil {
                                 Text(" • ")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
                         }
-                        
+
                         if let duration = track.durationMs {
                             Text(formatDuration(duration))
                                 .font(.caption)
@@ -484,9 +482,9 @@ struct AlbumTrackRowView: View {
                         }
                     }
                 }
-                
+
                 Spacer()
-                
+
                 // Menu button - reduced spacing
                 Menu {
                     if let onEnterBulkMode {
@@ -511,7 +509,7 @@ struct AlbumTrackRowView: View {
                                 .foregroundColor(.primary)
                         }
                     }
-                    
+
                     if let artistId = track.artistId,
                        let artist = try? DatabaseManager.shared.read({ db in
                            try Artist.fetchOne(db, key: artistId)
@@ -521,13 +519,13 @@ struct AlbumTrackRowView: View {
                             Label(Localized.showArtistPage, systemImage: "person.circle")
                         }
                     }
-                    
+
                     Button(action: {
                         showPlaylistDialog = true
                     }) {
                         Label(Localized.addToPlaylistEllipsis, systemImage: "rectangle.stack.badge.plus")
                     }
-                    
+
                     Button(action: {
                         showDeleteConfirmation = true
                     }) {
@@ -562,7 +560,7 @@ struct AlbumTrackRowView: View {
             Text(Localized.deleteFileConfirmation(track.title))
         }
     }
-    
+
     private func checkFavoriteStatus() {
         do {
             isFavorite = try DatabaseManager.shared.isFavorite(trackStableId: track.stableId)
@@ -570,14 +568,14 @@ struct AlbumTrackRowView: View {
             print("Failed to check favorite status: \(error)")
         }
     }
-    
+
     private func formatDuration(_ milliseconds: Int) -> String {
         let seconds = milliseconds / 1000
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         return String(format: "%d:%02d", minutes, remainingSeconds)
     }
-    
+
     private func deleteFile() {
         Task {
             do {
@@ -605,7 +603,7 @@ struct ArtistDetailScreenWrapper: View {
     let artistName: String
     let allTracks: [Track]
     @State private var artist: Artist?
-    
+
     var body: some View {
         Group {
             if let artist {
@@ -621,7 +619,7 @@ struct ArtistDetailScreenWrapper: View {
         }
         .onAppear(perform: loadArtist)
     }
-    
+
     private func loadArtist() {
         do {
             artist = try DatabaseManager.shared.read { db in

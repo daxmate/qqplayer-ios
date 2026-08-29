@@ -5,9 +5,9 @@
 //  Indexes audio files (FLAC, MP3, WAV, AAC, Opus, Vorbis, DSD) in iCloud Drive using NSMetadataQuery
 //
 
-import Foundation
-import CryptoKit
 import AVFoundation
+import CryptoKit
+import Foundation
 import SFBAudioEngine
 
 enum LibraryIndexerError: Error {
@@ -29,7 +29,7 @@ private struct FileFingerprint {
 @MainActor
 class LibraryIndexer: NSObject, ObservableObject {
     static let shared = LibraryIndexer()
-    
+
     @Published var isIndexing = false
     @Published var indexingProgress: Double = 0.0
     @Published var tracksFound = 0
@@ -43,12 +43,12 @@ class LibraryIndexer: NSObject, ObservableObject {
     private let metadataQuery = NSMetadataQuery()
     private let databaseManager = DatabaseManager.shared
     private let stateManager = StateManager.shared
-    
+
     override init() {
         super.init()
         setupMetadataQuery()
     }
-    
+
     private func setupMetadataQuery() {
         metadataQuery.delegate = self
 
@@ -65,14 +65,14 @@ class LibraryIndexer: NSObject, ObservableObject {
             NSPredicate(format: "%K LIKE %@", NSMetadataItemFSNameKey, format)
         }
         metadataQuery.predicate = NSCompoundPredicate(orPredicateWithSubpredicates: formatPredicates)
-        
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(queryDidGatherInitialResults),
             name: NSNotification.Name.NSMetadataQueryDidFinishGathering,
             object: metadataQuery
         )
-        
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(queryDidUpdate),
@@ -80,7 +80,7 @@ class LibraryIndexer: NSObject, ObservableObject {
             object: metadataQuery
         )
     }
-    
+
     func start() {
         guard !isIndexing else { return }
 
@@ -95,7 +95,7 @@ class LibraryIndexer: NSObject, ObservableObject {
         Task {
             await copyFilesFromSharedContainer()
         }
-        
+
         let generation = indexingGeneration
 
         Task {
@@ -138,7 +138,7 @@ class LibraryIndexer: NSObject, ObservableObject {
     nonisolated private func resolveMusicFolderURL() async -> URL? {
         stateManager.getMusicFolderURL()
     }
-    
+
     func startOfflineMode() {
         guard !isIndexing else { return }
 
@@ -150,13 +150,13 @@ class LibraryIndexer: NSObject, ObservableObject {
             await scanLocalDocuments()
         }
     }
-    
+
     func stop() {
         indexingGeneration &+= 1
         metadataQuery.stop()
         isIndexing = false
     }
-    
+
     func switchToOfflineMode() {
         print("🔄 Switching LibraryIndexer to offline mode")
         stop()
@@ -377,10 +377,10 @@ class LibraryIndexer: NSObject, ObservableObject {
             return false
         }
     }
-    
+
     @objc private func queryDidGatherInitialResults() {
         print("🔍 NSMetadataQuery gathered initial results: \(metadataQuery.resultCount) items")
-        for i in 0..<metadataQuery.resultCount {
+        for i in 0 ..< metadataQuery.resultCount {
             if let item = metadataQuery.result(at: i) as? NSMetadataItem,
                let url = item.value(forAttribute: NSMetadataItemURLKey) as? URL {
                 print("  Found: \(url.lastPathComponent)")
@@ -390,28 +390,28 @@ class LibraryIndexer: NSObject, ObservableObject {
             await processQueryResults()
         }
     }
-    
+
     @objc private func queryDidUpdate() {
         Task {
             await processQueryResults()
         }
     }
-    
+
     private func processQueryResults() async {
         metadataQuery.disableUpdates()
         defer { metadataQuery.enableUpdates() }
-        
+
         let itemCount = metadataQuery.resultCount
-        
+
         if itemCount == 0 {
             print("NSMetadataQuery found 0 results, falling back to direct file system scan")
             await fallbackToDirectScan()
             return
         }
-        
+
         var processedCount = 0
-        
-        for i in 0..<itemCount {
+
+        for i in 0 ..< itemCount {
             guard let item = metadataQuery.result(at: i) as? NSMetadataItem else { continue }
 
             await processMetadataItem(item)
@@ -433,20 +433,20 @@ class LibraryIndexer: NSObject, ObservableObject {
             await FileCleanupManager.shared.reconcileMissingFiles(in: [musicFolderURL])
         }
         postPendingLibraryRefresh()
-        
+
         isIndexing = false
         print("Library indexing completed. Found \(tracksFound) tracks.")
     }
-    
+
     private func fallbackToDirectScan() async {
         print("🔄 Starting fallback direct scan of both iCloud and local folders")
-        
+
         var allMusicFiles: [URL] = []
         var successfullyScannedRoots: [URL] = []
-        
+
         // First, copy any new files from shared container to Documents
         await copyFilesFromSharedContainer()
-        
+
         // Scan iCloud folder if available
         if let iCloudMusicFolderURL = stateManager.getMusicFolderURL() {
             print("📁 Scanning iCloud folder: \(iCloudMusicFolderURL.path)")
@@ -461,7 +461,7 @@ class LibraryIndexer: NSObject, ObservableObject {
                 print("⚠️ Failed to scan iCloud folder: \(error)")
             }
         }
-        
+
         // Scan local Documents folder
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         print("📱 Scanning local Documents folder: \(documentsPath.path)")
@@ -476,10 +476,10 @@ class LibraryIndexer: NSObject, ObservableObject {
         } catch {
             print("⚠️ Failed to scan local Documents folder: \(error)")
         }
-        
+
         let totalFiles = allMusicFiles.count
         print("📁 Total music files found (iCloud + local): \(totalFiles)")
-        
+
         guard totalFiles > 0 else {
             // An empty, successfully enumerated root is meaningful: all of
             // its former tracks may have been deleted.
@@ -489,13 +489,13 @@ class LibraryIndexer: NSObject, ObservableObject {
             print("❌ No music files found in any location")
             return
         }
-        
+
         // Set initial queue
         await MainActor.run {
             queuedFiles = allMusicFiles.map { $0.lastPathComponent }
             currentlyProcessing = ""
         }
-        
+
         let allFileNames = allMusicFiles.map { $0.lastPathComponent }
 
         // Parse and persist with bounded concurrency. Each file's work runs off
@@ -533,7 +533,7 @@ class LibraryIndexer: NSObject, ObservableObject {
                 }
             }
         }
-        
+
         // Clear processing state when done
         await MainActor.run {
             currentlyProcessing = ""
@@ -542,7 +542,7 @@ class LibraryIndexer: NSObject, ObservableObject {
 
         await FileCleanupManager.shared.reconcileMissingFiles(in: successfullyScannedRoots)
         postPendingLibraryRefresh()
-        
+
         isIndexing = false
         print("✅ Direct scan completed. Found \(tracksFound) tracks from both iCloud and local folders.")
 
@@ -624,13 +624,13 @@ class LibraryIndexer: NSObject, ObservableObject {
             print("❌ Failed to process folder playlist for \(folderName): \(error)")
         }
     }
-    
+
     private func scanLocalDocuments() async {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        
+
         do {
             let musicFiles = try await findMusicFiles(in: documentsPath)
-            
+
             let totalFiles = musicFiles.count
 
             // Same bounded-concurrency treatment as the iCloud fallback scan so
@@ -662,7 +662,7 @@ class LibraryIndexer: NSObject, ObservableObject {
 
             await FileCleanupManager.shared.reconcileMissingFiles(in: [documentsPath])
             postPendingLibraryRefresh()
-            
+
             await MainActor.run {
                 isIndexing = false
                 print("Offline library scan completed. Found \(tracksFound) tracks.")
@@ -677,39 +677,39 @@ class LibraryIndexer: NSObject, ObservableObject {
             }
         }
     }
-    
+
     private func findMusicFiles(in directory: URL) async throws -> [URL] {
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 do {
                     var musicFiles: [URL] = []
-                    
+
                     let resourceKeys: [URLResourceKey] = [.isRegularFileKey, .nameKey]
                     let directoryEnumerator = FileManager.default.enumerator(
                         at: directory,
                         includingPropertiesForKeys: resourceKeys,
                         options: [.skipsHiddenFiles]
                     )
-                    
+
                     guard let enumerator = directoryEnumerator else {
                         continuation.resume(returning: musicFiles)
                         return
                     }
-                    
+
                     for case let fileURL as URL in enumerator {
                         let resourceValues = try fileURL.resourceValues(forKeys: Set(resourceKeys))
-                        
+
                         guard let isRegularFile = resourceValues.isRegularFile, isRegularFile else {
                             continue
                         }
-                        
+
                         let pathExtension = fileURL.pathExtension.lowercased()
                         let supportedExtensions = ["flac", "mp3", "wav", "m4a", "aac", "opus", "ogg", "dsf", "dff"]
                         if supportedExtensions.contains(pathExtension) {
                             musicFiles.append(fileURL)
                         }
                     }
-                    
+
                     continuation.resume(returning: musicFiles)
                 } catch {
                     continuation.resume(throwing: error)
@@ -717,7 +717,7 @@ class LibraryIndexer: NSObject, ObservableObject {
             }
         }
     }
-    
+
     /// One unit of scan work, safe to run concurrently off the main actor.
     /// The iCloud status is re-read per file rather than snapshotted so a
     /// mid-scan auth failure still halts further iCloud reads.
@@ -739,9 +739,9 @@ class LibraryIndexer: NSObject, ObservableObject {
     nonisolated private func processLocalFile(_ fileURL: URL) async {
         do {
             print("🎵 Starting to process file: \(fileURL.lastPathComponent)")
-            
+
             let isLocalFile = !fileURL.path.contains("Mobile Documents")
-            
+
             // Only try to download from iCloud if it's actually an iCloud file
             if !isLocalFile {
                 do {
@@ -749,7 +749,7 @@ class LibraryIndexer: NSObject, ObservableObject {
                     print("✅ iCloud file ensured local: \(fileURL.lastPathComponent)")
                 } catch {
                     print("⚠️ Failed to ensure iCloud file is local: \(fileURL.lastPathComponent) - \(error)")
-                    
+
                     // Check for authentication errors
                     if let cloudError = error as? CloudDownloadError {
                         switch cloudError {
@@ -761,13 +761,13 @@ class LibraryIndexer: NSObject, ObservableObject {
                             break
                         }
                     }
-                    
+
                     // Continue processing even if download fails (for other errors)
                 }
             } else {
                 print("📱 Processing local file (no iCloud download needed): \(fileURL.lastPathComponent)")
             }
-            
+
             print("🆔 Generating stable ID for: \(fileURL.lastPathComponent)")
             let stableId = try generateStableId(for: fileURL)
             print("🆔 Generated stable ID: \(stableId)")
@@ -797,10 +797,10 @@ class LibraryIndexer: NSObject, ObservableObject {
                 replacing: existingTrack,
                 sourceDescription: "file"
             )
-            
+
             // Check if file is downloaded (for iCloud files)
             await checkDownloadStatus(for: fileURL)
-            
+
         } catch LibraryIndexerError.parseTimeout {
             print("⏰ Timeout parsing audio file: \(fileURL.lastPathComponent)")
             print("❌ Skipping file due to parsing timeout")
@@ -810,11 +810,11 @@ class LibraryIndexer: NSObject, ObservableObject {
             print("❌ Error details: \(String(describing: error))")
         }
     }
-    
+
     nonisolated private func checkDownloadStatus(for fileURL: URL) async {
         do {
             let resourceValues = try fileURL.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey, .isUbiquitousItemKey])
-            
+
             if let isUbiquitous = resourceValues.isUbiquitousItem, isUbiquitous {
                 if let downloadStatus = resourceValues.ubiquitousItemDownloadingStatus {
                     switch downloadStatus {
@@ -835,7 +835,7 @@ class LibraryIndexer: NSObject, ObservableObject {
             print("Failed to check download status for \(fileURL.lastPathComponent): \(error)")
         }
     }
-    
+
     private func processMetadataItem(_ item: NSMetadataItem) async {
         guard let fileURL = item.value(forAttribute: NSMetadataItemURLKey) as? URL else { return }
         let ext = fileURL.pathExtension.lowercased()
@@ -866,28 +866,28 @@ class LibraryIndexer: NSObject, ObservableObject {
                 replacing: existingTrack,
                 sourceDescription: "iCloud file"
             )
-            
+
             // Check if file is downloaded (for iCloud files)
             await checkDownloadStatus(for: fileURL)
-            
+
         } catch {
             print("Failed to process track at \(fileURL): \(error)")
         }
     }
-    
+
     nonisolated func generateStableId(for url: URL) throws -> String {
         DatabaseManager.generatePathStableId(forPath: url.path)
     }
-    
+
     nonisolated private func parseAudioFile(at url: URL, stableId: String) async throws -> ParsedAudioFile {
         print("🔍 Calling AudioMetadataParser for: \(url.lastPathComponent)")
-        
+
         // Add timeout to prevent hanging
         let metadata = try await withThrowingTaskGroup(of: AudioMetadata.self) { group in
             group.addTask {
                 return try await AudioMetadataParser.parseMetadata(from: url)
             }
-            
+
             group.addTask {
                 // Files are parsed several at a time, so a single file's
                 // wall-clock time now includes contention with its peers (and,
@@ -897,17 +897,17 @@ class LibraryIndexer: NSObject, ObservableObject {
                 try await Task.sleep(nanoseconds: 30_000_000_000) // 30 seconds timeout
                 throw LibraryIndexerError.parseTimeout
             }
-            
+
             guard let result = try await group.next() else {
                 throw LibraryIndexerError.parseTimeout
             }
-            
+
             group.cancelAll()
             return result
         }
-        
+
         print("✅ AudioMetadataParser completed for: \(url.lastPathComponent)")
-        
+
         let artistNames = parseArtistNames(metadata.artist)
         let rawAlbumArtist = metadata.albumArtist?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let albumArtistNames = rawAlbumArtist.isEmpty ? artistNames : parseArtistNames(rawAlbumArtist)
@@ -934,9 +934,9 @@ class LibraryIndexer: NSObject, ObservableObject {
             albumArtist: displayAlbumArtist,
             candidateArtistIds: (artists + albumArtists).compactMap(\.id)
         )
-        
+
         let resourceValues = try url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
-        
+
         let track = Track(
             stableId: stableId,
             albumId: album.id,
@@ -1006,22 +1006,20 @@ class LibraryIndexer: NSObject, ObservableObject {
 
     nonisolated private func cleanArtistName(_ artistName: String) -> String {
         var cleaned = artistName.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         // Remove common YouTube/streaming suffixes
         let suffixesToRemove = [
             " - Topic",
             " Topic",
-            "- Topic", 
+            "- Topic",
             ", Topic",
-            " (Topic)"
+            " (Topic)",
         ]
-        
-        for suffix in suffixesToRemove {
-            if cleaned.hasSuffix(suffix) {
-                cleaned = String(cleaned.dropLast(suffix.count)).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
+
+        for suffix in suffixesToRemove where cleaned.hasSuffix(suffix) {
+            cleaned = String(cleaned.dropLast(suffix.count)).trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        
+
         // Remove brackets and additional info that might cause duplicates
         if let bracketStart = cleaned.firstIndex(of: "[") {
             cleaned = String(cleaned[..<bracketStart]).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1036,7 +1034,7 @@ class LibraryIndexer: NSObject, ObservableObject {
 
         return cleaned.isEmpty ? Localized.unknownArtist : cleaned
     }
-    
+
     func copyFilesFromSharedContainer() async {
         print("📁 Checking shared container for new music files...")
 
@@ -1462,7 +1460,7 @@ class AudioMetadataParser {
     static func parseMetadata(from url: URL) async throws -> AudioMetadata {
         return try await parseAudioMetadataSync(from: url)
     }
-    
+
     private static func parseAudioMetadataSync(from url: URL) async throws -> AudioMetadata {
         let ext = url.pathExtension.lowercased()
 
@@ -1490,7 +1488,7 @@ class AudioMetadataParser {
             throw AudioParseError.unsupportedFormat
         }
     }
-    
+
     private static func parseFlacMetadataSync(from url: URL) async throws -> AudioMetadata {
         var title: String?
         var artist: String?
@@ -1508,29 +1506,29 @@ class AudioMetadataParser {
         var replaygainTrackPeak: Double?
         var replaygainAlbumPeak: Double?
         var hasEmbeddedArt = false
-        
+
         // Check if file is actually readable first
         guard FileManager.default.isReadableFile(atPath: url.path) else {
             print("❌ FLAC file is not readable: \(url.lastPathComponent)")
             throw AudioParseError.fileNotReadable
         }
-        
+
         // Get file size to check if reasonable
         let fileAttributes = try FileManager.default.attributesOfItem(atPath: url.path)
         guard let fileSize = fileAttributes[.size] as? Int64 else {
             throw AudioParseError.fileNotReadable
         }
-        
+
         print("📊 FLAC file size: \(fileSize) bytes for \(url.lastPathComponent)")
-        
+
         // or too small (<1KB)
         guard fileSize > 1024 else {
             print("❌ FLAC file size is unreasonable: \(fileSize) bytes")
             throw AudioParseError.fileSizeError
         }
-        
+
         print("📖 Reading FLAC data for: \(url.lastPathComponent)")
-        
+
         // Use NSFileCoordinator to properly read iCloud files
         let data: Data = try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
@@ -1538,19 +1536,19 @@ class AudioMetadataParser {
                 let coordinator = NSFileCoordinator()
                 var coordinatedData: Data?
                 var coordinatedError: Error?
-                
+
                 coordinator.coordinate(readingItemAt: url, options: .withoutChanges, error: &error) { (readingURL) in
                     do {
                         // Create fresh URL to avoid stale metadata
                         let freshURL = URL(fileURLWithPath: readingURL.path)
                         print("🔄 Using NSFileCoordinator to read: \(freshURL.lastPathComponent)")
-                        
+
                         // Check if file actually exists at path
                         guard FileManager.default.fileExists(atPath: freshURL.path) else {
                             coordinatedError = AudioParseError.fileNotReadable
                             return
                         }
-                        
+
                         // Map instead of loading the whole file - metadata lives at
                         // the start, and 2000 x full FLAC reads spikes memory
                         coordinatedData = try Data(contentsOf: freshURL, options: .mappedIfSafe)
@@ -1560,7 +1558,7 @@ class AudioMetadataParser {
                         coordinatedError = error
                     }
                 }
-                
+
                 if let error = error {
                     print("❌ NSFileCoordinator error: \(error)")
                     continuation.resume(throwing: error)
@@ -1573,50 +1571,50 @@ class AudioMetadataParser {
                 }
             }
         }
-        
+
         if data.count < 42 {
             throw AudioParseError.invalidFile
         }
-        
+
         var offset = 4
-        
+
         while offset < data.count {
             let blockHeader = data[offset]
             let isLast = (blockHeader & 0x80) != 0
             let blockType = blockHeader & 0x7F
-            
+
             offset += 1
-            
+
             guard offset + 3 <= data.count else { break }
-            
+
             let blockSize = Int(data[offset]) << 16 | Int(data[offset + 1]) << 8 | Int(data[offset + 2])
             offset += 3
-            
+
             if blockType == 0 {
                 if offset + 18 <= data.count {
                     sampleRate = Int(data[offset + 10]) << 12 | Int(data[offset + 11]) << 4 | Int(data[offset + 12]) >> 4
                     channels = Int((data[offset + 12] >> 1) & 0x07) + 1
                     bitDepth = Int(((data[offset + 12] & 0x01) << 4) | (data[offset + 13] >> 4)) + 1
-                    
+
                     let totalSamples = UInt64(data[offset + 13] & 0x0F) << 32 |
-                                      UInt64(data[offset + 14]) << 24 |
-                                      UInt64(data[offset + 15]) << 16 |
-                                      UInt64(data[offset + 16]) << 8 |
-                                      UInt64(data[offset + 17])
-                    
+                        UInt64(data[offset + 14]) << 24 |
+                        UInt64(data[offset + 15]) << 16 |
+                        UInt64(data[offset + 16]) << 8 |
+                        UInt64(data[offset + 17])
+
                     if sampleRate! > 0 {
                         durationMs = Int((totalSamples * 1000) / UInt64(sampleRate!))
                     }
                 }
             } else if blockType == 4 {
-                let commentData = data.subdata(in: offset..<min(offset + blockSize, data.count))
+                let commentData = data.subdata(in: offset ..< min(offset + blockSize, data.count))
                 let metadata = parseVorbisComments(commentData)
-                
+
                 title = metadata["TITLE"]
                 artist = metadata["ARTIST"] ?? metadata["ARTISTE"]
                 album = metadata["ALBUM"]
                 albumArtist = metadata["ALBUMARTIST"]
-                
+
                 if let trackStr = metadata["TRACKNUMBER"] {
                     trackNumber = Int(trackStr)
                 }
@@ -1626,7 +1624,7 @@ class AudioMetadataParser {
                 if let dateStr = metadata["DATE"] {
                     year = Int(dateStr)
                 }
-                
+
                 if let gainStr = metadata["REPLAYGAIN_TRACK_GAIN"] {
                     replaygainTrackGain = parseReplayGain(gainStr)
                 }
@@ -1643,12 +1641,12 @@ class AudioMetadataParser {
                 // PICTURE block - embedded artwork
                 hasEmbeddedArt = true
             }
-            
+
             offset += blockSize
-            
+
             if isLast { break }
         }
-        
+
         return AudioMetadata(
             title: title,
             artist: artist,
@@ -1668,30 +1666,30 @@ class AudioMetadataParser {
             hasEmbeddedArt: hasEmbeddedArt
         )
     }
-    
+
     private static func parseVorbisComments(_ data: Data) -> [String: String] {
         var comments: [String: String] = [:]
         var offset = 0
-        
+
         guard offset + 4 <= data.count else { return comments }
-        
+
         let vendorLength = Int(data[offset]) | (Int(data[offset + 1]) << 8) | (Int(data[offset + 2]) << 16) | (Int(data[offset + 3]) << 24)
         offset += 4 + vendorLength
-        
+
         guard offset + 4 <= data.count else { return comments }
-        
+
         let commentCount = Int(data[offset]) | (Int(data[offset + 1]) << 8) | (Int(data[offset + 2]) << 16) | (Int(data[offset + 3]) << 24)
         offset += 4
-        
-        for _ in 0..<commentCount {
+
+        for _ in 0 ..< commentCount {
             guard offset + 4 <= data.count else { break }
-            
+
             let commentLength = Int(data[offset]) | (Int(data[offset + 1]) << 8) | (Int(data[offset + 2]) << 16) | (Int(data[offset + 3]) << 24)
             offset += 4
-            
+
             guard offset + commentLength <= data.count else { break }
-            
-            if let commentString = String(data: data.subdata(in: offset..<offset + commentLength), encoding: .utf8) {
+
+            if let commentString = String(data: data.subdata(in: offset ..< offset + commentLength), encoding: .utf8) {
                 let parts = commentString.split(separator: "=", maxSplits: 1)
                 if parts.count == 2 {
                     let key = String(parts[0]).uppercased()
@@ -1708,13 +1706,13 @@ class AudioMetadataParser {
                     }
                 }
             }
-            
+
             offset += commentLength
         }
-        
+
         return comments
     }
-    
+
     private static func parseReplayGain(_ gainString: String) -> Double? {
         let cleaned = gainString.replacingOccurrences(of: " dB", with: "")
         return Double(cleaned)
@@ -1766,39 +1764,39 @@ class AudioMetadataParser {
 
         return nil
     }
-    
+
     private static func parseMp3MetadataSync(from url: URL) async throws -> AudioMetadata {
         print("📖 Reading MP3 metadata for: \(url.lastPathComponent)")
-        
+
         // Use NSFileCoordinator for iCloud files (same as FLAC)
         let asset: AVURLAsset = try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 var error: NSError?
                 let coordinator = NSFileCoordinator()
-                
+
                 coordinator.coordinate(readingItemAt: url, options: .withoutChanges, error: &error) { (readingURL) in
                     // Create fresh URL to avoid stale metadata
                     let freshURL = URL(fileURLWithPath: readingURL.path)
                     print("🔄 Using NSFileCoordinator for MP3: \(freshURL.lastPathComponent)")
-                    
+
                     // Check if file actually exists at path
                     guard FileManager.default.fileExists(atPath: freshURL.path) else {
                         continuation.resume(throwing: AudioParseError.fileNotReadable)
                         return
                     }
-                    
+
                     let asset = AVURLAsset(url: freshURL)
                     print("✅ MP3 AVURLAsset created successfully via NSFileCoordinator")
                     continuation.resume(returning: asset)
                 }
-                
+
                 if let error = error {
                     print("❌ NSFileCoordinator error for MP3: \(error)")
                     continuation.resume(throwing: error)
                 }
             }
         }
-        
+
         var title: String?
         var artist: String?
         var album: String?
@@ -1807,12 +1805,12 @@ class AudioMetadataParser {
         var discNumber: Int?
         var year: Int?
         var hasEmbeddedArt = false
-        
+
         // Parse ID3 metadata using async API
         do {
             let commonMetadata = try await asset.load(.commonMetadata)
             let allMetadata = try await asset.load(.metadata)
-            
+
             // Parse common metadata
             for item in commonMetadata {
                 switch item.commonKey {
@@ -1841,7 +1839,7 @@ class AudioMetadataParser {
                     discNumber = await extractTrackOrDiscNumber(from: item)
                 }
             }
-            
+
             // Check for additional ID3 tags
             for metadata in allMetadata {
                 if let key = metadata.commonKey?.rawValue {
@@ -1915,31 +1913,30 @@ class AudioMetadataParser {
                             let value = try? await metadata.load(.stringValue)
                             print("🔍 Unhandled artist-related tag \(identifier.rawValue): \(value ?? "nil")")
                         }
-                        break
                     }
                 }
             }
         } catch {
             print("Failed to load asset metadata: \(error)")
         }
-        
+
         // Get actual audio format info
         var sampleRate: Int?
         var channels: Int?
         var durationMs: Int?
-        
+
         // Use AVAudioFile to get precise format info
         do {
             let audioFile = try AVAudioFile(forReading: url)
             let format = audioFile.processingFormat
-            
+
             sampleRate = Int(format.sampleRate)
             channels = Int(format.channelCount)
-            
+
             // Calculate precise duration
             let totalFrames = audioFile.length
             durationMs = Int((Double(totalFrames) / format.sampleRate) * 1000)
-            
+
         } catch {
             // Fallback to AVAsset for duration if AVAudioFile fails
             do {
@@ -1950,17 +1947,17 @@ class AudioMetadataParser {
             } catch {
                 print("Failed to load duration: \(error)")
             }
-            
+
             // Use reasonable defaults for format if we can't determine
             sampleRate = sampleRate ?? 44100
             channels = channels ?? 2
         }
-        
+
         // Fallback to filename parsing if no metadata found
         if title == nil {
             let fileName = url.deletingPathExtension().lastPathComponent
             let components = fileName.components(separatedBy: " - ")
-            
+
             if components.count >= 2 {
                 artist = artist ?? components[0].trimmingCharacters(in: .whitespaces)
                 title = components[1].trimmingCharacters(in: .whitespaces)
@@ -1968,13 +1965,13 @@ class AudioMetadataParser {
                 title = fileName
             }
         }
-        
+
         print("🎵 Final MP3 metadata for \(url.lastPathComponent):")
         print("   Title: \(title ?? "nil")")
         print("   Artist: \(artist ?? "nil")")
         print("   Album: \(album ?? "nil")")
         print("   Album Artist: \(albumArtist ?? "nil")")
-        
+
         return AudioMetadata(
             title: title,
             artist: artist,
@@ -2134,7 +2131,7 @@ class AudioMetadataParser {
         // Look for 'Opus' atom in MP4 structure
         // MP4 structure: ftyp → moov → trak → mdia → minf → stbl → stsd → Opus
         let opusSignature = "Opus".data(using: .ascii)!
-        return data.range(of: opusSignature, in: 0..<min(data.count, 10000)) != nil
+        return data.range(of: opusSignature, in: 0 ..< min(data.count, 10000)) != nil
     }
 
     // Parse AAC metadata using native AVFoundation
@@ -2216,8 +2213,8 @@ class AudioMetadataParser {
             if ext == "opus" || ext == "ogg" {
                 // OGG/Opus files use Vorbis Comments with base64-encoded METADATA_BLOCK_PICTURE
                 // Search for "METADATA_BLOCK_PICTURE=" tag
-                if let pictureTag = "METADATA_BLOCK_PICTURE=".data(using: .utf8),
-                   data.range(of: pictureTag) != nil {
+                let pictureTag = Data("METADATA_BLOCK_PICTURE=".utf8)
+                if data.range(of: pictureTag) != nil {
                     return true
                 }
                 return false
@@ -2227,9 +2224,9 @@ class AudioMetadataParser {
                 let dsfSignature = Data([0x44, 0x53, 0x44, 0x20])
                 if data.starts(with: dsfSignature) {
                     // Search for image signatures in the file (DSF can contain embedded artwork)
-                    let searchRange = 0..<min(data.count, 1048576) // Search first 1MB
+                    let searchRange = 0 ..< min(data.count, 1048576) // Search first 1MB
                     return data.range(of: jpegSignature, in: searchRange) != nil ||
-                           data.range(of: pngSignature, in: searchRange) != nil
+                        data.range(of: pngSignature, in: searchRange) != nil
                 }
             } else if ext == "dff" {
                 // DSDIFF files: look for ID3v2 tags or artwork chunks
@@ -2239,11 +2236,11 @@ class AudioMetadataParser {
                     let dsdSignature = Data([0x44, 0x53, 0x44, 0x20])   // "DSD "
 
                     if data.starts(with: frm8Signature) &&
-                       data.subdata(in: 8..<12) == dsdSignature {
+                        data.subdata(in: 8 ..< 12) == dsdSignature {
                         // Search for image signatures in DSDIFF file
-                        let searchRange = 0..<min(data.count, 1048576) // Search first 1MB
+                        let searchRange = 0 ..< min(data.count, 1048576) // Search first 1MB
                         return data.range(of: jpegSignature, in: searchRange) != nil ||
-                               data.range(of: pngSignature, in: searchRange) != nil
+                            data.range(of: pngSignature, in: searchRange) != nil
                     }
                 }
             }
@@ -2262,7 +2259,7 @@ class AudioMetadataParser {
         // Use filename parsing for all SFBAudioEngine formats
         let filename = url.deletingPathExtension().lastPathComponent
         var title = filename
-        var artist: String? = nil
+        var artist: String?
 
         // Try to parse "Artist - Title" format
         let components = filename.components(separatedBy: " - ")
@@ -2275,7 +2272,7 @@ class AudioMetadataParser {
         let ext = url.pathExtension.lowercased()
         let sampleRate = 0      // Unknown - will be determined by audio engine during playback
         let channels = 0        // Unknown - will be determined during playback
-        var bitDepth: Int? = nil
+        var bitDepth: Int?
 
         switch ext {
         case "opus", "ogg", "m4a":
@@ -2403,7 +2400,6 @@ class AudioMetadataParser {
 
     // Extract metadata from DSF file using DSF format specification and ID3v2 tags
     private static func extractDSFMetadata(from url: URL) async throws -> (title: String?, artist: String?, album: String?, albumArtist: String?, trackNumber: Int?, discNumber: Int?, year: Int?, hasEmbeddedArt: Bool, sampleRate: Int, channels: Int) {
-
         // Add memory safety check - avoid large file loading during startup if low memory
         let fileSize = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
         if fileSize > 50_000_000 { // Skip files larger than 50MB to prevent memory pressure
@@ -2435,7 +2431,7 @@ class AudioMetadataParser {
 
         // Look for fmt chunk after DSD chunk (at offset 28)
         if data.count >= 52 &&
-           data[28] == 0x66 && data[29] == 0x6D && data[30] == 0x74 && data[31] == 0x20 { // "fmt "
+            data[28] == 0x66 && data[29] == 0x6D && data[30] == 0x74 && data[31] == 0x20 { // "fmt "
 
             let fmtChunkSize = readLittleEndianUInt64(from: data, offset: 32)
 
@@ -2472,11 +2468,11 @@ class AudioMetadataParser {
 
             // Check for ID3v2 signature at metadata pointer
             if data.count >= metadataOffset + 10 &&
-               data[metadataOffset] == 0x49 && data[metadataOffset + 1] == 0x44 && data[metadataOffset + 2] == 0x33 { // "ID3"
+                data[metadataOffset] == 0x49 && data[metadataOffset + 1] == 0x44 && data[metadataOffset + 2] == 0x33 { // "ID3"
 
                 print("🏷️ Found ID3v2 tag at offset \(metadataOffset)")
 
-                let id3Data = data.subdata(in: metadataOffset..<data.count)
+                let id3Data = data.subdata(in: metadataOffset ..< data.count)
                 let parsedTags = parseID3v2Tags(from: id3Data)
 
                 title = parsedTags.title
@@ -2506,7 +2502,6 @@ class AudioMetadataParser {
 
     // Parse ID3v2 tags from binary data
     private static func parseID3v2Tags(from data: Data) -> (title: String?, artist: String?, album: String?, albumArtist: String?, trackNumber: Int?, discNumber: Int?, year: Int?, hasArtwork: Bool) {
-
         guard data.count >= 10 else { return (nil, nil, nil, nil, nil, nil, nil, false) }
 
         // Read ID3v2 header
@@ -2534,18 +2529,18 @@ class AudioMetadataParser {
 
         while offset < endOffset - 10 {
             // Read frame header (10 bytes for v2.3/v2.4)
-            let frameId = String(data: data.subdata(in: offset..<offset+4), encoding: .ascii) ?? ""
+            let frameId = String(data: data.subdata(in: offset ..< offset + 4), encoding: .ascii) ?? ""
 
             let frameSize: Int
             if majorVersion >= 4 {
                 // ID3v2.4 uses synchsafe integers for frame size
-                frameSize = Int((UInt32(data[offset+4]) << 21) | (UInt32(data[offset+5]) << 14) | (UInt32(data[offset+6]) << 7) | UInt32(data[offset+7]))
+                frameSize = Int((UInt32(data[offset + 4]) << 21) | (UInt32(data[offset + 5]) << 14) | (UInt32(data[offset + 6]) << 7) | UInt32(data[offset + 7]))
             } else {
                 // ID3v2.3 uses regular 32-bit big-endian integer
-                frameSize = Int((UInt32(data[offset+4]) << 24) | (UInt32(data[offset+5]) << 16) | (UInt32(data[offset+6]) << 8) | UInt32(data[offset+7]))
+                frameSize = Int((UInt32(data[offset + 4]) << 24) | (UInt32(data[offset + 5]) << 16) | (UInt32(data[offset + 6]) << 8) | UInt32(data[offset + 7]))
             }
 
-            _ = (UInt16(data[offset+8]) << 8) | UInt16(data[offset+9])
+            _ = (UInt16(data[offset + 8]) << 8) | UInt16(data[offset + 9])
 
             // Move to frame data
             offset += 10
@@ -2554,7 +2549,7 @@ class AudioMetadataParser {
                 break
             }
 
-            let frameData = data.subdata(in: offset..<offset+frameSize)
+            let frameData = data.subdata(in: offset ..< offset + frameSize)
 
             // Parse frame based on ID
             switch frameId {
@@ -2605,7 +2600,7 @@ class AudioMetadataParser {
         guard !data.isEmpty else { return nil }
 
         let encoding = data[0]
-        let textData = data.subdata(in: 1..<data.count)
+        let textData = data.subdata(in: 1 ..< data.count)
 
         switch encoding {
         case 0: // ISO-8859-1

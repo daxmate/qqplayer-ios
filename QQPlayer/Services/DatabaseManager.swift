@@ -5,11 +5,11 @@
 //  Database manager for the music library using GRDB
 //
 
-import Foundation
-import CryptoKit
 import Combine
-import UIKit
+import CryptoKit
+import Foundation
 @preconcurrency import GRDB
+import UIKit
 
 class DatabaseManager: @unchecked Sendable {
     static let shared = DatabaseManager()
@@ -35,7 +35,7 @@ class DatabaseManager: @unchecked Sendable {
     private func setupDatabaseWithRetry() {
         var lastError: Error?
 
-        for attempt in 1...maxRetries {
+        for attempt in 1 ... maxRetries {
             do {
                 try setupDatabase()
                 print("✅ Database initialized successfully on attempt \(attempt)")
@@ -147,7 +147,7 @@ class DatabaseManager: @unchecked Sendable {
         } else {
             // Fallback to documents directory
             let documentsPath = FileManager.default.urls(for: .documentDirectory,
-                                                       in: .userDomainMask).first!
+                                                         in: .userDomainMask).first!
             return documentsPath.appendingPathComponent("MusicLibrary.sqlite")
         }
     }
@@ -577,8 +577,8 @@ class DatabaseManager: @unchecked Sendable {
             // stable-ID relationship owned by previous app versions.
             if trackToSave.id == nil,
                let existing = try Track
-                .filter(Column("stable_id") == trackToSave.stableId)
-                .fetchOne(db) {
+               .filter(Column("stable_id") == trackToSave.stableId)
+               .fetchOne(db) {
                 trackToSave.id = existing.id
             }
 
@@ -912,8 +912,8 @@ class DatabaseManager: @unchecked Sendable {
         }
 
         // Check if both strings use similar character sets (prevent cross-script matching)
-        let hasLatin1 = clean1.rangeOfCharacter(from: .letters) != nil && clean1.rangeOfCharacter(from: CharacterSet(charactersIn: "a"..."z")) != nil
-        let hasLatin2 = clean2.rangeOfCharacter(from: .letters) != nil && clean2.rangeOfCharacter(from: CharacterSet(charactersIn: "a"..."z")) != nil
+        let hasLatin1 = clean1.rangeOfCharacter(from: .letters) != nil && clean1.rangeOfCharacter(from: CharacterSet(charactersIn: "a" ... "z")) != nil
+        let hasLatin2 = clean2.rangeOfCharacter(from: .letters) != nil && clean2.rangeOfCharacter(from: CharacterSet(charactersIn: "a" ... "z")) != nil
 
         // Only allow substring matching if both are Latin or both are non-Latin
         if hasLatin1 != hasLatin2 {
@@ -942,13 +942,11 @@ class DatabaseManager: @unchecked Sendable {
             " (Remastered)",
             " [Explicit]",
             " - EP",
-            " EP"
+            " EP",
         ]
 
-        for pattern in patternsToRemove {
-            if normalized.hasSuffix(pattern) {
-                normalized = String(normalized.dropLast(pattern.count)).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
+        for pattern in patternsToRemove where normalized.hasSuffix(pattern) {
+            normalized = String(normalized.dropLast(pattern.count)).trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
         // Remove extra whitespace
@@ -1095,7 +1093,7 @@ class DatabaseManager: @unchecked Sendable {
 
             for start in stride(from: 0, to: missingStableIds.count, by: chunkSize) {
                 let end = min(start + chunkSize, missingStableIds.count)
-                let chunk = Array(missingStableIds[start..<end])
+                let chunk = Array(missingStableIds[start ..< end])
                 let placeholders = Array(repeating: "?", count: chunk.count).joined(separator: ",")
 
                 let rows = try Row.fetchAll(
@@ -1390,7 +1388,7 @@ class DatabaseManager: @unchecked Sendable {
                     totalRemoved += 1
                 }
 
-                if itemsToRemove.count > 0 {
+                if !itemsToRemove.isEmpty {
                     print("✅ Removed \(itemsToRemove.count) duplicate items from playlist '\(playlist.title)'")
 
                     // Reorder remaining items to fill gaps
@@ -1879,7 +1877,7 @@ class DatabaseManager: @unchecked Sendable {
                 .fetchAll(db)
 
             guard sourceIndex >= 0 && sourceIndex < items.count &&
-                  destinationIndex >= 0 && destinationIndex < items.count else {
+                destinationIndex >= 0 && destinationIndex < items.count else {
                 print("❌ Invalid indices for reordering")
                 return
             }
@@ -1897,7 +1895,7 @@ class DatabaseManager: @unchecked Sendable {
             for (index, item) in mutableItems.enumerated() {
                 _ = try PlaylistItem
                     .filter(Column("playlist_id") == playlistId &&
-                           Column("track_stable_id") == item.trackStableId)
+                        Column("track_stable_id") == item.trackStableId)
                     .updateAll(db, Column("position").set(to: index + 10000))
             }
 
@@ -1906,7 +1904,7 @@ class DatabaseManager: @unchecked Sendable {
             for (index, item) in mutableItems.enumerated() {
                 _ = try PlaylistItem
                     .filter(Column("playlist_id") == playlistId &&
-                           Column("track_stable_id") == item.trackStableId)
+                        Column("track_stable_id") == item.trackStableId)
                     .updateAll(db, Column("position").set(to: index))
             }
 
@@ -1976,8 +1974,8 @@ class DatabaseManager: @unchecked Sendable {
             return try Playlist
                 .filter(Column("id") == playlistId)
                 .updateAll(db,
-                    Column("title").set(to: newTitle),
-                    Column("updated_at").set(to: now)
+                           Column("title").set(to: newTitle),
+                           Column("updated_at").set(to: now)
                 )
         }
         print("✏️ Database: Updated \(updatedCount) playlist(s)")
@@ -2063,8 +2061,8 @@ class DatabaseManager: @unchecked Sendable {
             return try Playlist
                 .filter(Column("id") == playlistId)
                 .updateAll(db,
-                    Column("custom_cover_image_path").set(to: imagePath),
-                    Column("updated_at").set(to: now)
+                           Column("custom_cover_image_path").set(to: imagePath),
+                           Column("updated_at").set(to: now)
                 )
         }
         print("🎨 Database: Updated \(updatedCount) playlist(s) custom cover")
@@ -2151,7 +2149,7 @@ private extension String {
         if leftString == rightString { return 1 }
         if rightString.contains(leftString) { return 0.95 }
 
-        var previous = Array(0...right.count)
+        var previous = Array(0 ... right.count)
         for (leftIndex, leftCharacter) in left.enumerated() {
             var current = [leftIndex + 1] + Array(repeating: 0, count: right.count)
             for (rightIndex, rightCharacter) in right.enumerated() {

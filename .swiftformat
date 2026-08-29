@@ -1,0 +1,17 @@
+# QQPlayer iOS 格式配置（保守：只做纯格式统一，不碰代码结构/逻辑）
+# 白名单模式：默认所有规则关闭，只启用以下格式类规则
+--disable all
+
+--exclude build
+
+--indent 4
+--swiftversion 6.0
+
+--enable indent
+--enable sortImports
+--enable spaceAroundOperators
+--enable elseOnSameLine
+--enable blankLinesAtStartOfScope
+--enable redundantNilInit
+--enable trailingCommas
+--enable trailingSpace

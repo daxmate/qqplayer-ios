@@ -1,0 +1,48 @@
+# QQPlayer iOS lint 配置（保守：禁用结构性/命名类规则，只保留纯质量问题检查）
+# 与桌面 QQPlayer 同源；代码里大量单字母变量（闭包参数 t/g/v 等）是既有风格，不动。
+
+included:
+  - QQPlayer
+  - Share
+  - SiriIntentsExtension
+  - PlayerWidgetExtension
+  - QQPlayerTests
+  - QQPlayerSiriTests
+
+excluded:
+  - build
+  - QQPlayer.xcodeproj
+
+disabled_rules:
+  # 结构性（不重构代码，避免大改）
+  - type_body_length
+  - function_body_length
+  - file_length
+  - cyclomatic_complexity
+  - line_length
+  - large_tuple
+  # 命名（既有短变量风格）
+  - identifier_name
+  - type_name
+  # 强制解包类（序列化等场景刻意使用）
+  - force_try
+  - force_cast
+  - force_unwrapping
+  # 与 .swiftformat 的 trailingCommas 规则冲突（多行 collection 保留尾逗号）
+  - trailing_comma
+  # SwiftUI 惯用风格：多个 trailing closure 嵌套（Button/VStack 内联回调）
+  - multiple_closures_with_trailing_closure
+  # Discogs API 契约字段（masterID/masterUrl 是 API 命名，不可改）
+  - inclusive_language
+  # 结构性：嵌套类型（既有代码风格）
+  - nesting
+
+opt_in_rules:
+  - empty_count
+  - empty_string
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+  - contains_over_first_not_nil
+  - first_where
+  - last_where
+  - sorted_first_last

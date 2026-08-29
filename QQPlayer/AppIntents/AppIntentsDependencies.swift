@@ -14,9 +14,9 @@ enum AppIntentsDependencies {
     static func register() {
         AppDependencyManager.shared.add(dependency: IntentPlaybackService())
         #if canImport(MediaIntents)
-        if #available(iOS 27.0, *) {
-            AppDependencyManager.shared.add(dependency: IntentEntityStore())
-        }
+            if #available(iOS 27.0, *) {
+                AppDependencyManager.shared.add(dependency: IntentEntityStore())
+            }
         #endif
     }
 }

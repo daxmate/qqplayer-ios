@@ -2,7 +2,6 @@ import CarPlay
 import UIKit
 
 class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
-
     private var interfaceController: CPInterfaceController?
     private var allSongsTemplate: CPListTemplate?
     private var allSongsTracks: [Track] = []
@@ -17,7 +16,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     private var allSongsTotal = 0
 
     func templateApplicationScene(_ templateApplicationScene: CPTemplateApplicationScene,
-                                 didConnect interfaceController: CPInterfaceController) {
+                                  didConnect interfaceController: CPInterfaceController) {
         self.interfaceController = interfaceController
 
         loadInitialCarPlayData()
@@ -39,7 +38,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     }
 
     func templateApplicationScene(_ templateApplicationScene: CPTemplateApplicationScene,
-                                 didDisconnect interfaceController: CPInterfaceController) {
+                                  didDisconnect interfaceController: CPInterfaceController) {
         self.interfaceController = nil
 
         print("🚗 CarPlay disconnected")
@@ -349,7 +348,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         guard !tracks.isEmpty else { return [] }
         let safeIndex = max(0, min(index, tracks.count - 1))
         let endIndex = min(safeIndex + maxQueueItems, tracks.count)
-        return Array(tracks[safeIndex..<endIndex])
+        return Array(tracks[safeIndex ..< endIndex])
     }
 
     private func isCompatible(track: Track) -> Bool {
@@ -505,7 +504,7 @@ private func createPlaylistCollageImage(from artworks: [UIImage]) -> UIImage? {
         UIColor.systemGray5.setFill()
         UIRectFill(CGRect(origin: .zero, size: targetSize))
 
-        for index in 0..<4 {
+        for index in 0 ..< 4 {
             let image = artworks[index % artworks.count]
             let origin = CGPoint(
                 x: index.isMultiple(of: 2) ? 0 : tileSize,

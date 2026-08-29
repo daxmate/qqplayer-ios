@@ -35,7 +35,7 @@ struct EQSettingsView: View {
 
             // Manual Parametric Presets
             Section(Localized.manualEQPresets) {
-                if !eqManager.availablePresets.filter({ $0.presetType == .manual }).isEmpty {
+                if eqManager.availablePresets.contains(where: { $0.presetType == .manual }) {
                     ForEach(eqManager.availablePresets.filter { $0.presetType == .manual }) { preset in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
@@ -97,7 +97,7 @@ struct EQSettingsView: View {
 
             // Imported GraphicEQ Presets
             Section(Localized.importedPresets) {
-                if !eqManager.availablePresets.filter({ $0.presetType == .imported }).isEmpty {
+                if eqManager.availablePresets.contains(where: { $0.presetType == .imported }) {
                     ForEach(eqManager.availablePresets.filter { $0.presetType == .imported }) { preset in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
@@ -161,7 +161,7 @@ struct EQSettingsView: View {
                                 .foregroundColor(.secondary)
                         }
 
-                        Slider(value: $eqManager.globalGain, in: -30...30, step: 0.5)
+                        Slider(value: $eqManager.globalGain, in: -30 ... 30, step: 0.5)
                             .tint(.blue)
                     }
                 } header: {
@@ -257,7 +257,7 @@ struct CreateManualEQView: View {
                 }
 
                 Section("Bands") {
-                    Stepper(value: $bandCount, in: 0...16) {
+                    Stepper(value: $bandCount, in: 0 ... 16) {
                         Text("\(bandCount) / 16")
                     }
                 }
@@ -330,7 +330,7 @@ struct ManualEQEditorView: View {
     @State private var bandFrequencies: [Double] = []
     @State private var bandGains: [Double] = []
     @State private var bandBandwidths: [Double] = []
-    @State private var selectedBandIndex: Int? = nil
+    @State private var selectedBandIndex: Int?
     @State private var isLoading = true
 
     private let minFrequency = 20.0
@@ -406,7 +406,7 @@ struct ManualEQEditorView: View {
                                     get: { logFrequencyValue(for: bandFrequencies[selectedBandIndex]) },
                                     set: { bandFrequencies[selectedBandIndex] = frequency(fromLogValue: $0).rounded(toPlaces: 1) }
                                 ),
-                                in: log10(minFrequency)...log10(maxFrequency)
+                                in: log10(minFrequency) ... log10(maxFrequency)
                             )
                             .tint(.orange)
 
@@ -416,7 +416,7 @@ struct ManualEQEditorView: View {
                                 Text("\(bandGains[selectedBandIndex], specifier: "%.1f") dB")
                                     .foregroundColor(.secondary)
                             }
-                            Slider(value: $bandGains[selectedBandIndex], in: minGain...maxGain, step: 0.1)
+                            Slider(value: $bandGains[selectedBandIndex], in: minGain ... maxGain, step: 0.1)
                                 .tint(.blue)
 
                             HStack {
@@ -430,7 +430,7 @@ struct ManualEQEditorView: View {
                                     get: { qFactor(fromBandwidth: bandBandwidths[selectedBandIndex]) },
                                     set: { bandBandwidths[selectedBandIndex] = bandwidth(fromQFactor: $0) }
                                 ),
-                                in: 0.10...10.0,
+                                in: 0.10 ... 10.0,
                                 step: 0.01
                             )
                             .tint(.purple)
@@ -479,7 +479,7 @@ struct ManualEQEditorView: View {
                     bandGains = []
                     bandBandwidths = []
 
-                    for index in 0..<targetBandCount {
+                    for index in 0 ..< targetBandCount {
                         let defaultFrequency = defaultFrequencies(for: targetBandCount)[index]
 
                         if index < sortedBands.count {
@@ -508,7 +508,7 @@ struct ManualEQEditorView: View {
     private func saveChanges() {
         Task {
             do {
-                let sortedBands = (0..<editableBandCount)
+                let sortedBands = (0 ..< editableBandCount)
                     .map { index in
                         (
                             frequency: bandFrequencies[index],
@@ -576,7 +576,7 @@ struct ManualEQEditorView: View {
 
     private func resetToFlat() {
         let defaults = defaultFrequencies(for: editableBandCount)
-        for index in 0..<editableBandCount {
+        for index in 0 ..< editableBandCount {
             bandFrequencies[index] = defaults[index]
             bandGains[index] = 0.0
             bandBandwidths[index] = 1.0
@@ -655,7 +655,7 @@ private struct ParametricEQGraphView: View {
                     .fill(Color(.secondarySystemBackground))
 
                 Path { path in
-                    for tick in 0...6 {
+                    for tick in 0 ... 6 {
                         let ratio = CGFloat(tick) / 6.0
                         let y = plotRect.minY + ratio * plotRect.height
                         path.move(to: CGPoint(x: plotRect.minX, y: y))
@@ -829,8 +829,8 @@ struct GraphicEQImportView: View {
                 do {
                     let content = try String(contentsOf: url, encoding: .utf8)
                     let finalPresetName = presetName.isEmpty
-                    ? url.deletingPathExtension().lastPathComponent
-                    : presetName
+                        ? url.deletingPathExtension().lastPathComponent
+                        : presetName
 
                     let preset = try await eqManager.importGraphicEQPreset(from: content, name: finalPresetName)
 

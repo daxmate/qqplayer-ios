@@ -27,29 +27,29 @@ struct SettingsView: View {
                         .onChange(of: deleteSettings.minimalistIcons) { _, _ in
                             deleteSettings.save()
                         }
-                    
+
                     Text(Localized.useSimpleIcons)
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    
+
                     Toggle(Localized.forceDarkMode, isOn: $deleteSettings.forceDarkMode)
                         .onChange(of: deleteSettings.forceDarkMode) { _, _ in
                             deleteSettings.save()
                         }
-                    
+
                     Text(Localized.overrideSystemAppearance)
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    
+
                     VStack(alignment: .leading, spacing: 12) {
                         Text(Localized.backgroundColor)
                             .font(.headline)
-                        
+
                         LazyVGrid(columns: [
                             GridItem(.flexible()),
                             GridItem(.flexible()),
                             GridItem(.flexible()),
-                            GridItem(.flexible())
+                            GridItem(.flexible()),
                         ], spacing: 16) {
                             ForEach(BackgroundColor.allCases, id: \.self) { color in
                                 Button(action: {
@@ -65,7 +65,7 @@ struct SettingsView: View {
                                                 Circle()
                                                     .stroke(deleteSettings.backgroundColorChoice == color ? Color.primary : Color.clear, lineWidth: 3)
                                             )
-                                        
+
                                         if deleteSettings.backgroundColorChoice == color {
                                             Image(systemName: "checkmark")
                                                 .font(.system(size: 16, weight: .bold))
@@ -77,13 +77,12 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    
+
                     Text(Localized.chooseColorTheme)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                
-                
+
                 Section(Localized.audioSettings) {
                     NavigationLink(destination: EQSettingsView()) {
                         HStack {
@@ -216,14 +215,14 @@ struct SettingsView: View {
                         Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Text(Localized.appName)
                         Spacer()
                         Text(Localized.qqplayerName)
                             .foregroundColor(.secondary)
                     }
-                    
+
                     Button(action: {
                         print("🔗 GitHub repository button tapped")
                         if let url = URL(string: "https://github.com/daxmate/qqplayer-ios") {

@@ -5,9 +5,9 @@
 //  Now Playing Widget for QQPlayer
 //
 
-import WidgetKit
-import SwiftUI
 import AppIntents
+import SwiftUI
+import WidgetKit
 
 // MARK: - Color Extension
 fileprivate extension Color {
@@ -125,7 +125,7 @@ struct MediumWidgetView: View {
             LinearGradient(
                 gradient: Gradient(colors: [
                     themeColor.opacity(0.2),
-                    themeColor.opacity(0.05)
+                    themeColor.opacity(0.05),
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -153,7 +153,7 @@ struct MediumWidgetView: View {
                                 LinearGradient(
                                     gradient: Gradient(colors: [
                                         themeColor.opacity(0.4),
-                                        themeColor.opacity(0.2)
+                                        themeColor.opacity(0.2),
                                     ]),
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing

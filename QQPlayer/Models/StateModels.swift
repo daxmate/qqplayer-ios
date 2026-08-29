@@ -11,7 +11,7 @@ struct FavoritesState: Codable {
     let version: Int
     let updatedAt: Date
     let favorites: [String]
-    
+
     init(favorites: [String]) {
         self.version = 1
         self.updatedAt = Date()
@@ -26,12 +26,12 @@ struct PlaylistState: Codable {
     let createdAt: Date
     let updatedAt: Date
     let items: [PlaylistItem]
-    
+
     struct PlaylistItem: Codable {
         let trackId: String
         let addedAt: Date
     }
-    
+
     init(slug: String, title: String, createdAt: Date, items: [(String, Date)]) {
         self.version = 1
         self.slug = slug

@@ -1,26 +1,26 @@
-import SwiftUI
 import GRDB
+import SwiftUI
 
 struct ArtistsScreen: View {
     let allTracks: [Track]
     @EnvironmentObject private var appCoordinator: AppCoordinator
     @State private var artists: [Artist] = []
     @State private var settings = DeleteSettings.load()
-    
+
     var body: some View {
         ZStack {
             ScreenSpecificBackgroundView(screen: .artists)
-            
+
             VStack {
                 if artists.isEmpty {
                     VStack(spacing: 16) {
                         Image(systemName: "person.2")
                             .font(.system(size: 40))
                             .foregroundColor(.secondary)
-                        
+
                         Text("No artists found")
                             .font(.headline)
-                        
+
                         Text("Artists will appear here once you add music to your library")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
@@ -35,23 +35,23 @@ struct ArtistsScreen: View {
                                 EmptyView()
                             }
                             .opacity(0.0)
-                            
+
                             HStack {
                                 Image(systemName: "person")
                                     .foregroundColor(.purple)
                                     .frame(width: 24, height: 24)
-                                
+
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(artist.name)
                                         .font(.headline)
-                                    
+
                                     Text(Localized.artist)
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
-                                
+
                                 Spacer()
-                                
+
                                 Image(systemName: "chevron.right")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
@@ -89,7 +89,7 @@ struct ArtistsScreen: View {
             }
         }
     } // end body
-    
+
     private func loadArtists() {
         do {
             artists = try appCoordinator.databaseManager.getAllArtists()
@@ -102,17 +102,17 @@ struct ArtistsScreen: View {
 struct ArtistListView: View {
     let artists: [Artist]
     let onArtistTap: (Artist) -> Void
-    
+
     var body: some View {
         if artists.isEmpty {
             VStack(spacing: 16) {
                 Image(systemName: "person.2")
                     .font(.system(size: 40))
                     .foregroundColor(.secondary)
-                
+
                 Text("No artists found")
                     .font(.headline)
-                
+
                 Text("Artists will appear here once you add music to your library")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
@@ -126,11 +126,11 @@ struct ArtistListView: View {
                     Image(systemName: "person")
                         .foregroundColor(.purple)
                         .frame(width: 24, height: 24)
-                    
+
                     VStack(alignment: .leading, spacing: 4) {
                         Text(artist.name)
                             .font(.headline)
-                        
+
                         Text("Artist")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -168,7 +168,7 @@ struct ArtistDetailScreen: View {
     private var playerEngine: PlayerEngine {
         appCoordinator.playerEngine
     }
-    
+
     private var artistTracks: [Track] {
         let tracks: [Track]
         if let artistId = artist.id,
@@ -189,16 +189,16 @@ struct ArtistDetailScreen: View {
 
         return tracks
     }
-    
+
     private var artistAlbums: [Album] {
         guard let artistId = artist.id else { return [] }
         return (try? appCoordinator.databaseManager.getAlbumsByArtistId(artistId)) ?? []
     }
-    
+
     var body: some View {
         ZStack {
             ScreenSpecificBackgroundView(screen: .artistDetail)
-            
+
             Group {
                 if let unifiedArtist = unifiedArtist, !isLoading {
                     richArtistView(unifiedArtist)
@@ -244,7 +244,7 @@ struct ArtistDetailScreen: View {
         }
         .ignoresSafeArea(.all, edges: .top)
     }
-    
+
     @ViewBuilder
     private var simpleView: some View {
         ScrollView {
@@ -256,14 +256,14 @@ struct ArtistDetailScreen: View {
             .padding(.bottom, 100) // Add padding for mini player
         }
     }
-    
+
     // MARK: - Subsections
-    
+
     @ViewBuilder
     private func headerSection(geometry: GeometryProxy) -> some View {
         let safeAreaTop = geometry.safeAreaInsets.top
         let imageHeight: CGFloat = 300 + safeAreaTop
-        
+
         VStack(spacing: 16) {
             ZStack {
                 Rectangle()
@@ -273,8 +273,7 @@ struct ArtistDetailScreen: View {
                     .overlay {
                         if let image = artistImage {
                             Image(uiImage: image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
+                                .resizable().scaledToFill()
                                 .frame(width: geometry.size.width, height: imageHeight)
                                 .clipped()
                         } else {
@@ -289,7 +288,7 @@ struct ArtistDetailScreen: View {
                                 Color.clear,
                                 Color.clear,
                                 Color.black.opacity(0.3),
-                                Color.black.opacity(0.6)
+                                Color.black.opacity(0.6),
                             ],
                             startPoint: .top,
                             endPoint: .bottom
@@ -300,8 +299,7 @@ struct ArtistDetailScreen: View {
                         Spacer()
                         if let unifiedArtist = unifiedArtist, unifiedArtist.source == .spotify {
                             Image("SpotifyWhite")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
+                                .resizable().scaledToFit()
                                 .frame(width: 21, height: 21)
                                 .padding(.top, 16)
                                 .padding(.trailing, 20)
@@ -328,7 +326,7 @@ struct ArtistDetailScreen: View {
                             Color.clear,
                             Color(UIColor.systemBackground).opacity(0.3),
                             Color(UIColor.systemBackground).opacity(0.7),
-                            Color(UIColor.systemBackground)
+                            Color(UIColor.systemBackground),
                         ],
                         startPoint: .top,
                         endPoint: .bottom
@@ -337,18 +335,18 @@ struct ArtistDetailScreen: View {
                 }
             )
             .frame(maxWidth: .infinity)
-            
+
             VStack(spacing: 16) {
                 if let unifiedArtist = unifiedArtist, !unifiedArtist.profile.isEmpty {
                     profileSection(unifiedArtist)
                 }
-                
+
                 playButtons
             }
             .padding(.horizontal)
         }
     }
-    
+
     @ViewBuilder
     private var simpleHeader: some View {
         VStack(spacing: 16) {
@@ -364,7 +362,7 @@ struct ArtistDetailScreen: View {
         }
         .padding(.horizontal)
     }
-    
+
     @ViewBuilder
     private func profileSection(_ unifiedArtist: UnifiedArtist) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -377,30 +375,30 @@ struct ArtistDetailScreen: View {
                     .onTapGesture {
                         withAnimation(.easeInOut(duration: 0.3)) { showFullProfile.toggle() }
                     }
-                
+
                 if showFullProfile {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 4) {
                             Text(Localized.dataProvidedBy("Spotify"))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            
+
                             if let spotifyArtist = unifiedArtist.spotifyArtist,
                                let spotifyURL = spotifyArtist.externalUrls.spotify {
                                 Button(Localized.openSpotify) {
                                     if let url = URL(string: spotifyURL) {
-#if os(macOS)
-                                        NSWorkspace.shared.open(url)
-#else
-                                        UIApplication.shared.open(url)
-#endif
+                                        #if os(macOS)
+                                            NSWorkspace.shared.open(url)
+                                        #else
+                                            UIApplication.shared.open(url)
+                                        #endif
                                     }
                                 }
                                 .font(.caption)
                                 .foregroundColor(settings.backgroundColorChoice.color)
                             }
                         }
-                        
+
                         // Show "Wrong artist?" button in expanded profile
                         Button(action: {
                             Task {
@@ -426,13 +424,13 @@ struct ArtistDetailScreen: View {
                     .onTapGesture {
                         withAnimation(.easeInOut(duration: 0.3)) { showFullProfile.toggle() }
                     }
-                
+
                 if showFullProfile {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(Localized.dataProvidedBy(unifiedArtist.source.rawValue.capitalized))
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        
+
                         // Show "Wrong artist?" button in expanded profile
                         Button(action: {
                             Task {
@@ -452,7 +450,7 @@ struct ArtistDetailScreen: View {
             }
         }
     }
-    
+
     private var playButtons: some View {
         HStack(spacing: 20) {
             Button {
@@ -484,7 +482,7 @@ struct ArtistDetailScreen: View {
             }
         }
     }
-    
+
     private var songsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
@@ -531,7 +529,7 @@ struct ArtistDetailScreen: View {
             }
         }
     }
-    
+
     private var albumsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -556,7 +554,7 @@ struct ArtistDetailScreen: View {
             }
         }
     }
-    
+
     // MARK: - Data Loading
     private func loadArtistData() {
         guard unifiedArtist == nil && !isLoading else { return }
@@ -573,15 +571,15 @@ struct ArtistDetailScreen: View {
             }
         }
     }
-    
+
     private func searchAlternativeArtist() async {
         isLoading = true
-        
+
         Task { @MainActor in
             do {
                 let currentSource = unifiedArtist?.source
                 let fetchedArtist = try await HybridMusicAPIService.shared.searchAlternativeArtist(name: artist.name, currentSource: currentSource)
-                
+
                 if let fetchedArtist = fetchedArtist {
                     self.unifiedArtist = fetchedArtist
                     self.artistImage = nil // Clear old image
@@ -590,7 +588,7 @@ struct ArtistDetailScreen: View {
                 } else {
                     print("❌ No alternative artist found")
                 }
-                
+
                 self.isLoading = false
             } catch {
                 self.isLoading = false
@@ -598,16 +596,16 @@ struct ArtistDetailScreen: View {
             }
         }
     }
-    
+
     private func searchSimilarArtist() async {
         isLoading = true
         hasTriedAlternatives = true
-        
+
         Task { @MainActor in
             do {
                 let currentSource = unifiedArtist?.source
                 let fetchedArtist = try await HybridMusicAPIService.shared.searchSimilarArtist(originalName: artist.name, currentSource: currentSource)
-                
+
                 if let fetchedArtist = fetchedArtist {
                     self.unifiedArtist = fetchedArtist
                     self.artistImage = nil // Clear old image
@@ -616,7 +614,7 @@ struct ArtistDetailScreen: View {
                 } else {
                     print("❌ No similar artist found")
                 }
-                
+
                 self.isLoading = false
             } catch {
                 self.isLoading = false
@@ -624,24 +622,24 @@ struct ArtistDetailScreen: View {
             }
         }
     }
-    
+
     private func searchAlternativeArtistAutomatically() async {
         isLoading = true
-        
+
         Task { @MainActor in
             do {
                 let currentSource = unifiedArtist?.source
-                
+
                 // First try different source with same name
                 print("🔄 Trying different source for: \(artist.name)")
                 var fetchedArtist = try await HybridMusicAPIService.shared.searchAlternativeArtist(name: artist.name, currentSource: currentSource)
-                
+
                 // If that fails, try similar names with different sources
                 if fetchedArtist == nil {
                     print("🔄 Trying similar names for: \(artist.name)")
                     fetchedArtist = try await HybridMusicAPIService.shared.searchSimilarArtist(originalName: artist.name, currentSource: currentSource)
                 }
-                
+
                 if let fetchedArtist = fetchedArtist {
                     self.unifiedArtist = fetchedArtist
                     self.artistImage = nil // Clear old image
@@ -650,7 +648,7 @@ struct ArtistDetailScreen: View {
                 } else {
                     print("❌ No alternative artist found with different source or similar names")
                 }
-                
+
                 self.isLoading = false
             } catch {
                 self.isLoading = false
@@ -658,7 +656,7 @@ struct ArtistDetailScreen: View {
             }
         }
     }
-    
+
     private func loadArtistImage(from images: [UnifiedImage]) async {
         let sortedImages = images.sorted { a, b in
             let aSize = (a.width ?? 0) * (a.height ?? 0)
@@ -688,7 +686,7 @@ struct ArtistTrackRowView: View {
     @State private var artworkImage: UIImage?
     @State private var isPressed = false
     @State private var isMenuInteracting = false
-    
+
     var body: some View {
         HStack {
             // Album artwork thumbnail
@@ -696,11 +694,10 @@ struct ArtistTrackRowView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.gray.opacity(0.2))
                     .frame(width: 60, height: 60)
-                
+
                 if let image = artworkImage {
                     Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .resizable().scaledToFill()
                         .frame(width: 60, height: 60)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 } else {
@@ -709,13 +706,13 @@ struct ArtistTrackRowView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(track.title)
                     .font(.title3)
                     .fontWeight(.medium)
                     .lineLimit(1)
-                
+
                 if let duration = track.durationMs {
                     Text(formatDuration(duration))
                         .font(.body)
@@ -723,48 +720,48 @@ struct ArtistTrackRowView: View {
                         .lineLimit(1)
                 }
             }
-            
+
             Spacer()
-            
+
             Menu {
-                    Button(action: {
-                        do {
-                            try appCoordinator.toggleFavorite(trackStableId: track.stableId)
-                            isFavorite.toggle()
-                        } catch {
-                            print("Failed to toggle favorite: \(error)")
-                        }
-                    }) {
-                        HStack {
-                            Image(systemName: isFavorite ? "heart.slash" : "heart")
-                                .foregroundColor(isFavorite ? .red : .primary)
-                            Text(isFavorite ? Localized.removeFromLikedSongs : Localized.addToLikedSongs)
-                                .foregroundColor(.primary)
-                        }
+                Button(action: {
+                    do {
+                        try appCoordinator.toggleFavorite(trackStableId: track.stableId)
+                        isFavorite.toggle()
+                    } catch {
+                        print("Failed to toggle favorite: \(error)")
                     }
-                    
-                    if let artistId = track.artistId,
-                       let artist = try? DatabaseManager.shared.read({ db in
-                           try Artist.fetchOne(db, key: artistId)
-                       }),
-                       let allArtistTracks = try? DatabaseManager.shared.getTracksByArtistId(artistId) {
-                        NavigationLink(destination: ArtistDetailScreen(artist: artist, allTracks: allArtistTracks)) {
-                            Label(Localized.showArtistPage, systemImage: "person.circle")
-                        }
+                }) {
+                    HStack {
+                        Image(systemName: isFavorite ? "heart.slash" : "heart")
+                            .foregroundColor(isFavorite ? .red : .primary)
+                        Text(isFavorite ? Localized.removeFromLikedSongs : Localized.addToLikedSongs)
+                            .foregroundColor(.primary)
                     }
-                    
-                    Button(action: {
-                        showPlaylistDialog = true
-                    }) {
-                        Label(Localized.addToPlaylistEllipsis, systemImage: "rectangle.stack.badge.plus")
+                }
+
+                if let artistId = track.artistId,
+                   let artist = try? DatabaseManager.shared.read({ db in
+                       try Artist.fetchOne(db, key: artistId)
+                   }),
+                   let allArtistTracks = try? DatabaseManager.shared.getTracksByArtistId(artistId) {
+                    NavigationLink(destination: ArtistDetailScreen(artist: artist, allTracks: allArtistTracks)) {
+                        Label(Localized.showArtistPage, systemImage: "person.circle")
                     }
-                    
-                    Button(action: {
-                        showDeleteConfirmation = true
-                    }) {
-                        Label(Localized.deleteFile, systemImage: "trash")
-                    }
-                    .foregroundColor(.red)
+                }
+
+                Button(action: {
+                    showPlaylistDialog = true
+                }) {
+                    Label(Localized.addToPlaylistEllipsis, systemImage: "rectangle.stack.badge.plus")
+                }
+
+                Button(action: {
+                    showDeleteConfirmation = true
+                }) {
+                    Label(Localized.deleteFile, systemImage: "trash")
+                }
+                .foregroundColor(.red)
             } label: {
                 Image(systemName: "ellipsis")
                     .foregroundColor(.secondary)
@@ -817,7 +814,7 @@ struct ArtistTrackRowView: View {
             Text(Localized.deleteFileConfirmation(track.title))
         }
     }
-    
+
     private func checkFavoriteStatus() {
         do {
             isFavorite = try DatabaseManager.shared.isFavorite(trackStableId: track.stableId)
@@ -825,20 +822,20 @@ struct ArtistTrackRowView: View {
             print("Failed to check favorite status: \(error)")
         }
     }
-    
+
     private func loadArtwork() {
         Task {
             artworkImage = await ArtworkManager.shared.getThumbnail(for: track)
         }
     }
-    
+
     private func formatDuration(_ milliseconds: Int) -> String {
         let seconds = milliseconds / 1000
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         return String(format: "%d:%02d", minutes, remainingSeconds)
     }
-    
+
     private func deleteFile() {
         Task {
             do {
@@ -866,11 +863,11 @@ struct ArtistAlbumCardView: View {
     let album: Album
     let tracks: [Track]
     @State private var artworkImage: UIImage?
-    
+
     private var albumTracks: [Track] {
         tracks.filter { $0.albumId == album.id }
     }
-    
+
     var body: some View {
         VStack(spacing: 8) {
             RoundedRectangle(cornerRadius: 8)
@@ -879,8 +876,7 @@ struct ArtistAlbumCardView: View {
                 .overlay {
                     if let image = artworkImage {
                         Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
+                            .resizable().scaledToFill()
                             .frame(width: 120, height: 120)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     } else {
@@ -889,7 +885,7 @@ struct ArtistAlbumCardView: View {
                             .foregroundColor(.secondary)
                     }
                 }
-            
+
             Text(album.title)
                 .font(.caption)
                 .fontWeight(.medium)
@@ -903,7 +899,7 @@ struct ArtistAlbumCardView: View {
             loadAlbumArtwork()
         }
     }
-    
+
     private func loadAlbumArtwork() {
         guard let firstTrack = albumTracks.first else { return }
 

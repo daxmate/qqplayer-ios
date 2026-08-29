@@ -5,12 +5,12 @@
 //  Manages SFBAudioEngine playback for Opus, Vorbis, and DSD formats
 //
 
-import Foundation
-import AVFoundation
 import AudioToolbox
+import AVFoundation
+import CarPlay
+import Foundation
 import SFBAudioEngine
 import UIKit
-import CarPlay
 
 private struct AVAudioUnitEQBox: @unchecked Sendable {
     let node: AVAudioUnitEQ
@@ -30,21 +30,21 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
     var onTrackNearingEnd: (() -> Void)?
     private var hasTriggeredNearEnd = false
 
-        nonisolated private func configureDefaultSFBBands(for equalizer: AVAudioUnitEQ) {
-            let numberOfBands = equalizer.bands.count
-            let minFreq = 20.0
-            let maxFreq = 20000.0
+    nonisolated private func configureDefaultSFBBands(for equalizer: AVAudioUnitEQ) {
+        let numberOfBands = equalizer.bands.count
+        let minFreq = 20.0
+        let maxFreq = 20000.0
 
-            for i in 0..<numberOfBands {
-                let band = equalizer.bands[i]
-                let frequency = minFreq * pow(maxFreq / minFreq, Double(i) / Double(numberOfBands - 1))
-                band.frequency = Float(frequency)
-                band.gain = 0.0
-                band.bandwidth = 1.0
-                band.filterType = .parametric
-                band.bypass = false
-            }
+        for i in 0 ..< numberOfBands {
+            let band = equalizer.bands[i]
+            let frequency = minFreq * pow(maxFreq / minFreq, Double(i) / Double(numberOfBands - 1))
+            band.frequency = Float(frequency)
+            band.gain = 0.0
+            band.bandwidth = 1.0
+            band.filterType = .parametric
+            band.bypass = false
         }
+    }
 
     private func cleanupEqualizer() {
         if let equalizer = sfbEqualizer {
@@ -287,11 +287,9 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
         let currentRoute = audioSession.currentRoute
         print("🎧 Current audio route: \(currentRoute.outputs.map { "\($0.portName) (\($0.portType))" }.joined(separator: ", "))")
 
-        for output in currentRoute.outputs {
-            if output.portType == .carAudio {
-                print("🚗 CarPlay audio route detected: \(output.portName)")
-                return true
-            }
+        for output in currentRoute.outputs where output.portType == .carAudio {
+            print("🚗 CarPlay audio route detected: \(output.portName)")
+            return true
         }
 
         return false
@@ -362,7 +360,7 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
         if isCarPlayEnvironment {
             print("🚗 CarPlay detected - refusing to load with SFBAudioEngine")
             throw NSError(domain: "SFBAudioEngine", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "SFBAudioEngine unavailable in CarPlay - using native playback"
+                NSLocalizedDescriptionKey: "SFBAudioEngine unavailable in CarPlay - using native playback",
             ])
         }
 
@@ -372,7 +370,7 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
         // If AudioPlayer failed to initialize, throw error to fall back to native playback
         guard audioPlayer != nil else {
             throw NSError(domain: "SFBAudioEngine", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "SFBAudioEngine unavailable - AudioPlayer initialization failed"
+                NSLocalizedDescriptionKey: "SFBAudioEngine unavailable - AudioPlayer initialization failed",
             ])
         }
 
@@ -425,7 +423,7 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
         guard let decoder = try track.decoder(enableDoP: enableDoP) else {
             print("❌ No decoder available for: \(url.lastPathComponent)")
             throw NSError(domain: "SFBAudioEngineManager", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "Unsupported audio format"
+                NSLocalizedDescriptionKey: "Unsupported audio format",
             ])
         }
 
@@ -512,7 +510,7 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
         do {
             guard let player = audioPlayer else {
                 throw NSError(domain: "SFBAudioEngine", code: -1, userInfo: [
-                    NSLocalizedDescriptionKey: "AudioPlayer not initialized"
+                    NSLocalizedDescriptionKey: "AudioPlayer not initialized",
                 ])
             }
             try player.play(decoder)
@@ -551,7 +549,7 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
             print("▶️ SFBAudioEngine resumed playback")
         } else {
             throw NSError(domain: "SFBAudioEngineManager", code: 3, userInfo: [
-                NSLocalizedDescriptionKey: "AudioPlayer not initialized"
+                NSLocalizedDescriptionKey: "AudioPlayer not initialized",
             ])
         }
     }
@@ -606,7 +604,7 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
         guard let player = audioPlayer, let track = currentTrack else {
             print("❌ No audio player or track available for seeking")
             throw NSError(domain: "SFBAudioEngineManager", code: 4, userInfo: [
-                NSLocalizedDescriptionKey: "No audio player available"
+                NSLocalizedDescriptionKey: "No audio player available",
             ])
         }
 
@@ -750,7 +748,7 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
 
             if inputBandCount <= availableBands {
                 // Direct mapping - use exactly what we have
-                for i in 0..<inputBandCount {
+                for i in 0 ..< inputBandCount {
                     let band = equalizer.bands[i]
                     band.frequency = Float(eqFrequencies[i])
                     band.gain = Float(eqGains[i])
@@ -761,7 +759,7 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
                 }
 
                 // Bypass remaining bands
-                for i in inputBandCount..<availableBands {
+                for i in inputBandCount ..< availableBands {
                     equalizer.bands[i].bypass = true
                 }
 
@@ -772,7 +770,7 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
 
                 let bandsPerGroup = Double(inputBandCount) / Double(availableBands)
 
-                for i in 0..<availableBands {
+                for i in 0 ..< availableBands {
                     // Calculate the range of input bands for this output band
                     let startIndex = Int(Double(i) * bandsPerGroup)
                     let endIndex = min(Int(Double(i + 1) * bandsPerGroup), inputBandCount)
@@ -783,7 +781,7 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
                     var avgBandwidth = 0.0
                     var groupSize = 0
 
-                    for j in startIndex..<endIndex {
+                    for j in startIndex ..< endIndex {
                         if j < eqFrequencies.count && j < eqGains.count {
                             avgFrequency += eqFrequencies[j]
                             avgGain += eqGains[j]
@@ -816,7 +814,7 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
             let maxFreq = 20000.0
             let bandCount = equalizer.bands.count
 
-            for i in 0..<bandCount {
+            for i in 0 ..< bandCount {
                 let band = equalizer.bands[i]
                 let frequency = minFreq * pow(maxFreq / minFreq, Double(i) / Double(bandCount - 1))
 
@@ -896,7 +894,7 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
             // For DSD DoP on iOS, ensure proper audio routing
             do {
                 try audioSession.setCategory(.playback, mode: .default,
-                                           options: [.allowBluetoothA2DP, .allowAirPlay])
+                                             options: [.allowBluetoothA2DP, .allowAirPlay])
                 print("✅ Audio session category set for DoP")
             } catch {
                 print("⚠️ Category setting failed (continuing): \(error)")
@@ -1080,33 +1078,29 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
 
                 // EXCLUDE computers, CarPlay, and basic audio devices - these are NOT DACs
                 let excludedDevices = ["macbook", "imac", "mac mini", "mac pro", "mac studio",
-                                     "carplay", "car play", "android auto", "computer", "pc", "laptop",
-                                     "earpods", "airpods", "headset", "earphones", "apple headphones",
-                                     "lightning to 3.5", "usb-c to 3.5"]
-                for excludedDevice in excludedDevices {
-                    if portNameLower.contains(excludedDevice) {
-                        print("🚫 Excluding non-DAC device: \(output.portName)")
-                        return false
-                    }
+                                       "carplay", "car play", "android auto", "computer", "pc", "laptop",
+                                       "earpods", "airpods", "headset", "earphones", "apple headphones",
+                                       "lightning to 3.5", "usb-c to 3.5"]
+                for excludedDevice in excludedDevices where portNameLower.contains(excludedDevice) {
+                    print("🚫 Excluding non-DAC device: \(output.portName)")
+                    return false
                 }
 
                 // Check for known DAC brands FIRST (dedicated audio equipment only)
                 let dacBrands = ["fosi", "topping", "ifi", "audioquest", "chord", "schiit", "jds", "fiio",
-                               "denafrips", "ps audio", "mcintosh", "cambridge", "marantz", "denon",
-                               "smsl", "aune", "gustard", "matrix", "burson", "lehmann", "benchmark",
-                               "mojo", "hugo", "questyle", "cayin", "astell", "kann", "dx"]
-                for brand in dacBrands {
-                    if portNameLower.contains(brand) {
-                        print("🎵 Found recognized DAC brand: \(output.portName)")
-                        return true
-                    }
+                                 "denafrips", "ps audio", "mcintosh", "cambridge", "marantz", "denon",
+                                 "smsl", "aune", "gustard", "matrix", "burson", "lehmann", "benchmark",
+                                 "mojo", "hugo", "questyle", "cayin", "astell", "kann", "dx"]
+                for brand in dacBrands where portNameLower.contains(brand) {
+                    print("🎵 Found recognized DAC brand: \(output.portName)")
+                    return true
                 }
 
                 // Check for EXPLICIT DAC keywords (very specific - requires "dac" or "dsd")
                 // Do NOT use generic terms like "amp" or "hi-res" as those appear in marketing names
                 if portNameLower.contains(" dac") || portNameLower.contains("dac ") ||
-                   portNameLower.contains("-dac") || portNameLower.contains("dac-") ||
-                   portNameLower.contains("dsd") || portNameLower.contains("headphone amplifier") {
+                    portNameLower.contains("-dac") || portNameLower.contains("dac-") ||
+                    portNameLower.contains("dsd") || portNameLower.contains("headphone amplifier") {
                     print("🎵 Found DAC device by explicit keyword: \(output.portName)")
                     return true
                 }
@@ -1114,7 +1108,6 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
                 // For headphones port type, DEFAULT to false (no DAC)
                 // User should have a recognizable DAC brand or explicit DAC keyword
                 print("ℹ️ Headphones detected but no DAC indicators: \(output.portName)")
-                break
             case .lineOut:
                 print("🎵 Found line out (potential DAC): \(output.portName)")
                 return true
@@ -1122,13 +1115,10 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
                 // High-end Bluetooth devices that may support better audio quality
                 let bluetoothKeywords = ["ldac", "aptx", "dsd", "hi-res", "hires"]
                 let portNameLower = output.portName.lowercased()
-                for keyword in bluetoothKeywords {
-                    if portNameLower.contains(keyword) {
-                        print("🎵 Found high-quality Bluetooth DAC: \(output.portName)")
-                        return true
-                    }
+                for keyword in bluetoothKeywords where portNameLower.contains(keyword) {
+                    print("🎵 Found high-quality Bluetooth DAC: \(output.portName)")
+                    return true
                 }
-                break
             default:
                 // Check for any port that's not the built-in speaker/receiver
                 if output.portType != .builtInSpeaker && output.portType != .builtInReceiver {
@@ -1140,16 +1130,13 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
                         return true
                     }
                 }
-                break
             }
         }
 
         // Also check inputs for USB audio interfaces (less common on iOS but possible)
-        for input in currentRoute.inputs {
-            if input.portType == .usbAudio {
-                print("🎵 Found USB audio interface: \(input.portName)")
-                return true
-            }
+        for input in currentRoute.inputs where input.portType == .usbAudio {
+            print("🎵 Found USB audio interface: \(input.portName)")
+            return true
         }
 
         print("🔍 No external DAC detected on iOS - using internal audio with PCM conversion")

@@ -29,7 +29,7 @@ struct LyricsView: View {
                             gradient: Gradient(colors: [
                                 settings.backgroundColorChoice.color.opacity(0.25),
                                 settings.backgroundColorChoice.color.opacity(0.12),
-                                Color.clear
+                                Color.clear,
                             ]),
                             center: .top,
                             startRadius: 0,
@@ -47,7 +47,7 @@ struct LyricsView: View {
                         .init(color: settings.backgroundColorChoice.color.opacity(0.08), location: 0.3),
                         .init(color: settings.backgroundColorChoice.color.opacity(0.12), location: 0.5),
                         .init(color: settings.backgroundColorChoice.color.opacity(0.08), location: 0.7),
-                        .init(color: Color.clear, location: 1.0)
+                        .init(color: Color.clear, location: 1.0),
                     ]),
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -60,7 +60,7 @@ struct LyricsView: View {
                             gradient: Gradient(colors: [
                                 settings.backgroundColorChoice.color.opacity(0.2),
                                 settings.backgroundColorChoice.color.opacity(0.1),
-                                Color.clear
+                                Color.clear,
                             ]),
                             center: .bottom,
                             startRadius: 0,
@@ -77,7 +77,7 @@ struct LyricsView: View {
                         .init(color: settings.backgroundColorChoice.color.opacity(0.06), location: 0.0),
                         .init(color: Color.clear, location: 0.2),
                         .init(color: Color.clear, location: 0.8),
-                        .init(color: settings.backgroundColorChoice.color.opacity(0.08), location: 1.0)
+                        .init(color: settings.backgroundColorChoice.color.opacity(0.08), location: 1.0),
                     ]),
                     startPoint: .top,
                     endPoint: .bottom
@@ -128,7 +128,7 @@ struct LyricsView: View {
                                         gradient: Gradient(colors: [
                                             Color.white.opacity(0.1),
                                             Color.clear,
-                                            Color.white.opacity(0.1)
+                                            Color.white.opacity(0.1),
                                         ]),
                                         startPoint: .leading,
                                         endPoint: .trailing
@@ -199,7 +199,7 @@ struct LyricsView: View {
                                 Color.black.opacity(0.95),
                                 Color.black.opacity(0.7),
                                 Color.black.opacity(0.3),
-                                Color.clear
+                                Color.clear,
                             ]),
                             startPoint: .top,
                             endPoint: .bottom
@@ -213,7 +213,7 @@ struct LyricsView: View {
                                 Color.clear,
                                 Color.black.opacity(0.3),
                                 Color.black.opacity(0.7),
-                                Color.black.opacity(0.95)
+                                Color.black.opacity(0.95),
                             ]),
                             startPoint: .top,
                             endPoint: .bottom
@@ -222,7 +222,7 @@ struct LyricsView: View {
                     }
                     .allowsHitTesting(false)
                 }
-                .onChange(of: currentTime) { oldValue, newValue in
+                .onChange(of: currentTime) { _, _ in
                     updateActiveLineAndScroll(for: lines, in: proxy)
                 }
                 .onAppear {
@@ -233,10 +233,8 @@ struct LyricsView: View {
     }
 
     private func distanceFromActive(index: Int, lines: [LyricsLine]) -> Int {
-        for (i, line) in lines.enumerated() {
-            if isLineActive(line, at: i, in: lines) {
-                return abs(index - i)
-            }
+        for (i, line) in lines.enumerated() where isLineActive(line, at: i, in: lines) {
+            return abs(index - i)
         }
         return 99
     }
@@ -352,7 +350,7 @@ struct LyricsView: View {
                                     settings.backgroundColorChoice.color.opacity(0.4),
                                     settings.backgroundColorChoice.color.opacity(0.2),
                                     settings.backgroundColorChoice.color.opacity(0.05),
-                                    Color.clear
+                                    Color.clear,
                                 ]),
                                 center: .center,
                                 startRadius: 0,
@@ -372,7 +370,7 @@ struct LyricsView: View {
                                         gradient: Gradient(colors: [
                                             settings.backgroundColorChoice.color.opacity(0.6),
                                             settings.backgroundColorChoice.color.opacity(0.3),
-                                            settings.backgroundColorChoice.color.opacity(0.1)
+                                            settings.backgroundColorChoice.color.opacity(0.1),
                                         ]),
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
@@ -417,7 +415,7 @@ struct LyricsView: View {
                                 gradient: Gradient(colors: [
                                     settings.backgroundColorChoice.color.opacity(0.3),
                                     Color.white.opacity(0.15),
-                                    settings.backgroundColorChoice.color.opacity(0.2)
+                                    settings.backgroundColorChoice.color.opacity(0.2),
                                 ]),
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -431,7 +429,7 @@ struct LyricsView: View {
                                 gradient: Gradient(colors: [
                                     settings.backgroundColorChoice.color.opacity(0.05),
                                     Color.clear,
-                                    settings.backgroundColorChoice.color.opacity(0.08)
+                                    settings.backgroundColorChoice.color.opacity(0.08),
                                 ]),
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -461,7 +459,7 @@ struct LyricsView: View {
                                     settings.backgroundColorChoice.color.opacity(0.4),
                                     settings.backgroundColorChoice.color.opacity(0.2),
                                     settings.backgroundColorChoice.color.opacity(0.05),
-                                    Color.clear
+                                    Color.clear,
                                 ]),
                                 center: .center,
                                 startRadius: 0,
@@ -481,7 +479,7 @@ struct LyricsView: View {
                                         gradient: Gradient(colors: [
                                             settings.backgroundColorChoice.color.opacity(0.6),
                                             settings.backgroundColorChoice.color.opacity(0.3),
-                                            settings.backgroundColorChoice.color.opacity(0.1)
+                                            settings.backgroundColorChoice.color.opacity(0.1),
                                         ]),
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
@@ -526,7 +524,7 @@ struct LyricsView: View {
                                 gradient: Gradient(colors: [
                                     settings.backgroundColorChoice.color.opacity(0.3),
                                     Color.white.opacity(0.15),
-                                    settings.backgroundColorChoice.color.opacity(0.2)
+                                    settings.backgroundColorChoice.color.opacity(0.2),
                                 ]),
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -540,7 +538,7 @@ struct LyricsView: View {
                                 gradient: Gradient(colors: [
                                     settings.backgroundColorChoice.color.opacity(0.05),
                                     Color.clear,
-                                    settings.backgroundColorChoice.color.opacity(0.08)
+                                    settings.backgroundColorChoice.color.opacity(0.08),
                                 ]),
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -570,7 +568,7 @@ struct LyricsView: View {
                                     settings.backgroundColorChoice.color.opacity(0.4),
                                     settings.backgroundColorChoice.color.opacity(0.2),
                                     settings.backgroundColorChoice.color.opacity(0.05),
-                                    Color.clear
+                                    Color.clear,
                                 ]),
                                 center: .center,
                                 startRadius: 0,
@@ -590,7 +588,7 @@ struct LyricsView: View {
                                         gradient: Gradient(colors: [
                                             settings.backgroundColorChoice.color.opacity(0.6),
                                             settings.backgroundColorChoice.color.opacity(0.3),
-                                            settings.backgroundColorChoice.color.opacity(0.1)
+                                            settings.backgroundColorChoice.color.opacity(0.1),
                                         ]),
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
@@ -635,7 +633,7 @@ struct LyricsView: View {
                                 gradient: Gradient(colors: [
                                     settings.backgroundColorChoice.color.opacity(0.3),
                                     Color.white.opacity(0.15),
-                                    settings.backgroundColorChoice.color.opacity(0.2)
+                                    settings.backgroundColorChoice.color.opacity(0.2),
                                 ]),
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -649,7 +647,7 @@ struct LyricsView: View {
                                 gradient: Gradient(colors: [
                                     settings.backgroundColorChoice.color.opacity(0.05),
                                     Color.clear,
-                                    settings.backgroundColorChoice.color.opacity(0.08)
+                                    settings.backgroundColorChoice.color.opacity(0.08),
                                 ]),
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -684,20 +682,18 @@ struct LyricsView: View {
     }
 
     private func updateActiveLineAndScroll(for lines: [LyricsLine], in proxy: ScrollViewProxy) {
-        for (index, line) in lines.enumerated() {
-            if isLineActive(line, at: index, in: lines) {
-                withAnimation(
-                    .interpolatingSpring(
-                        mass: 1.0,
-                        stiffness: 170,
-                        damping: 25,
-                        initialVelocity: 0
-                    )
-                ) {
-                    proxy.scrollTo(index, anchor: .center)
-                }
-                break
+        for (index, line) in lines.enumerated() where isLineActive(line, at: index, in: lines) {
+            withAnimation(
+                .interpolatingSpring(
+                    mass: 1.0,
+                    stiffness: 170,
+                    damping: 25,
+                    initialVelocity: 0
+                )
+            ) {
+                proxy.scrollTo(index, anchor: .center)
             }
+            break
         }
     }
 }
@@ -711,7 +707,7 @@ struct LyricsView: View {
             syncedLyrics: [
                 LyricsLine(timestamp: 0, text: "Sample lyrics"),
                 LyricsLine(timestamp: 5, text: "Line 2"),
-                LyricsLine(timestamp: 10, text: "Line 3")
+                LyricsLine(timestamp: 10, text: "Line 3"),
             ],
             isInstrumental: false,
             source: .embedded

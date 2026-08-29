@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# pre-commit hook: 提交前自动检查 Swift 代码 lint/format（防 CI 连红）
+#   swiftformat --lint（暂存 .swift）+ swiftlint lint（暂存 .swift）
+# 工具缺失时警告放行（CI 兜底），避免首次 clone 未装工具时阻塞提交
+set -u
+
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+fail=0
+
+swift_files=$(git diff --cached --name-only --diff-filter=ACM -- '*.swift' 2>/dev/null)
+if [ -n "$swift_files" ]; then
+  if ! command -v swiftformat >/dev/null 2>&1; then
+    echo "⚠️  swiftformat 未安装，跳过格式检查（CI 会兜底）"
+  else
+    echo "→ swiftformat --lint"
+    # shellcheck disable=SC2086
+    swiftformat --lint $swift_files || fail=1
+  fi
+
+  if ! command -v swiftlint >/dev/null 2>&1; then
+    echo "⚠️  swiftlint 未安装，跳过 lint 检查（CI 会兜底）"
+  else
+    echo "→ swiftlint lint"
+    # shellcheck disable=SC2086
+    swiftlint lint $swift_files || fail=1
+  fi
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo ""
+  echo "❌ lint/format 未通过，提交已阻止。请先运行："
+  echo "   swiftformat . && swiftlint lint --fix"
+  exit 1
+fi
+
+exit 0

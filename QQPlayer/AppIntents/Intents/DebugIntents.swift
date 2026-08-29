@@ -8,31 +8,31 @@
 //
 
 #if DEBUG && canImport(MediaIntents)
-import AppIntents
-import CoreSpotlight
+    import AppIntents
+    import CoreSpotlight
 
-@available(iOS 27.0, *)
-struct ClearSpotlightIntent: AppIntent {
-    static let title: LocalizedStringResource = "Clear Spotlight Index"
-    static let isDiscoverable = false
+    @available(iOS 27.0, *)
+    struct ClearSpotlightIntent: AppIntent {
+        static let title: LocalizedStringResource = "Clear Spotlight Index"
+        static let isDiscoverable = false
 
-    @MainActor
-    func perform() async throws -> some IntentResult {
-        try await CSSearchableIndex(name: SpotlightLibraryIndexer.indexName).deleteAllSearchableItems()
-        return .result()
+        @MainActor
+        func perform() async throws -> some IntentResult {
+            try await CSSearchableIndex(name: SpotlightLibraryIndexer.indexName).deleteAllSearchableItems()
+            return .result()
+        }
     }
-}
 
-@available(iOS 27.0, *)
-struct ReindexSpotlightIntent: AppIntent {
-    static let title: LocalizedStringResource = "Reindex Spotlight"
-    static let isDiscoverable = false
+    @available(iOS 27.0, *)
+    struct ReindexSpotlightIntent: AppIntent {
+        static let title: LocalizedStringResource = "Reindex Spotlight"
+        static let isDiscoverable = false
 
-    @MainActor
-    func perform() async throws -> some IntentResult {
-        await SpotlightLibraryIndexer.shared.reindexAll()
-        return .result()
+        @MainActor
+        func perform() async throws -> some IntentResult {
+            await SpotlightLibraryIndexer.shared.reindexAll()
+            return .result()
+        }
     }
-}
 
 #endif // DEBUG && canImport(MediaIntents)

@@ -5,8 +5,8 @@
 //  Horizontal scrollable playlist browser widget with album art mashup
 //
 
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
 // MARK: - Color Extension (fix for crash)
 fileprivate extension Color {
@@ -31,7 +31,7 @@ struct PlaylistWidgetProvider: TimelineProvider {
         PlaylistWidgetEntry(
             date: Date(),
             playlists: [
-                WidgetPlaylistData(id: "1", name: "Favorites", trackCount: 25, colorHex: "FF6B9D", artworkPaths: [])
+                WidgetPlaylistData(id: "1", name: "Favorites", trackCount: 25, colorHex: "FF6B9D", artworkPaths: []),
             ]
         )
     }
@@ -91,7 +91,7 @@ struct MediumPlaylistView: View {
             LinearGradient(
                 gradient: Gradient(colors: [
                     themeColor.opacity(0.2),
-                    themeColor.opacity(0.05)
+                    themeColor.opacity(0.05),
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -265,7 +265,7 @@ struct PlaylistWidget: Widget {
         playlists: [
             WidgetPlaylistData(id: "1", name: "Favorites", trackCount: 25, colorHex: "FF6B9D", artworkPaths: []),
             WidgetPlaylistData(id: "2", name: "Chill Vibes", trackCount: 30, colorHex: "FF6B9D", artworkPaths: []),
-            WidgetPlaylistData(id: "3", name: "Workout Mix", trackCount: 45, colorHex: "FF6B9D", artworkPaths: [])
+            WidgetPlaylistData(id: "3", name: "Workout Mix", trackCount: 45, colorHex: "FF6B9D", artworkPaths: []),
         ]
     )
 }

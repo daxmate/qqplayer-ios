@@ -10,7 +10,6 @@ import AppIntentsTesting
 import XCTest
 
 final class IntentExecutionTests: BaseTestCase {
-
     func testResumePlayback() async throws {
         do {
             try await resumePlaybackDefinition.makeIntent().run()

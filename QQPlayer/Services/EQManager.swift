@@ -5,8 +5,8 @@
 //  Graphic equalizer management service
 //
 
-import Foundation
 import AVFoundation
+import Foundation
 import GRDB
 
 // Helper extension for rounding doubles
@@ -102,9 +102,9 @@ class EQManager: ObservableObject {
             }
         } else {
             // Default configuration for empty presets
-            for i in 0..<actualBands {
+            for i in 0 ..< actualBands {
                 let band = eqNode.bands[i]
-                band.frequency = Float(1000 * pow(2.0, Double(i - actualBands/2)))
+                band.frequency = Float(1000 * pow(2.0, Double(i - actualBands / 2)))
                 band.gain = 0.0
                 band.bandwidth = 1.0
                 band.filterType = .parametric
@@ -149,7 +149,7 @@ class EQManager: ObservableObject {
 
         if inputBandCount <= availableBands {
             // Direct mapping - use exactly what we have
-            for i in 0..<inputBandCount {
+            for i in 0 ..< inputBandCount {
                 let band = eqNode.bands[i]
                 band.frequency = Float(eqFrequencies[i])
                 band.gain = i < eqGains.count ? Float(eqGains[i]) : 0.0
@@ -160,7 +160,7 @@ class EQManager: ObservableObject {
             }
 
             // Bypass remaining bands
-            for i in inputBandCount..<availableBands {
+            for i in inputBandCount ..< availableBands {
                 eqNode.bands[i].bypass = true
             }
 
@@ -171,7 +171,7 @@ class EQManager: ObservableObject {
 
             let bandsPerGroup = Double(inputBandCount) / Double(availableBands)
 
-            for i in 0..<availableBands {
+            for i in 0 ..< availableBands {
                 // Calculate the range of input bands for this output band
                 let startIndex = Int(Double(i) * bandsPerGroup)
                 let endIndex = min(Int(Double(i + 1) * bandsPerGroup), inputBandCount)
@@ -182,7 +182,7 @@ class EQManager: ObservableObject {
                 var avgBandwidth = 0.0
                 var groupSize = 0
 
-                for j in startIndex..<endIndex {
+                for j in startIndex ..< endIndex {
                     if j < eqFrequencies.count && j < eqGains.count {
                         avgFrequency += eqFrequencies[j]
                         avgGain += eqGains[j]
@@ -204,7 +204,7 @@ class EQManager: ObservableObject {
                 band.filterType = .parametric
                 band.bypass = false
 
-                print("  Band \(i): \(avgFrequency.rounded(toPlaces: 1))Hz, \(avgGain.rounded(toPlaces: 1))dB (avg of \(groupSize) bands: \(startIndex)-\(endIndex-1))")
+                print("  Band \(i): \(avgFrequency.rounded(toPlaces: 1))Hz, \(avgGain.rounded(toPlaces: 1))dB (avg of \(groupSize) bands: \(startIndex)-\(endIndex - 1))")
             }
 
             print("✅ Applied frequency grouping and averaging (\(bandsPerGroup.rounded(toPlaces: 1)) bands per group)")
@@ -213,35 +213,35 @@ class EQManager: ObservableObject {
 
     private func applyEQSettings() {
         let eqNode = self.eqNode
-        
+
         if !isEnabled || currentPreset == nil {
             eqNode?.bands.forEach { $0.bypass = true }
             eqNode?.globalGain = 0.0
-            
+
             SFBAudioEngineManager.shared.updateEQSettings()
             print("🚫 EQ disabled - all bands bypassed")
             return
         }
-        
+
         guard let preset = currentPreset else {
             SFBAudioEngineManager.shared.updateEQSettings()
             return
         }
-        
+
         Task {
             do {
                 let bands = try await loadBands(for: preset)
                 let sortedBands = bands.sorted { $0.bandIndex < $1.bandIndex }
-                
+
                 await MainActor.run {
                     let newFrequencies = sortedBands.map { $0.frequency }
                     let newGains = sortedBands.map { $0.gain }
                     let newBandwidths = sortedBands.map { max(0.05, min(5.0, $0.bandwidth)) }
-                    
+
                     self.eqFrequencies = newFrequencies
                     self.eqGains = newGains
                     self.eqBandwidths = newBandwidths
-                    
+
                     if self.eqNode != nil {
                         self.configureEQBands()
                         print("✅ Reconfigured existing EQ node with \(newFrequencies.count) input bands")
@@ -249,7 +249,7 @@ class EQManager: ObservableObject {
                         print("ℹ️ Stored \(newFrequencies.count) EQ bands for SFBAudioEngine")
                     }
                 }
-                
+
                 applyGlobalGain()
                 print("✅ Applied EQ preset: \(preset.name)")
             } catch {
@@ -261,11 +261,9 @@ class EQManager: ObservableObject {
     private func applyGlobalGain() {
         let globalGainFloat = Float(globalGain)
         eqNode?.globalGain = globalGainFloat
-        
+
         SFBAudioEngineManager.shared.updateEQSettings()
     }
-
-
 
     // MARK: - Preset Management
 
@@ -289,7 +287,7 @@ class EQManager: ObservableObject {
 
         let minFrequency = 20.0
         let maxFrequency = 20_000.0
-        return (0..<clampedBandCount).map { index in
+        return (0 ..< clampedBandCount).map { index in
             minFrequency * pow(maxFrequency / minFrequency, Double(index) / Double(clampedBandCount - 1))
         }
     }
@@ -317,7 +315,7 @@ class EQManager: ObservableObject {
         // Create bands for the preset
         let bandCount = min(frequencies.count, gains.count)
         let bandwidthValues = bandwidths ?? Array(repeating: 1.0, count: bandCount)
-        for index in 0..<bandCount {
+        for index in 0 ..< bandCount {
             let band = EQBand(
                 presetId: savedPreset.id!,
                 frequency: frequencies[index],
@@ -364,7 +362,7 @@ class EQManager: ObservableObject {
 
             // Insert new bands
             let bandCount = min(min(frequencies.count, gains.count), bandwidths.count)
-            for index in 0..<bandCount {
+            for index in 0 ..< bandCount {
                 var band = EQBand(
                     presetId: preset.id!,
                     frequency: frequencies[index],

@@ -11,7 +11,6 @@ import AppIntentsTesting
 import XCTest
 
 final class SpotlightTests: BaseTestCase {
-
     func testClearAndReindexRoundTrip() async throws {
         try await clearSpotlightDefinition.makeIntent().run()
 

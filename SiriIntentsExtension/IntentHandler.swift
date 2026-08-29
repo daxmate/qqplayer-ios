@@ -5,11 +5,11 @@
 //  Created by CLQ on 15/09/2025.
 //
 
-import Intents
 import Foundation
 import GRDB
+import Intents
 #if canImport(FoundationModels)
-import FoundationModels
+    import FoundationModels
 #endif
 
 // String similarity extension for fuzzy matching
@@ -40,23 +40,23 @@ extension String {
 
         var matrix = Array(repeating: Array(repeating: 0, count: otherCount + 1), count: selfCount + 1)
 
-        for i in 0...selfCount {
+        for i in 0 ... selfCount {
             matrix[i][0] = i
         }
 
-        for j in 0...otherCount {
+        for j in 0 ... otherCount {
             matrix[0][j] = j
         }
 
-        for i in 1...selfCount {
-            for j in 1...otherCount {
-                if selfArray[i-1] == otherArray[j-1] {
-                    matrix[i][j] = matrix[i-1][j-1]
+        for i in 1 ... selfCount {
+            for j in 1 ... otherCount {
+                if selfArray[i - 1] == otherArray[j - 1] {
+                    matrix[i][j] = matrix[i - 1][j - 1]
                 } else {
                     matrix[i][j] = Swift.min(
-                        matrix[i-1][j] + 1,    // deletion
-                        matrix[i][j-1] + 1,    // insertion
-                        matrix[i-1][j-1] + 1   // substitution
+                        matrix[i - 1][j] + 1,    // deletion
+                        matrix[i][j - 1] + 1,    // insertion
+                        matrix[i - 1][j - 1] + 1   // substitution
                     )
                 }
             }
@@ -87,7 +87,7 @@ extension String {
 
         let ignoredWords: Set<String> = [
             "a", "an", "the", "song", "music", "track", "play", "please", "by", "from", "in", "on", "qqplayer",
-            "le", "la", "les", "un", "une", "chanson", "musique", "titre", "joue", "de", "du", "des", "dans", "sur"
+            "le", "la", "les", "un", "une", "chanson", "musique", "titre", "joue", "de", "du", "des", "dans", "sur",
         ]
         let queryTokens = query.split(separator: " ").map(String.init).filter { !ignoredWords.contains($0) }
         let valueTokens = value.split(separator: " ").map(String.init)
@@ -121,7 +121,7 @@ enum SiriDiag {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("siri-diagnostics.log")
         let stamp = ISO8601DateFormatter().string(from: Date())
-        guard let data = "\(stamp) \(message)\n".data(using: .utf8) else { return }
+        let data = Data("\(stamp) \(message)\n".utf8)
         if let handle = try? FileHandle(forWritingTo: url) {
             defer { try? handle.close() }
             _ = try? handle.seekToEnd()
@@ -172,15 +172,15 @@ class ExtensionDatabaseAccess {
                 // share a literal SQL substring, and the previous LIMIT 100
                 // meant most libraries were never considered at all.
                 let tracks = try SimpleTrack.fetchAll(db, sql: """
-                    SELECT track.stable_id,
-                           track.title,
-                           artist.name AS artist_name,
-                           album.title AS album_title
-                    FROM track
-                    LEFT JOIN artist ON artist.id = track.artist_id
-                    LEFT JOIN album ON album.id = track.album_id
-                    ORDER BY track.title
-                    """)
+                SELECT track.stable_id,
+                       track.title,
+                       artist.name AS artist_name,
+                       album.title AS album_title
+                FROM track
+                LEFT JOIN artist ON artist.id = track.artist_id
+                LEFT JOIN album ON album.id = track.album_id
+                ORDER BY track.title
+                """)
 
                 return tracks.map { track in
                     let metadata = [track.title, track.artistName, track.albumTitle]
@@ -340,7 +340,6 @@ struct SimpleTrack: Codable, FetchableRecord, Sendable {
     }
 }
 
-
 struct SimplePlaylist: Codable, FetchableRecord {
     var id: Int64?
     var title: String
@@ -359,57 +358,56 @@ struct SimpleFavorite: Codable, FetchableRecord {
 }
 
 #if canImport(FoundationModels)
-@available(iOS 26.0, *)
-@MainActor
-private enum SiriLanguageModelSongMatcher {
-    static func bestMatch(
-        query: String,
-        artistName: String?,
-        albumName: String?,
-        candidates: [RankedSimpleTrack]
-    ) async -> SimpleTrack? {
-        guard case .available = SystemLanguageModel.default.availability,
-              !candidates.isEmpty else { return nil }
+    @available(iOS 26.0, *)
+    @MainActor
+    private enum SiriLanguageModelSongMatcher {
+        static func bestMatch(
+            query: String,
+            artistName: String?,
+            albumName: String?,
+            candidates: [RankedSimpleTrack]
+        ) async -> SimpleTrack? {
+            guard case .available = SystemLanguageModel.default.availability,
+                  !candidates.isEmpty else { return nil }
 
-        let shortlist = Array(candidates.prefix(20))
-        let catalog = shortlist.enumerated().map { index, candidate in
-            let track = candidate.track
-            return "\(index): title=\(track.title) | artist=\(track.artistName ?? "unknown") | album=\(track.albumTitle ?? "unknown")"
-        }.joined(separator: "\n")
+            let shortlist = Array(candidates.prefix(20))
+            let catalog = shortlist.enumerated().map { index, candidate in
+                let track = candidate.track
+                return "\(index): title=\(track.title) | artist=\(track.artistName ?? "unknown") | album=\(track.albumTitle ?? "unknown")"
+            }.joined(separator: "\n")
 
-        let prompt = """
-        A person asked Siri to play a song from their private QQPlayer library.
-        Spoken words can be misspelled or transcribed phonetically. Select the
-        one catalog entry that most likely means the requested song. Consider
-        title, artist, album, soundtrack/franchise names, abbreviations and
-        transcription mistakes. Never invent a song. If no entry is a
-        plausible match, answer NONE. Otherwise answer only its numeric index.
+            let prompt = """
+            A person asked Siri to play a song from their private QQPlayer library.
+            Spoken words can be misspelled or transcribed phonetically. Select the
+            one catalog entry that most likely means the requested song. Consider
+            title, artist, album, soundtrack/franchise names, abbreviations and
+            transcription mistakes. Never invent a song. If no entry is a
+            plausible match, answer NONE. Otherwise answer only its numeric index.
 
-        Requested title: \(query)
-        Artist hint: \(artistName ?? "none")
-        Album hint: \(albumName ?? "none")
+            Requested title: \(query)
+            Artist hint: \(artistName ?? "none")
+            Album hint: \(albumName ?? "none")
 
-        Catalog:
-        \(catalog)
-        """
+            Catalog:
+            \(catalog)
+            """
 
-        let session = LanguageModelSession()
-        guard let response = try? await session.respond(to: prompt) else { return nil }
-        let answer = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        if answer.uppercased().contains("NONE") { return nil }
-        let index = answer
-            .split(whereSeparator: { !$0.isNumber })
-            .compactMap { Int($0) }
-            .first
-        guard let index, shortlist.indices.contains(index) else { return nil }
-        SiriDiag.log("EXT LLM matched query=\(query) index=\(index) title=\(shortlist[index].track.title)")
-        return shortlist[index].track
+            let session = LanguageModelSession()
+            guard let response = try? await session.respond(to: prompt) else { return nil }
+            let answer = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            if answer.uppercased().contains("NONE") { return nil }
+            let index = answer
+                .split(whereSeparator: { !$0.isNumber })
+                .compactMap { Int($0) }
+                .first
+            guard let index, shortlist.indices.contains(index) else { return nil }
+            SiriDiag.log("EXT LLM matched query=\(query) index=\(index) title=\(shortlist[index].track.title)")
+            return shortlist[index].track
+        }
     }
-}
 #endif
 
 class IntentHandler: INExtension, INPlayMediaIntentHandling, INAddMediaIntentHandling {
-
     private let database = ExtensionDatabaseAccess.shared
 
     override func handler(for intent: INIntent) -> Any {
@@ -528,17 +526,17 @@ class IntentHandler: INExtension, INPlayMediaIntentHandling, INAddMediaIntentHan
             return deterministic
         }
 
-#if canImport(FoundationModels)
-        if #available(iOS 26.0, *),
-           let modelMatch = await SiriLanguageModelSongMatcher.bestMatch(
-               query: query,
-               artistName: mediaSearch.artistName,
-               albumName: mediaSearch.albumName,
-               candidates: ranked
-           ) {
-            return [modelMatch]
-        }
-#endif
+        #if canImport(FoundationModels)
+            if #available(iOS 26.0, *),
+               let modelMatch = await SiriLanguageModelSongMatcher.bestMatch(
+                   query: query,
+                   artistName: mediaSearch.artistName,
+                   albumName: mediaSearch.albumName,
+                   candidates: ranked
+               ) {
+                return [modelMatch]
+            }
+        #endif
 
         return deterministic
     }
@@ -572,17 +570,17 @@ class IntentHandler: INExtension, INPlayMediaIntentHandling, INAddMediaIntentHan
                 "favorite", "favourite", "liked", "love", "loved",
                 "liked songs", "favorite songs", "favourite songs",
                 "my liked songs", "my favorite songs", "my favourite songs",
-                "my loved songs", "loved songs"
+                "my loved songs", "loved songs",
             ]
             // French keywords
             let frenchFavoriteKeywords = [
                 "préféré", "prefere", "favori", "favoris", "aimé", "aime", "coup de coeur",
                 "chansons préférées", "mes chansons préférées", "chansons aimées",
-                "mes chansons aimées", "musique préférée", "ma musique préférée"
+                "mes chansons aimées", "musique préférée", "ma musique préférée",
             ]
 
             let isFavorites = englishFavoriteKeywords.contains { lowercased.contains($0) } ||
-                             frenchFavoriteKeywords.contains { lowercased.contains($0) }
+                frenchFavoriteKeywords.contains { lowercased.contains($0) }
 
             if isFavorites {
                 print("🎵 FAVORITES DETECTED: '\(mediaName)'")

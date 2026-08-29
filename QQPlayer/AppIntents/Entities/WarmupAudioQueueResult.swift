@@ -7,21 +7,21 @@
 //
 
 #if canImport(MediaIntents)
-import AppIntents
+    import AppIntents
 
-@available(iOS 27.0, *)
-@AppEntity(schema: .audio.warmupAudioQueueResult)
-struct WarmupAudioQueueResult: TransientAppEntity {
-    var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(
-            title: LocalizedStringResource(
-                "Warmup Audio Queue Result",
-                comment: "Diagnostic title for the audio-domain warmup result entity."
+    @available(iOS 27.0, *)
+    @AppEntity(schema: .audio.warmupAudioQueueResult)
+    struct WarmupAudioQueueResult: TransientAppEntity {
+        var displayRepresentation: DisplayRepresentation {
+            DisplayRepresentation(
+                title: LocalizedStringResource(
+                    "Warmup Audio Queue Result",
+                    comment: "Diagnostic title for the audio-domain warmup result entity."
+                )
             )
-        )
-    }
+        }
 
-    init() {}
-}
+        init() {}
+    }
 
 #endif // canImport(MediaIntents)

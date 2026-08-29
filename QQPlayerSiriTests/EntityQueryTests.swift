@@ -10,7 +10,6 @@ import AppIntentsTesting
 import XCTest
 
 final class EntityQueryTests: BaseTestCase {
-
     func testSongStringQueryExecutes() async throws {
         _ = try await entitiesWithRetry(songEntityDefinition, matching: "a")
     }

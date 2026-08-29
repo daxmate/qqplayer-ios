@@ -11,9 +11,9 @@ import Foundation
 struct Artist: Codable, FetchableRecord, PersistableRecord {
     var id: Int64?
     var name: String
-    
+
     static let databaseTableName = "artist"
-    
+
     nonisolated(unsafe) static let tracks = hasMany(Track.self)
     nonisolated(unsafe) static let albums = hasMany(Album.self)
 }
@@ -24,12 +24,12 @@ struct Album: Codable, FetchableRecord, PersistableRecord {
     var title: String
     var year: Int?
     var albumArtist: String?
-    
+
     static let databaseTableName = "album"
-    
+
     nonisolated(unsafe) static let artist = belongsTo(Artist.self)
     nonisolated(unsafe) static let tracks = hasMany(Track.self)
-    
+
     enum CodingKeys: String, CodingKey {
         case id, title, year
         case artistId = "artist_id"
@@ -54,18 +54,18 @@ struct Track: Codable, FetchableRecord, PersistableRecord, Equatable {
     /// Filesystem modification timestamp in microseconds since 1970.
     /// Optional so databases created by older app versions decode safely and
     /// receive a one-time metadata refresh on their next library scan.
-    var modificationDate: Int64? = nil
+    var modificationDate: Int64?
     var replaygainTrackGain: Double?
     var replaygainAlbumGain: Double?
     var replaygainTrackPeak: Double?
     var replaygainAlbumPeak: Double?
     var hasEmbeddedArt: Bool = false
-    
+
     static let databaseTableName = "track"
-    
+
     nonisolated(unsafe) static let artist = belongsTo(Artist.self)
     nonisolated(unsafe) static let album = belongsTo(Album.self)
-    
+
     enum CodingKeys: String, CodingKey {
         case id, title, path
         case stableId = "stable_id"
@@ -88,9 +88,9 @@ struct Track: Codable, FetchableRecord, PersistableRecord, Equatable {
 
 struct Favorite: Codable, FetchableRecord, PersistableRecord {
     var trackStableId: String
-    
+
     static let databaseTableName = "favorite"
-    
+
     enum CodingKeys: String, CodingKey {
         case trackStableId = "track_stable_id"
     }
@@ -143,8 +143,8 @@ struct PlaylistItem: Codable, FetchableRecord, PersistableRecord {
 // MARK: - Graphic EQ Models
 
 enum EQPresetType: String, Codable {
-    case imported = "imported"    // Imported GraphicEQ with variable bands
-    case manual = "manual"        // Manual 16-band EQ
+    case imported    // Imported GraphicEQ with variable bands
+    case manual      // Manual 16-band EQ
 }
 
 struct EQPreset: Codable, FetchableRecord, PersistableRecord, Identifiable {

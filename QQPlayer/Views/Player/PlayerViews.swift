@@ -1,5 +1,5 @@
-import SwiftUI
 import AVKit
+import SwiftUI
 
 struct EqualizerBarsExact: View {
     let color: Color
@@ -18,15 +18,15 @@ struct EqualizerBarsExact: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 1) {
-            ForEach(0..<4, id: \.self) { i in
+            ForEach(0 ..< 4, id: \.self) { i in
                 RoundedRectangle(cornerRadius: 0.5)
                     .fill(color)
                     .frame(width: isLarge ? 2 : 1.5)
                     .frame(height: isActive && kick ? targetH[i] : minH)
                     .animation(
                         isActive
-                        ? .easeInOut(duration: durations[i]).repeatForever(autoreverses: true)
-                        : .easeInOut(duration: 0.2),
+                            ? .easeInOut(duration: durations[i]).repeatForever(autoreverses: true)
+                            : .easeInOut(duration: 0.2),
                         value: kick
                     )
             }
@@ -63,12 +63,12 @@ extension Color {
         default:
             (a, r, g, b) = (1, 1, 1, 0)
         }
-        
+
         self.init(
             .sRGB,
             red: Double(r) / 255,
             green: Double(g) / 255,
-            blue:  Double(b) / 255,
+            blue: Double(b) / 255,
             opacity: Double(a) / 255
         )
     }
@@ -102,13 +102,13 @@ struct PlayerView: View {
     @State private var showPlaylistDialog = false
     @State private var showQueueSheet = false
     @State private var showLyricsSheet = false
-    @State private var currentLyrics: Lyrics? = nil
+    @State private var currentLyrics: Lyrics?
     @State private var isLoadingLyrics = false
     @State private var settings = DeleteSettings.load()
     @State private var sleepTimerTask: Task<Void, Never>?
     @State private var sleepTimerEndDate: Date?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    
+
     var body: some View {
         ZStack {
             ScreenSpecificBackgroundView(screen: .player)
@@ -140,7 +140,7 @@ struct PlayerView: View {
                     checkFavoriteStatus()
                 }
             }
-            .onChange(of: playerEngine.currentTrack) { _, newTrack in
+            .onChange(of: playerEngine.currentTrack) { _, _ in
                 checkFavoriteStatus()
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("BackgroundColorChanged"))) { _ in
@@ -158,7 +158,7 @@ struct PlayerView: View {
             .sheet(isPresented: $showLyricsSheet) {
                 lyricsSheet
             }
-            .onChange(of: playerEngine.currentTrack) { oldValue, newValue in
+            .onChange(of: playerEngine.currentTrack) { _, _ in
                 // Clear current lyrics
                 currentLyrics = nil
 
@@ -271,8 +271,7 @@ struct PlayerView: View {
 
             if let artwork = currentArtwork {
                 Image(uiImage: artwork)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
+                    .resizable().scaledToFill()
                     .frame(width: size, height: size)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
@@ -291,8 +290,7 @@ struct PlayerView: View {
 
             if let artwork = artwork {
                 Image(uiImage: artwork)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
+                    .resizable().scaledToFill()
                     .frame(width: size, height: size)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
@@ -457,7 +455,7 @@ struct PlayerView: View {
                    try Album.fetchOne(db, key: albumId)
                }) {
                 Button(action: {
-                    let userInfo = ["album": album, "allTracks": allTracks] as [String : Any]
+                    let userInfo = ["album": album, "allTracks": allTracks] as [String: Any]
                     NotificationCenter.default.post(name: NSNotification.Name("NavigateToAlbumFromPlayer"), object: nil, userInfo: userInfo)
                 }) {
                     Text(track.title)
@@ -487,7 +485,7 @@ struct PlayerView: View {
                    try Artist.fetchOne(db, key: artistId)
                }) {
                 Button(action: {
-                    let userInfo = ["artist": artist, "allTracks": allTracks] as [String : Any]
+                    let userInfo = ["artist": artist, "allTracks": allTracks] as [String: Any]
                     NotificationCenter.default.post(name: NSNotification.Name("NavigateToArtistFromPlayer"), object: nil, userInfo: userInfo)
                 }) {
                     Text((try? DatabaseManager.shared.getArtistDisplayName(forTrackStableId: track.stableId, fallbackArtistId: track.artistId)) ?? artist.name)
@@ -800,13 +798,13 @@ struct PlayerView: View {
             }
         }
     }
-    
+
     private func loadAllArtworks() async {
         await loadCurrentArtwork()
         await loadNextArtwork()
         await loadPreviousArtwork()
     }
-    
+
     private func loadCurrentArtwork() async {
         guard let track = playerEngine.currentTrack else {
             currentArtwork = nil
@@ -818,7 +816,7 @@ struct PlayerView: View {
         guard playerEngine.currentTrack?.stableId == trackId else { return }
         currentArtwork = artwork
     }
-    
+
     private func loadNextArtwork() async {
         let currentTrackId = playerEngine.currentTrack?.stableId
         let nextTrack = getNextTrack()
@@ -834,7 +832,7 @@ struct PlayerView: View {
               getNextTrack()?.stableId == nextTrackId else { return }
         nextArtwork = artwork
     }
-    
+
     private func loadPreviousArtwork() async {
         let currentTrackId = playerEngine.currentTrack?.stableId
         let prevTrack = getPreviousTrack()
@@ -850,13 +848,13 @@ struct PlayerView: View {
               getPreviousTrack()?.stableId == previousTrackId else { return }
         previousArtwork = artwork
     }
-    
+
     private func getNextTrack() -> Track? {
         let queue = playerEngine.playbackQueue
         let currentIndex = playerEngine.currentIndex
-        
+
         guard !queue.isEmpty else { return nil }
-        
+
         if currentIndex < queue.count - 1 {
             // Normal next track
             return queue[currentIndex + 1]
@@ -865,13 +863,13 @@ struct PlayerView: View {
             return queue[0]
         }
     }
-    
+
     private func getPreviousTrack() -> Track? {
         let queue = playerEngine.playbackQueue
         let currentIndex = playerEngine.currentIndex
-        
+
         guard !queue.isEmpty else { return nil }
-        
+
         if currentIndex > 0 {
             // Normal previous track
             return queue[currentIndex - 1]
@@ -880,7 +878,7 @@ struct PlayerView: View {
             return queue[queue.count - 1]
         }
     }
-    
+
     @MainActor
     private func loadTracks() async {
         do {
@@ -890,13 +888,13 @@ struct PlayerView: View {
             print("❌ Failed to load tracks: \(error)")
         }
     }
-    
+
     private func checkFavoriteStatus() {
         guard let currentTrack = playerEngine.currentTrack else {
             isFavorite = false
             return
         }
-        
+
         do {
             isFavorite = try DatabaseManager.shared.isFavorite(trackStableId: currentTrack.stableId)
         } catch {
@@ -904,10 +902,10 @@ struct PlayerView: View {
             isFavorite = false
         }
     }
-    
+
     private func toggleFavorite() {
         guard let currentTrack = playerEngine.currentTrack else { return }
-        
+
         do {
             try appCoordinator.toggleFavorite(trackStableId: currentTrack.stableId)
             isFavorite.toggle()
@@ -915,11 +913,11 @@ struct PlayerView: View {
             print("Failed to toggle favorite: \(error)")
         }
     }
-    
+
     private func showAirPlayPicker() {
         let routePickerView = AVRoutePickerView()
         routePickerView.prioritizesVideoDevices = false
-        
+
         // Find the button inside the route picker and simulate a tap
         for subview in routePickerView.subviews {
             if let button = subview as? UIButton {
@@ -997,14 +995,14 @@ struct InteractiveProgressBar: View {
     let progress: Double
     let onSeek: (Double) -> Void
     let accentColor: Color
-    
+
     @State private var isDragging = false
     @State private var dragProgress: Double = 0
-    
+
     var displayProgress: Double {
         isDragging ? dragProgress : progress
     }
-    
+
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
@@ -1012,12 +1010,12 @@ struct InteractiveProgressBar: View {
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Color.gray.opacity(0.3))
                     .frame(height: 4)
-                
+
                 // Progress fill
                 RoundedRectangle(cornerRadius: 2)
                     .fill(accentColor)
                     .frame(width: geometry.size.width * displayProgress, height: 4)
-                
+
                 // Thumb/Handle
                 Circle()
                     .fill(accentColor)
@@ -1052,7 +1050,7 @@ struct MiniPlayerView: View {
     @State private var currentArtwork: UIImage?
     @State private var dragOffset: CGFloat = 0
     @State private var settings = DeleteSettings.load()
-    
+
     var body: some View {
         Group {
             if playerEngine.currentTrack != nil {
@@ -1065,11 +1063,10 @@ struct MiniPlayerView: View {
                             RoundedRectangle(cornerRadius: 8)
                                 .fill(Color.gray.opacity(0.2))
                                 .frame(width: 60, height: 60)
-                            
+
                             if let artwork = currentArtwork {
                                 Image(uiImage: artwork)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
+                                    .resizable().scaledToFill()
                                     .frame(width: 60, height: 60)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                             } else {
@@ -1078,14 +1075,14 @@ struct MiniPlayerView: View {
                                     .foregroundColor(.secondary)
                             }
                         }
-                        
+
                         // Track info
                         VStack(alignment: .leading, spacing: 4) {
                             Text(playerEngine.currentTrack?.title ?? "")
                                 .font(.headline)
                                 .foregroundColor(.primary)
                                 .lineLimit(1)
-                            
+
                             if let artistId = playerEngine.currentTrack?.artistId,
                                let artist = try? DatabaseManager.shared.read({ db in
                                    try Artist.fetchOne(db, key: artistId)
@@ -1155,7 +1152,7 @@ struct MiniPlayerView: View {
                         // Progress bar integrated into the mini player background
                         VStack(spacing: 0) {
                             Spacer()
-                            
+
                             MiniPlayerProgressBar(
                                 duration: playerEngine.duration,
                                 accentColor: settings.backgroundColorChoice.color
@@ -1243,21 +1240,20 @@ private struct MiniPlayerProgressBar: View {
     }
 }
 
-
 struct TrackRowView: View, @MainActor Equatable {
     // 1. Pass these in instead of observing PlayerEngine
     let track: Track
     let activeTrackId: String?
     let isAudioPlaying: Bool
     let artistName: String?
-    
+
     let onTap: () -> Void
     let playlist: Playlist?
     let showDirectDeleteButton: Bool
     let onEnterBulkMode: (() -> Void)?
-    
+
     @EnvironmentObject private var appCoordinator: AppCoordinator
-    
+
     // Internal state only (does not trigger external redraws)
     @State private var isFavorite = false
     @State private var isPressed = false
@@ -1265,19 +1261,19 @@ struct TrackRowView: View, @MainActor Equatable {
     @State private var artworkImage: UIImage?
     @State private var showDeleteConfirmation = false
     @State private var deleteSettings = DeleteSettings.load()
-    
+
     // 2. Computed property is now based on passed params
     private var isCurrentlyPlaying: Bool {
         activeTrackId == track.stableId
     }
-    
+
     // 3. Equatable Conformance: Prevents redraws when PlayerEngine updates time
     static func == (lhs: TrackRowView, rhs: TrackRowView) -> Bool {
         return lhs.track.stableId == rhs.track.stableId &&
-        lhs.activeTrackId == rhs.activeTrackId &&
-        lhs.isAudioPlaying == rhs.isAudioPlaying &&
-        lhs.artistName == rhs.artistName &&
-        lhs.playlist?.id == rhs.playlist?.id
+            lhs.activeTrackId == rhs.activeTrackId &&
+            lhs.isAudioPlaying == rhs.isAudioPlaying &&
+            lhs.artistName == rhs.artistName &&
+            lhs.playlist?.id == rhs.playlist?.id
     }
 
     private func resolvedArtistName() -> String? {
@@ -1290,7 +1286,7 @@ struct TrackRowView: View, @MainActor Equatable {
             fallbackArtistId: track.artistId
         )
     }
-    
+
     var body: some View {
         HStack(spacing: 0) {
             // MARK: - Tappable Content Area
@@ -1300,11 +1296,10 @@ struct TrackRowView: View, @MainActor Equatable {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.gray.opacity(0.2))
                         .frame(width: 60, height: 60)
-                    
+
                     if let image = artworkImage {
                         Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
+                            .resizable().scaledToFill()
                             .frame(width: 60, height: 60)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     } else {
@@ -1312,21 +1307,21 @@ struct TrackRowView: View, @MainActor Equatable {
                             .font(.title2)
                             .foregroundColor(.secondary)
                     }
-                    
+
                     if isCurrentlyPlaying {
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(deleteSettings.backgroundColorChoice.color, lineWidth: 2)
                             .frame(width: 60, height: 60)
                     }
                 }
-                
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(track.title)
                         .font(.title3)
                         .fontWeight(.medium)
                         .foregroundColor(isCurrentlyPlaying ? deleteSettings.backgroundColorChoice.color : .primary)
                         .lineLimit(1)
-                    
+
                     if let resolvedArtistName = resolvedArtistName() {
                         Text(resolvedArtistName)
                             .font(.body)
@@ -1334,13 +1329,13 @@ struct TrackRowView: View, @MainActor Equatable {
                             .lineLimit(1)
                     }
                 }
-                
+
                 Spacer()
-                
+
                 // Equalizer uses passed params
                 if isCurrentlyPlaying {
                     let eqKey = "\(isAudioPlaying && isCurrentlyPlaying)-\(activeTrackId ?? "")"
-                    
+
                     EqualizerBarsExact(
                         color: deleteSettings.backgroundColorChoice.color,
                         isActive: isAudioPlaying && isCurrentlyPlaying,
@@ -1355,7 +1350,7 @@ struct TrackRowView: View, @MainActor Equatable {
             .onTapGesture {
                 onTap()
             }
-            
+
             // MARK: - Menu / Action Area
             if showDirectDeleteButton {
                 Button(action: {
@@ -1377,7 +1372,7 @@ struct TrackRowView: View, @MainActor Equatable {
                             Label(Localized.select, systemImage: "checkmark.circle")
                         }
                     }
-                    
+
                     Button(action: {
                         do {
                             try appCoordinator.toggleFavorite(trackStableId: track.stableId)
@@ -1389,7 +1384,7 @@ struct TrackRowView: View, @MainActor Equatable {
                             Text(isFavorite ? Localized.removeFromLikedSongs : Localized.addToLikedSongs)
                         }
                     }
-                    
+
                     if let artistId = track.artistId,
                        let artist = try? DatabaseManager.shared.read({ db in try Artist.fetchOne(db, key: artistId) }),
                        let allArtistTracks = try? DatabaseManager.shared.getTracksByArtistId(artistId) {
@@ -1397,16 +1392,16 @@ struct TrackRowView: View, @MainActor Equatable {
                             Label(Localized.showArtistPage, systemImage: "person.circle")
                         }
                     }
-                    
+
                     Button(action: { showPlaylistDialog = true }) {
                         Label(Localized.addToPlaylistEllipsis, systemImage: "rectangle.stack.badge.plus")
                     }
-                    
+
                     Button(action: { showDeleteConfirmation = true }) {
                         Label(Localized.deleteFile, systemImage: "trash")
                     }
                     .foregroundColor(.red)
-                    
+
                 } label: {
                     Image(systemName: "ellipsis")
                         .foregroundColor(.secondary)
@@ -1439,13 +1434,13 @@ struct TrackRowView: View, @MainActor Equatable {
             if artworkImage == nil { loadArtwork() }
         }
     }
-    
+
     private func loadArtwork() {
         Task {
             artworkImage = await ArtworkManager.shared.getThumbnail(for: track)
         }
     }
-    
+
     private func deleteFile() {
         Task {
             do {
@@ -1467,7 +1462,7 @@ struct TrackRowView: View, @MainActor Equatable {
             }
         }
     }
-    
+
     private func removeFromPlaylist() {
         guard let playlist = playlist, let playlistId = playlist.id else { return }
         Task {
@@ -1485,16 +1480,16 @@ struct WaveformView: View {
     @State private var waveHeights: [CGFloat] = Array(repeating: 2, count: 6)
     @State private var timer: Timer?
     @State private var animationTrigger = false
-    
+
     var body: some View {
         HStack(alignment: .center, spacing: 1) {
-            ForEach(0..<waveHeights.count, id: \.self) { index in
+            ForEach(0 ..< waveHeights.count, id: \.self) { index in
                 RoundedRectangle(cornerRadius: 0.5)
                     .fill(color.opacity(0.8))
                     .frame(width: 2, height: waveHeights[index])
                     .animation(
                         .easeInOut(duration: 0.3)
-                        .repeatForever(autoreverses: true),
+                            .repeatForever(autoreverses: true),
                         value: animationTrigger
                     )
             }
@@ -1513,13 +1508,13 @@ struct WaveformView: View {
             }
         }
     }
-    
+
     private func startWaveform() {
         guard timer == nil && isPlaying else { return }
-        
+
         // Start with animated heights
         updateWaveHeights()
-        
+
         timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { _ in
             Task { @MainActor in
                 if isPlaying {
@@ -1529,29 +1524,29 @@ struct WaveformView: View {
             }
         }
     }
-    
+
     private func stopWaveform() {
         timer?.invalidate()
         timer = nil
-        
+
         // Animate to flat line when stopped
         withAnimation(.easeOut(duration: 0.4)) {
             waveHeights = Array(repeating: 2, count: waveHeights.count)
         }
     }
-    
+
     private func updateWaveHeights() {
         guard isPlaying else { return }
-        
+
         let newHeights: [CGFloat] = [
-            CGFloat.random(in: 3...12),
-            CGFloat.random(in: 6...14),
-            CGFloat.random(in: 2...10),
-            CGFloat.random(in: 8...16),
-            CGFloat.random(in: 4...11),
-            CGFloat.random(in: 5...13)
+            CGFloat.random(in: 3 ... 12),
+            CGFloat.random(in: 6 ... 14),
+            CGFloat.random(in: 2 ... 10),
+            CGFloat.random(in: 8 ... 16),
+            CGFloat.random(in: 4 ... 11),
+            CGFloat.random(in: 5 ... 13),
         ]
-        
+
         withAnimation(.easeInOut(duration: 0.3)) {
             waveHeights = newHeights
         }

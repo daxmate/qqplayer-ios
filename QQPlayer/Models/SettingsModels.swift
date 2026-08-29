@@ -13,13 +13,13 @@ extension Notification.Name {
 enum BackgroundColor: String, CaseIterable, Codable {
     case violet = "b11491"
     case red = "e74c3c"
-    case blue = "3498db" 
+    case blue = "3498db"
     case green = "27ae60"
     case orange = "f39c12"
     case pink = "e91e63"
     case teal = "1abc9c"
     case purple = "9b59b6"
-    
+
     var name: String {
         switch self {
         case .violet: return "Violet (Default)"
@@ -32,16 +32,16 @@ enum BackgroundColor: String, CaseIterable, Codable {
         case .purple: return "Purple"
         }
     }
-    
+
     var color: Color {
         return Color(hex: self.rawValue)
     }
 }
 
 enum DSDPlaybackMode: String, CaseIterable, Codable {
-    case auto = "auto"
-    case pcm = "pcm"
-    case dop = "dop"
+    case auto
+    case pcm
+    case dop
 
     var displayName: String {
         switch self {
@@ -112,7 +112,7 @@ struct DeleteSettings: Codable {
     var forceDarkMode: Bool = false
     var dsdPlaybackMode: DSDPlaybackMode = .pcm
     var deleteFromLibraryOnly: Bool = true
-    var lastLibraryScanDate: Date? = nil
+    var lastLibraryScanDate: Date?
     var autoCreateFolderPlaylists: Bool = true
     var showLyricsButton: Bool = true
     var showSleepTimerButton: Bool = false
@@ -198,17 +198,17 @@ struct DeleteSettings: Codable {
 extension Color {
     func toHex() -> String {
         #if canImport(UIKit)
-        let components = UIColor(self).cgColor.components
-        let r = Float(components?[0] ?? 0)
-        let g = Float(components?[1] ?? 0)
-        let b = Float(components?[2] ?? 0)
+            let components = UIColor(self).cgColor.components
+            let r = Float(components?[0] ?? 0)
+            let g = Float(components?[1] ?? 0)
+            let b = Float(components?[2] ?? 0)
 
-        return String(format: "%02lX%02lX%02lX",
-                      lroundf(r * 255),
-                      lroundf(g * 255),
-                      lroundf(b * 255))
+            return String(format: "%02lX%02lX%02lX",
+                          lroundf(r * 255),
+                          lroundf(g * 255),
+                          lroundf(b * 255))
         #else
-        return "b11491" // Default violet
+            return "b11491" // Default violet
         #endif
     }
 }

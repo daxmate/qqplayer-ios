@@ -1,5 +1,5 @@
-import SwiftUI
 import GRDB
+import SwiftUI
 
 struct QueueManagementView: View {
     @StateObject private var playerEngine = PlayerEngine.shared
@@ -8,12 +8,12 @@ struct QueueManagementView: View {
     @State private var draggedTrack: Track?
     @State private var settings = DeleteSettings.load()
     @State private var artistNameCache: [Int64: String] = [:]
-    
+
     var body: some View {
         NavigationView {
             ZStack {
                 ScreenSpecificBackgroundView(screen: .player)
-                
+
                 VStack(spacing: 20) {
                     // Header
                     HStack {
@@ -21,15 +21,15 @@ struct QueueManagementView: View {
                             dismiss()
                         }
                         .font(.headline)
-                        
+
                         Spacer()
-                        
+
                         Text(Localized.playingQueue)
                             .font(.title2)
                             .fontWeight(.semibold)
-                        
+
                         Spacer()
-                        
+
                         // Invisible button for balance
                         Button(Localized.done) {
                             dismiss()
@@ -40,13 +40,13 @@ struct QueueManagementView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
-                    
+
                     if playerEngine.playbackQueue.isEmpty {
                         VStack(spacing: 16) {
                             Image(systemName: "music.note.list")
                                 .font(.system(size: 60))
                                 .foregroundColor(.secondary)
-                            
+
                             Text(Localized.noSongsInQueue)
                                 .font(.headline)
                                 .foregroundColor(.secondary)
@@ -99,7 +99,7 @@ struct QueueManagementView: View {
             print("Failed to load queue artist cache: \(error)")
         }
     }
-    
+
     private func moveItems(from source: IndexSet, to destination: Int) {
         // Get the source index (should be only one item)
         guard let sourceIndex = source.first else { return }
@@ -178,7 +178,7 @@ struct QueueTrackRow: View {
 
     @State private var artworkImage: UIImage?
     @State private var settings = DeleteSettings.load()
-    
+
     var body: some View {
         HStack(spacing: 12) {
             // Album artwork
@@ -186,11 +186,10 @@ struct QueueTrackRow: View {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(Color.gray.opacity(0.2))
                     .frame(width: 50, height: 50)
-                
+
                 if let image = artworkImage {
                     Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .resizable().scaledToFill()
                         .frame(width: 50, height: 50)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 } else {
@@ -199,7 +198,7 @@ struct QueueTrackRow: View {
                         .foregroundColor(.secondary)
                 }
             }
-            
+
             // Track info
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
@@ -208,14 +207,14 @@ struct QueueTrackRow: View {
                         .fontWeight(isCurrentTrack ? .bold : .medium)
                         .foregroundColor(isCurrentTrack ? settings.backgroundColorChoice.color : .primary)
                         .lineLimit(1)
-                    
+
                     if isCurrentTrack {
                         Image(systemName: "speaker.wave.2.fill")
                             .font(.caption)
                             .foregroundColor(settings.backgroundColorChoice.color)
                     }
                 }
-                
+
                 if let artistName, !artistName.isEmpty {
                     Text(artistName)
                         .font(.subheadline)
@@ -223,9 +222,9 @@ struct QueueTrackRow: View {
                         .lineLimit(1)
                 }
             }
-            
+
             Spacer()
-            
+
             // Drag indicator only
             Image(systemName: "line.3.horizontal")
                 .font(.caption)
@@ -256,7 +255,7 @@ struct QueueTrackRow: View {
             settings = DeleteSettings.load()
         }
     }
-    
+
     private func loadArtwork() {
         Task {
             artworkImage = await ArtworkManager.shared.getThumbnail(for: track)

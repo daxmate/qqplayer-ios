@@ -12,7 +12,7 @@ extension String {
     var localized: String {
         return NSLocalizedString(self, comment: "")
     }
-    
+
     /// Returns the localized string with format arguments
     func localized(with arguments: CVarArg...) -> String {
         return String(format: NSLocalizedString(self, comment: ""), arguments: arguments)
@@ -53,7 +53,7 @@ struct Localized {
     static let managePlaylists = "manage_playlists".localized
     static let playlist = "playlist".localized
     static let createFirstPlaylist = "create_first_playlist".localized
-    
+
     // MARK: - General UI strings
     static let allSongs = "all_songs".localized
     static let likedSongs = "liked_songs".localized
@@ -70,7 +70,7 @@ struct Localized {
     static let getStarted = "get_started".localized
     static let imSignedIn = "im_signed_in".localized
     static let itsEnabled = "its_enabled".localized
-    
+
     // MARK: - Library and Navigation
     static let library = "library".localized
     static let artists = "artists".localized
@@ -80,7 +80,7 @@ struct Localized {
     static let songs = "songs".localized
     static let processing = "processing".localized
     static let waiting = "waiting".localized
-    
+
     // MARK: - Artist/Album/Track Info
     static let noArtistsFound = "no_artists_found".localized
     static let artistsWillAppear = "artists_will_appear".localized
@@ -93,23 +93,23 @@ struct Localized {
     static let wrongArtist = "wrong_artist".localized
     static let openSpotify = "open_spotify".localized
     static let loadingArtist = "loading_artist".localized
-    
+
     // MARK: - Player
     static let playingQueue = "playing_queue".localized
     static let noSongsInQueue = "no_songs_in_queue".localized
     static let noTrackSelected = "no_track_selected".localized
-    
+
     // MARK: - Search
     static let searchYourMusicLibrary = "search_your_music_library".localized
     static let findSongsArtistsAlbumsPlaylists = "find_songs_artists_albums_playlists".localized
     static let noResultsFound = "no_results_found".localized
     static let tryDifferentKeywords = "try_different_keywords".localized
-    
+
     // MARK: - Context Menu Actions
     static let showArtistPage = "show_artist_page".localized
     static let addToPlaylistEllipsis = "add_to_playlist_ellipsis".localized
     static let deleteFile = "delete_file".localized
-    
+
     // MARK: - Settings
     static let appearance = "appearance".localized
     static let information = "information".localized
@@ -139,21 +139,21 @@ struct Localized {
     static let showLyricsButtonDescription = "show_lyrics_button_description".localized
     static let showSleepTimerButton = "show_sleep_timer_button".localized
     static let showSleepTimerButtonDescription = "show_sleep_timer_button_description".localized
-    
+
     // MARK: - Liked Songs Actions
     static let addToLikedSongs = "add_to_liked_songs".localized
     static let removeFromLikedSongs = "remove_from_liked_songs".localized
-    
+
     // MARK: - Search Categories
     static let all = "all".localized
-    
+
     // MARK: - Sync and Connection
     static let libraryOutOfSync = "library_out_of_sync".localized
     static let librarySyncMessage = "library_sync_message".localized
     static let offlineMode = "offline_mode".localized
     static let offlineModeMessage = "offline_mode_message".localized
     static let icloudConnectionRequired = "icloud_connection_required".localized
-    
+
     // MARK: - Tutorial/Onboarding
     static let welcomeToQQPlayer = "welcome_to_qqplayer".localized
     static let signInToAppleId = "sign_in_to_apple_id".localized
@@ -168,7 +168,7 @@ struct Localized {
     static let navigateToIcloudDrive = "navigate_to_icloud_drive".localized
     static let findQQPlayerFolder = "find_qqplayer_folder".localized
     static let addYourMusicInstruction = "add_your_music_instruction".localized
-    
+
     // MARK: - Tutorial Status Messages
     static let signedInToAppleId = "signed_in_to_apple_id".localized
     static let notSignedInToAppleId = "not_signed_in_to_apple_id".localized
@@ -176,17 +176,17 @@ struct Localized {
     static let icloudDriveEnabled = "icloud_drive_enabled".localized
     static let icloudDriveNotEnabled = "icloud_drive_not_enabled".localized
     static let cannotDetectIcloudStatus = "cannot_detect_icloud_status".localized
-    
+
     // MARK: - Tutorial Instructions
     static let findOpenFilesApp = "find_open_files_app".localized
     static let tapIcloudDriveSidebar = "tap_icloud_drive_sidebar".localized
     static let lookForQQPlayerFolder = "look_for_qqplayer_folder".localized
     static let copyMusicFiles = "copy_music_files".localized
-    
+
     // MARK: - Library Processing
     static let processingColon = "processing_colon".localized
     static let waitingColon = "waiting_colon".localized
-    
+
     // MARK: - Subtitles and descriptions
     static let yourFavorites = "your_favorites".localized
     static let yourPlaylists = "your_playlists".localized
@@ -194,7 +194,7 @@ struct Localized {
     static let browseByAlbum = "browse_by_album".localized
     static let unknownAlbum = "unknown_album".localized
     static let unknownArtist = "unknown_artist".localized
-    
+
     // MARK: - Dynamic strings with parameters
     static func songsCount(_ count: Int) -> String {
         if count == 1 {
@@ -203,35 +203,35 @@ struct Localized {
             return "songs_count_plural".localized(with: count)
         }
     }
-    
+
     static func createdDate(_ dateString: String) -> String {
         return "created_date".localized(with: dateString)
     }
-    
+
     static func deletePlaylistConfirmation(_ playlistName: String) -> String {
         return "delete_playlist_confirmation".localized(with: playlistName)
     }
-    
+
     static func deleteFileConfirmation(_ fileName: String) -> String {
         return "delete_file_confirmation".localized(with: fileName)
     }
-    
+
     static func foundTracks(_ count: Int) -> String {
         return "found_tracks".localized(with: count)
     }
-    
+
     static func andMore(_ count: Int) -> String {
         return "and_more".localized(with: count)
     }
-    
+
     static func dataProvidedBy(_ source: String) -> String {
         return "data_provided_by".localized(with: source)
     }
-    
+
     static func percentComplete(_ percent: Int) -> String {
         return "percent_complete".localized(with: percent)
     }
-    
+
     static func songsCountOnly(_ count: Int) -> String {
         return "songs_count".localized(with: count)
     }

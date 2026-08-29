@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  swift:
+    name: Swift (swiftlint + swiftformat + xcodebuild test)
+    # 单元测试（Swift Testing，QQPlayerTests target）+ lint/format 检查。
+    # 配置在仓库根 .swiftlint.yml / .swiftformat，swiftlint/swiftformat 自动发现。
+    # 注意：QQPlayerSiriTests（UI 集成测试）依赖上游 Xcode 27 的 AppIntentsTesting 框架，
+    # 当前 Xcode 26 SDK 无此框架编译不过，已从 scheme Test action 移除，不参与 CI。
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install tools
+        run: brew install swiftlint swiftformat
+
+      - name: Lint (swiftlint)
+        run: swiftlint lint
+
+      - name: Format (swiftformat --lint)
+        run: swiftformat --lint .
+
+      # SPM 依赖（SFBAudioEngine 等）首次拉取+编译 30-40 分钟，必须缓存：
+      #   - ~/Library/Caches/org.swift.swiftpm（包源码/解析结果）
+      #   - build/DerivedData（编译产物，命中后 xcodebuild 增量秒级）
+      # key 绑定 Package.resolved 内容，依赖不变即命中。
+      - name: Cache SPM packages + DerivedData
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            build/DerivedData
+          key: ${{ runner.os }}-spm-${{ hashFiles('QQPlayer.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
+      # destination 动态取第一个可用 iPhone 模拟器：macos-latest runner 的 Xcode/模拟器型号随系统镜像
+      # 更新而变（iPhone 16/17 系列都可能），写死型号会随镜像升级失配；动态选取在任何镜像上都成立。
+      # （本机已验证等价命令：iPhone 17 Pro 上 xcodebuild test 全绿，9 tests / 2 suites）
+      - name: Test (xcodebuild test, iOS simulator)
+        run: |
+          DEVICE="$(xcrun simctl list devices available | grep -oE 'iPhone [^(]+' | head -1 | sed 's/ *$//')"
+          if [ -z "$DEVICE" ]; then
+            echo "❌ 无可用 iPhone 模拟器（xcrun simctl list devices available）"
+            exit 1
+          fi
+          echo "Using simulator: $DEVICE"
+          xcodebuild test \
+            -project QQPlayer.xcodeproj \
+            -scheme QQPlayer \
+            -destination "platform=iOS Simulator,name=$DEVICE" \
+            -derivedDataPath build/DerivedData \
+            -only-testing:QQPlayerTests \
+            CODE_SIGNING_ALLOWED=NO

@@ -156,7 +156,7 @@ extension View {
 struct TrackSelectionIndicator: View {
     let isSelected: Bool
     let accentColor: Color
-    var onTap: (() -> Void)? = nil
+    var onTap: (() -> Void)?
 
     var body: some View {
         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")

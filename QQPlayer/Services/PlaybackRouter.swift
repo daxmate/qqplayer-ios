@@ -5,8 +5,8 @@
 //  Smart audio playback routing for different formats
 //
 
-import Foundation
 import AVFoundation
+import Foundation
 import SFBAudioEngine
 
 enum PlaybackError: Error {
@@ -18,7 +18,6 @@ enum PlaybackError: Error {
 
 /// Playback strategy pattern for different audio formats
 class PlaybackRouter {
-
     enum PlaybackStrategy {
         case native(AVAudioFile)
         case sfbAudio(AudioDecoder)  // SFBAudioEngine for Opus, Vorbis, DSD
@@ -60,7 +59,6 @@ class PlaybackRouter {
         }
     }
 
-
     /// Check if M4A file contains Opus codec
     static func isOpusInM4A(_ url: URL) -> Bool {
         // Check MP4 atoms for Opus codec
@@ -71,7 +69,7 @@ class PlaybackRouter {
         // Look for 'Opus' atom in MP4 structure
         // MP4 structure: ftyp → moov → trak → mdia → minf → stbl → stsd → Opus
         let opusSignature = "Opus".data(using: .ascii)!
-        return data.range(of: opusSignature, in: 0..<min(data.count, 10000)) != nil
+        return data.range(of: opusSignature, in: 0 ..< min(data.count, 10000)) != nil
     }
 
     /// Get format information for UI display
@@ -107,4 +105,3 @@ class PlaybackRouter {
         }
     }
 }
-

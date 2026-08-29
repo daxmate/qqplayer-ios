@@ -5,12 +5,11 @@
 //  Created by CLQ on 10/09/2025.
 //
 
-import UIKit
 import Social
+import UIKit
 import UniformTypeIdentifiers
 
 class ShareViewController: SLComposeServiceViewController {
-
     override func viewDidLoad() {
         super.viewDidLoad()
         processAudioFiles()
@@ -23,7 +22,7 @@ class ShareViewController: SLComposeServiceViewController {
     override func didSelectPost() {
         completeRequest()
     }
-    
+
     private func processAudioFiles() {
         guard let extensionContext = extensionContext,
               let inputItems = extensionContext.inputItems as? [NSExtensionItem] else {
@@ -74,12 +73,12 @@ class ShareViewController: SLComposeServiceViewController {
             self?.completeRequest()
         }
     }
-    
+
     private func isAudioFile(_ attachment: NSItemProvider) -> Bool {
         return attachment.hasItemConformingToTypeIdentifier(UTType.mp3.identifier) ||
-               attachment.hasItemConformingToTypeIdentifier("org.xiph.flac") ||
-               attachment.hasItemConformingToTypeIdentifier("com.microsoft.waveform-audio") ||
-               attachment.hasItemConformingToTypeIdentifier(UTType.wav.identifier)
+            attachment.hasItemConformingToTypeIdentifier("org.xiph.flac") ||
+            attachment.hasItemConformingToTypeIdentifier("com.microsoft.waveform-audio") ||
+            attachment.hasItemConformingToTypeIdentifier(UTType.wav.identifier)
     }
 
     private func isFolder(_ attachment: NSItemProvider) -> Bool {
@@ -88,18 +87,16 @@ class ShareViewController: SLComposeServiceViewController {
             UTType.directory.identifier,
             "public.folder",
             "public.directory",
-            UTType.fileURL.identifier // Sometimes folders come as file URLs
+            UTType.fileURL.identifier, // Sometimes folders come as file URLs
         ]
 
-        for type in folderTypes {
-            if attachment.hasItemConformingToTypeIdentifier(type) {
-                return true
-            }
+        for type in folderTypes where attachment.hasItemConformingToTypeIdentifier(type) {
+            return true
         }
 
         return false
     }
-    
+
     private func copyAudioFile(_ attachment: NSItemProvider, completion: @escaping () -> Void) {
         let typeIdentifier: String
 
@@ -115,15 +112,15 @@ class ShareViewController: SLComposeServiceViewController {
             // Fallback - shouldn't happen with our filtering
             typeIdentifier = UTType.mp3.identifier
         }
-        
+
         attachment.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { [weak self] (item, error) in
             defer { completion() }
-            
+
             guard error == nil, let url = item as? URL else {
                 print("Error loading audio file: \(error?.localizedDescription ?? "Unknown error")")
                 return
             }
-            
+
             self?.copyFileToSharedContainer(from: url)
         }
     }
@@ -135,16 +132,14 @@ class ShareViewController: SLComposeServiceViewController {
             UTType.directory.identifier,
             "public.folder",
             "public.directory",
-            UTType.fileURL.identifier
+            UTType.fileURL.identifier,
         ]
 
         var foundType: String?
-        for typeIdentifier in folderTypes {
-            if attachment.hasItemConformingToTypeIdentifier(typeIdentifier) {
-                foundType = typeIdentifier
-                print("🔍 Found folder type: \(typeIdentifier)")
-                break
-            }
+        for typeIdentifier in folderTypes where attachment.hasItemConformingToTypeIdentifier(typeIdentifier) {
+            foundType = typeIdentifier
+            print("🔍 Found folder type: \(typeIdentifier)")
+            break
         }
 
         guard let typeIdentifier = foundType else {
@@ -296,7 +291,7 @@ class ShareViewController: SLComposeServiceViewController {
                 "bookmark": bookmarkData,
                 "filename": url.lastPathComponent.data(using: .utf8) ?? Data(),
                 "folderPath": parentFolder.path.data(using: .utf8) ?? Data(),
-                "folderName": parentFolder.lastPathComponent.data(using: .utf8) ?? Data()
+                "folderName": parentFolder.lastPathComponent.data(using: .utf8) ?? Data(),
             ]
             sharedFiles.append(fileInfo)
             print("➕ Added new file entry, total entries: \(sharedFiles.count)")
@@ -310,20 +305,20 @@ class ShareViewController: SLComposeServiceViewController {
             print("❌ Failed to store shared audio file reference: \(error)")
         }
     }
-    
+
     private func completeRequest() {
         // Open main app to trigger library refresh
         openMainApp()
-        
+
         extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
     }
-    
+
     private func openMainApp() {
         guard let url = URL(string: "qqplayer://refresh") else {
             print("❌ Failed to create URL for main app")
             return
         }
-        
+
         var responder: UIResponder? = self
         while responder != nil {
             if let application = responder as? UIApplication {
@@ -334,7 +329,7 @@ class ShareViewController: SLComposeServiceViewController {
             }
             responder = responder?.next
         }
-        
+
         // Fallback method for iOS 14+
         if let windowScene = view.window?.windowScene {
             windowScene.open(url, options: nil) { success in
@@ -344,6 +339,5 @@ class ShareViewController: SLComposeServiceViewController {
             print("❌ Could not find UIApplication or WindowScene to open main app")
         }
     }
-
 
 }

@@ -6,28 +6,28 @@
 //
 
 #if canImport(MediaIntents)
-import AppIntents
+    import AppIntents
 
-@available(iOS 27.0, *)
-@AppEnum(schema: .audio.queueInsertionLocation)
-enum QueueInsertionLocation: String {
-    case next
-    case tail
+    @available(iOS 27.0, *)
+    @AppEnum(schema: .audio.queueInsertionLocation)
+    enum QueueInsertionLocation: String {
+        case next
+        case tail
 
-    static let caseDisplayRepresentations: [QueueInsertionLocation: DisplayRepresentation] = [
-        .next: DisplayRepresentation(
-            title: LocalizedStringResource(
-                "Next",
-                comment: "QueueInsertionLocation case label: insert right after the current track."
-            )
-        ),
-        .tail: DisplayRepresentation(
-            title: LocalizedStringResource(
-                "Last",
-                comment: "QueueInsertionLocation case label: append to the end of the queue."
-            )
-        )
-    ]
-}
+        static let caseDisplayRepresentations: [QueueInsertionLocation: DisplayRepresentation] = [
+            .next: DisplayRepresentation(
+                title: LocalizedStringResource(
+                    "Next",
+                    comment: "QueueInsertionLocation case label: insert right after the current track."
+                )
+            ),
+            .tail: DisplayRepresentation(
+                title: LocalizedStringResource(
+                    "Last",
+                    comment: "QueueInsertionLocation case label: append to the end of the queue."
+                )
+            ),
+        ]
+    }
 
 #endif // canImport(MediaIntents)

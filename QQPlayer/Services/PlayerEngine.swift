@@ -3,13 +3,13 @@
 //
 //  Audio playback engine using AVAudioEngine for high-resolution FLAC playback
 //
-import Foundation
 import AVFoundation
 import Combine
-import MediaPlayer
-import UIKit
+import Foundation
 import GRDB
+import MediaPlayer
 import SFBAudioEngine
+import UIKit
 import WidgetKit
 
 /// Holds the fast-changing playback position so that only views showing the
@@ -209,7 +209,6 @@ class PlayerEngine: NSObject, ObservableObject {
         // Don't start the engine here - wait until we actually need to play
         print("✅ Audio engine configured and prepared with EQ integration, format: \(format?.description ?? "auto")")
     }
-
 
     private func ensureAudioSessionSetup() {
         guard !hasSetupAudioSession else { return }
@@ -686,7 +685,6 @@ class PlayerEngine: NSObject, ObservableObject {
         }
     }
 
-
     // Enhanced manual approach with better Control Center synchronization
     private func updateNowPlayingInfoEnhanced() {
         guard let track = currentTrack else {
@@ -707,7 +705,7 @@ class PlayerEngine: NSObject, ObservableObject {
             MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
             MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
-            MPNowPlayingInfoPropertyPlaybackQueueCount: playbackQueue.count
+            MPNowPlayingInfoPropertyPlaybackQueueCount: playbackQueue.count,
         ]
 
         // Add queue position
@@ -860,8 +858,6 @@ class PlayerEngine: NSObject, ObservableObject {
         print("✅ Audio engine recreated successfully with EQ")
     }
 
-
-
     // MARK: - Playback Control
 
     @discardableResult
@@ -997,10 +993,9 @@ class PlayerEngine: NSObject, ObservableObject {
 
                     // Check if this is a DSD sample rate issue - if so, try native fallback
                     if let nsError = error as NSError?,
-                       ((nsError.domain == "SFBAudioEngineManager" && nsError.code == 1001) ||
-                        (nsError.domain == "org.sbooth.AudioEngine.DSDDecoder" && nsError.code == 2)),
+                       (nsError.domain == "SFBAudioEngineManager" && nsError.code == 1001) ||
+                       (nsError.domain == "org.sbooth.AudioEngine.DSDDecoder" && nsError.code == 2),
                        url.pathExtension.lowercased() == "dff" || url.pathExtension.lowercased() == "dsf" {
-
                         print("💡 Attempting native playback fallback for DSD file with unsupported sample rate")
 
                         // Force native playback for this DSD file
@@ -1124,7 +1119,7 @@ class PlayerEngine: NSObject, ObservableObject {
                         let dsdError = NSError(domain: "PlayerEngine", code: 3001, userInfo: [
                             NSLocalizedDescriptionKey: "DSD file not supported",
                             NSLocalizedFailureReasonErrorKey: "This DSD file has a sample rate that is too high for playback.",
-                            NSLocalizedRecoverySuggestionErrorKey: "Try converting this DSD file to a lower sample rate (DSD64) or to a PCM format like FLAC."
+                            NSLocalizedRecoverySuggestionErrorKey: "Try converting this DSD file to a lower sample rate (DSD64) or to a PCM format like FLAC.",
                         ])
                         continuation.resume(throwing: dsdError)
                         return
@@ -1320,30 +1315,30 @@ class PlayerEngine: NSObject, ObservableObject {
         let startFrame = AVAudioFramePosition(currentPosition * audioFile.processingFormat.sampleRate)
 
         // Schedule appropriate segment based on current position
-            if startFrame > 0 && startFrame < audioFile.length {
-                // Continue from current position
-                seekTimeOffset = currentPosition
+        if startFrame > 0 && startFrame < audioFile.length {
+            // Continue from current position
+            seekTimeOffset = currentPosition
+            nodeTimelineStartSampleTime = 0
+            scheduleSegment(from: startFrame, file: audioFile, track: currentTrack, trackIndex: currentIndex)
+            print("✅ Resuming playback from \(currentPosition)s (frame: \(startFrame))")
+        } else {
+            // Start from beginning - but only reset if we're actually at the beginning
+            if playbackTime > 1.0 {
+                // We're not actually at the beginning, so preserve current position
+                let startFrame2 = AVAudioFramePosition(playbackTime * audioFile.processingFormat.sampleRate)
+                seekTimeOffset = playbackTime
                 nodeTimelineStartSampleTime = 0
-                scheduleSegment(from: startFrame, file: audioFile, track: currentTrack, trackIndex: currentIndex)
-                print("✅ Resuming playback from \(currentPosition)s (frame: \(startFrame))")
+                scheduleSegment(from: startFrame2, file: audioFile, track: currentTrack, trackIndex: currentIndex)
+                print("✅ Resuming playback from current position: \(playbackTime)s")
             } else {
-                // Start from beginning - but only reset if we're actually at the beginning
-                if playbackTime > 1.0 {
-                    // We're not actually at the beginning, so preserve current position
-                    let startFrame2 = AVAudioFramePosition(playbackTime * audioFile.processingFormat.sampleRate)
-                    seekTimeOffset = playbackTime
-                    nodeTimelineStartSampleTime = 0
-                    scheduleSegment(from: startFrame2, file: audioFile, track: currentTrack, trackIndex: currentIndex)
-                    print("✅ Resuming playback from current position: \(playbackTime)s")
-                } else {
-                    // Actually starting from beginning
-                    seekTimeOffset = 0
-                    playbackTime = 0
-                    nodeTimelineStartSampleTime = 0
-                    scheduleSegment(from: 0, file: audioFile, track: currentTrack, trackIndex: currentIndex)
-                    print("✅ Starting playback from beginning")
-                }
+                // Actually starting from beginning
+                seekTimeOffset = 0
+                playbackTime = 0
+                nodeTimelineStartSampleTime = 0
+                scheduleSegment(from: 0, file: audioFile, track: currentTrack, trackIndex: currentIndex)
+                print("✅ Starting playback from beginning")
             }
+        }
 
         print("✅ Audio segment scheduled successfully")
 
@@ -1600,7 +1595,6 @@ class PlayerEngine: NSObject, ObservableObject {
 
     // MARK: - SFBAudioEngine Integration
     // SFBAudioEngine now handles playback directly via SFBAudioEngineManager
-
 
     // MARK: - Audio Scheduling Helper
 
@@ -2355,7 +2349,6 @@ class PlayerEngine: NSObject, ObservableObject {
         stop()
     }
 
-
     func stopPlaybackTimer() {
         playbackTimer?.invalidate()
         playbackTimer = nil
@@ -2510,7 +2503,6 @@ class PlayerEngine: NSObject, ObservableObject {
                 if metadataItem.commonKey == .commonKeyArtwork,
                    let data = metadataItem.dataValue,
                    let originalImage = UIImage(data: data) {
-
                     print("🎨 Found artwork in AVAsset metadata (size: \(Int(originalImage.size.width))x\(Int(originalImage.size.height)))")
 
                     // Crop to square if width is significantly larger than height
@@ -2564,7 +2556,7 @@ class PlayerEngine: NSObject, ObservableObject {
         guard data.count > 4 else { return nil }
 
         // Check for FLAC signature
-        let signature = data.subdata(in: 0..<4)
+        let signature = data.subdata(in: 0 ..< 4)
         guard signature == Data([0x66, 0x4C, 0x61, 0x43]) else { // "fLaC"
             print("⚠️ Invalid FLAC signature")
             return nil
@@ -2575,7 +2567,7 @@ class PlayerEngine: NSObject, ObservableObject {
         // Parse metadata blocks
         while offset < data.count - 4 {
             // Read metadata block header (4 bytes)
-            let blockHeader = data.subdata(in: offset..<(offset + 4))
+            let blockHeader = data.subdata(in: offset ..< (offset + 4))
 
             let isLastBlock = (blockHeader[0] & 0x80) != 0
             let blockType = blockHeader[0] & 0x7F
@@ -2594,7 +2586,7 @@ class PlayerEngine: NSObject, ObservableObject {
                     break
                 }
 
-                let pictureBlockData = data.subdata(in: offset..<(offset + blockLength))
+                let pictureBlockData = data.subdata(in: offset ..< (offset + blockLength))
 
                 if let image = parseFLACPictureBlock(data: pictureBlockData) {
                     return image
@@ -2653,7 +2645,7 @@ class PlayerEngine: NSObject, ObservableObject {
 
         // Picture data
         guard offset + pictureDataLength <= data.count else { return nil }
-        let pictureData = data.subdata(in: offset..<(offset + pictureDataLength))
+        let pictureData = data.subdata(in: offset ..< (offset + pictureDataLength))
 
         // Create UIImage from picture data
         return UIImage(data: pictureData)
@@ -2721,7 +2713,7 @@ class PlayerEngine: NSObject, ObservableObject {
             let pngSignature = Data([0x89, 0x50, 0x4E, 0x47])
 
             // Search for embedded images in DSD files
-            let searchRange = 0..<min(data.count, 2097152) // Search first 2MB
+            let searchRange = 0 ..< min(data.count, 2097152) // Search first 2MB
 
             // Look for JPEG images
             if let jpegRange = data.range(of: jpegSignature, in: searchRange) {
@@ -2730,9 +2722,9 @@ class PlayerEngine: NSObject, ObservableObject {
 
                 // Look for JPEG end marker (FF D9)
                 let jpegEndSignature = Data([0xFF, 0xD9])
-                if let endRange = data.range(of: jpegEndSignature, in: startOffset..<min(data.count, startOffset + 1048576)) {
+                if let endRange = data.range(of: jpegEndSignature, in: startOffset ..< min(data.count, startOffset + 1048576)) {
                     let endOffset = endRange.upperBound
-                    let imageData = data.subdata(in: startOffset..<endOffset)
+                    let imageData = data.subdata(in: startOffset ..< endOffset)
 
                     if let image = UIImage(data: imageData) {
                         print("🎨 Extracted JPEG artwork from DSD file (binary search)")
@@ -2749,9 +2741,9 @@ class PlayerEngine: NSObject, ObservableObject {
 
                 // PNG files end with IEND chunk (49 45 4E 44)
                 let pngEndSignature = Data([0x49, 0x45, 0x4E, 0x44])
-                if let endRange = data.range(of: pngEndSignature, in: startOffset..<min(data.count, startOffset + 1048576)) {
+                if let endRange = data.range(of: pngEndSignature, in: startOffset ..< min(data.count, startOffset + 1048576)) {
                     let endOffset = endRange.upperBound + 4 // Include CRC after IEND
-                    let imageData = data.subdata(in: startOffset..<min(endOffset, data.count))
+                    let imageData = data.subdata(in: startOffset ..< min(endOffset, data.count))
 
                     if let image = UIImage(data: imageData) {
                         print("🎨 Extracted PNG artwork from DSD file (binary search)")
@@ -2804,7 +2796,7 @@ class PlayerEngine: NSObject, ObservableObject {
 
     private nonisolated func resizeImage(_ image: UIImage, to size: CGSize) -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: size)
-        return renderer.image { context in
+        return renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: size))
         }
     }
@@ -2839,7 +2831,7 @@ class PlayerEngine: NSObject, ObservableObject {
 
         print("🏷️ Found ID3v2 tag in DSF file: \(filename)")
 
-        let id3Data = data.subdata(in: metadataOffset..<data.count)
+        let id3Data = data.subdata(in: metadataOffset ..< data.count)
         return extractArtworkFromID3v2(data: id3Data, filename: filename)
     }
 
@@ -2859,15 +2851,15 @@ class PlayerEngine: NSObject, ObservableObject {
 
         while offset < endOffset - 10 {
             // Read frame header (10 bytes for v2.3/v2.4)
-            let frameId = String(data: data.subdata(in: offset..<offset+4), encoding: .ascii) ?? ""
+            let frameId = String(data: data.subdata(in: offset ..< offset + 4), encoding: .ascii) ?? ""
 
             let frameSize: Int
             if majorVersion >= 4 {
                 // ID3v2.4 uses synchsafe integers for frame size
-                frameSize = Int((UInt32(data[offset+4]) << 21) | (UInt32(data[offset+5]) << 14) | (UInt32(data[offset+6]) << 7) | UInt32(data[offset+7]))
+                frameSize = Int((UInt32(data[offset + 4]) << 21) | (UInt32(data[offset + 5]) << 14) | (UInt32(data[offset + 6]) << 7) | UInt32(data[offset + 7]))
             } else {
                 // ID3v2.3 uses regular 32-bit big-endian integer
-                frameSize = Int((UInt32(data[offset+4]) << 24) | (UInt32(data[offset+5]) << 16) | (UInt32(data[offset+6]) << 8) | UInt32(data[offset+7]))
+                frameSize = Int((UInt32(data[offset + 4]) << 24) | (UInt32(data[offset + 5]) << 16) | (UInt32(data[offset + 6]) << 8) | UInt32(data[offset + 7]))
             }
 
             // Move to frame data
@@ -2880,7 +2872,7 @@ class PlayerEngine: NSObject, ObservableObject {
             if frameId == "APIC" {
                 print("🎨 Found APIC frame in \(filename), size: \(frameSize) bytes")
 
-                let frameData = data.subdata(in: offset..<offset+frameSize)
+                let frameData = data.subdata(in: offset ..< offset + frameSize)
 
                 // Parse APIC frame structure:
                 // [Encoding] [MIME type] [Picture type] [Description] [Picture data]
@@ -2917,7 +2909,7 @@ class PlayerEngine: NSObject, ObservableObject {
                     break
                 }
 
-                let imageData = frameData.subdata(in: frameOffset..<frameData.count)
+                let imageData = frameData.subdata(in: frameOffset ..< frameData.count)
 
                 if let image = UIImage(data: imageData) {
                     print("✅ Successfully extracted artwork from ID3v2 APIC frame: \(filename)")
@@ -2952,7 +2944,6 @@ class PlayerEngine: NSObject, ObservableObject {
 
         return byte0 | byte1 | byte2 | byte3 | byte4 | byte5 | byte6 | byte7
     }
-
 
     // MARK: - State Persistence
 
@@ -3029,7 +3020,7 @@ class PlayerEngine: NSObject, ObservableObject {
             "isShuffled": isShuffled,
             "isLoopingSong": isLoopingSong,
             "originalQueueTrackIds": cappedOriginalQueueTrackIds,
-            "lastSavedAt": Date()
+            "lastSavedAt": Date(),
         ]
 
         UserDefaults.standard.set(playerState, forKey: "QQPlayerState")
@@ -3049,7 +3040,7 @@ class PlayerEngine: NSObject, ObservableObject {
         var end = min(trackIds.count, start + maxPersistedQueueSize)
         start = max(0, end - maxPersistedQueueSize)
 
-        let cappedTrackIds = Array(trackIds[start..<end])
+        let cappedTrackIds = Array(trackIds[start ..< end])
         let adjustedIndex = max(0, min(currentIndex - start, cappedTrackIds.count - 1))
         return (cappedTrackIds, adjustedIndex)
     }

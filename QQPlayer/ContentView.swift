@@ -216,12 +216,12 @@ struct SheetModifier: ViewModifier {
                 Button(Localized.ok) {
                     appCoordinator.showSyncAlert = false
                 }
-                } message: {
-                    Text(Localized.librarySyncMessage)
-                }
-                .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
-                    settings = DeleteSettings.load()
-                }
+            } message: {
+                Text(Localized.librarySyncMessage)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
+                settings = DeleteSettings.load()
+            }
 
     }
 }

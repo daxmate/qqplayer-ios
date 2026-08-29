@@ -5,8 +5,8 @@
 //  Manages lyrics fetching from embedded metadata and lrclib.net
 //
 
-import Foundation
 import AVFoundation
+import Foundation
 
 struct LyricsLine: Equatable, Codable {
     let timestamp: TimeInterval?
@@ -186,7 +186,7 @@ actor LyricsManager {
             }
 
             if blockType == 4 {
-                let commentData = data.subdata(in: offset..<offset + blockSize)
+                let commentData = data.subdata(in: offset ..< offset + blockSize)
                 let comments = parseVorbisComments(commentData)
                 if let lyrics = chooseVorbisLyrics(from: comments) {
                     return lyrics
@@ -274,7 +274,7 @@ actor LyricsManager {
         let commentCount = Int(readLittleEndianUInt32(from: data, offset: offset))
         offset += 4
 
-        for _ in 0..<commentCount {
+        for _ in 0 ..< commentCount {
             guard offset + 4 <= data.count else { break }
 
             let commentLength = Int(readLittleEndianUInt32(from: data, offset: offset))
@@ -282,7 +282,7 @@ actor LyricsManager {
 
             guard commentLength >= 0, offset + commentLength <= data.count else { break }
 
-            if let commentString = String(data: data.subdata(in: offset..<offset + commentLength), encoding: .utf8) {
+            if let commentString = String(data: data.subdata(in: offset ..< offset + commentLength), encoding: .utf8) {
                 let parts = commentString.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
                 if parts.count == 2 {
                     let key = String(parts[0]).uppercased()
@@ -351,7 +351,7 @@ actor LyricsManager {
         let endOffset = min(data.count, offset + 10 + Int(tagSize))
 
         while frameOffset + 10 <= endOffset {
-            let frameId = String(data: data.subdata(in: frameOffset..<frameOffset + 4), encoding: .ascii) ?? ""
+            let frameId = String(data: data.subdata(in: frameOffset ..< frameOffset + 4), encoding: .ascii) ?? ""
             if frameId.trimmingCharacters(in: .controlCharacters).isEmpty {
                 break
             }
@@ -369,7 +369,7 @@ actor LyricsManager {
                 break
             }
 
-            let frameData = data.subdata(in: frameOffset..<frameOffset + Int(frameSize))
+            let frameData = data.subdata(in: frameOffset ..< frameOffset + Int(frameSize))
 
             if frameId == "USLT", let lyrics = parseUnsyncedLyricsFrame(frameData), isUsableLyricsText(lyrics) {
                 return lyrics
@@ -398,7 +398,7 @@ actor LyricsManager {
         let lyricsStart = descriptorEnd + terminatorLength(for: encoding)
         guard lyricsStart < data.count else { return nil }
 
-        return decodeText(data.subdata(in: lyricsStart..<data.count), encoding: encoding)
+        return decodeText(data.subdata(in: lyricsStart ..< data.count), encoding: encoding)
     }
 
     private nonisolated func parseSimpleSyncedLyricsFrame(_ data: Data) -> String? {
@@ -422,7 +422,7 @@ actor LyricsManager {
                 break
             }
 
-            let textData = data.subdata(in: offset..<textEnd)
+            let textData = data.subdata(in: offset ..< textEnd)
             offset = textEnd + terminatorLength(for: encoding)
 
             guard offset + 4 <= data.count else { break }
@@ -503,40 +503,40 @@ actor LyricsManager {
         guard offset >= 0, offset + 8 <= data.count else { return 0 }
 
         return UInt64(data[offset]) |
-               UInt64(data[offset + 1]) << 8 |
-               UInt64(data[offset + 2]) << 16 |
-               UInt64(data[offset + 3]) << 24 |
-               UInt64(data[offset + 4]) << 32 |
-               UInt64(data[offset + 5]) << 40 |
-               UInt64(data[offset + 6]) << 48 |
-               UInt64(data[offset + 7]) << 56
+            UInt64(data[offset + 1]) << 8 |
+            UInt64(data[offset + 2]) << 16 |
+            UInt64(data[offset + 3]) << 24 |
+            UInt64(data[offset + 4]) << 32 |
+            UInt64(data[offset + 5]) << 40 |
+            UInt64(data[offset + 6]) << 48 |
+            UInt64(data[offset + 7]) << 56
     }
 
     private nonisolated func readLittleEndianUInt32(from data: Data, offset: Int) -> UInt32 {
         guard offset >= 0, offset + 4 <= data.count else { return 0 }
 
         return UInt32(data[offset]) |
-               UInt32(data[offset + 1]) << 8 |
-               UInt32(data[offset + 2]) << 16 |
-               UInt32(data[offset + 3]) << 24
+            UInt32(data[offset + 1]) << 8 |
+            UInt32(data[offset + 2]) << 16 |
+            UInt32(data[offset + 3]) << 24
     }
 
     private nonisolated func readBigEndianUInt32(from data: Data, offset: Int) -> UInt32 {
         guard offset >= 0, offset + 4 <= data.count else { return 0 }
 
         return UInt32(data[offset]) << 24 |
-               UInt32(data[offset + 1]) << 16 |
-               UInt32(data[offset + 2]) << 8 |
-               UInt32(data[offset + 3])
+            UInt32(data[offset + 1]) << 16 |
+            UInt32(data[offset + 2]) << 8 |
+            UInt32(data[offset + 3])
     }
 
     private nonisolated func readSynchsafeUInt32(from data: Data, offset: Int) -> UInt32 {
         guard offset >= 0, offset + 4 <= data.count else { return 0 }
 
         return UInt32(data[offset]) << 21 |
-               UInt32(data[offset + 1]) << 14 |
-               UInt32(data[offset + 2]) << 7 |
-               UInt32(data[offset + 3])
+            UInt32(data[offset + 1]) << 14 |
+            UInt32(data[offset + 2]) << 7 |
+            UInt32(data[offset + 3])
     }
 
     // MARK: - LRCLIB API
@@ -598,7 +598,7 @@ actor LyricsManager {
             URLQueryItem(name: "track_name", value: trackName),
             URLQueryItem(name: "artist_name", value: artistName),
             URLQueryItem(name: "album_name", value: albumName),
-            URLQueryItem(name: "duration", value: String(format: "%.0f", duration))
+            URLQueryItem(name: "duration", value: String(format: "%.0f", duration)),
         ]
 
         guard let url = components?.url else {
@@ -641,7 +641,7 @@ actor LyricsManager {
         var components = URLComponents(string: "\(baseURL)/search")
         components?.queryItems = [
             URLQueryItem(name: "track_name", value: trackName),
-            URLQueryItem(name: "artist_name", value: artistName)
+            URLQueryItem(name: "artist_name", value: artistName),
         ]
 
         guard let url = components?.url else {

@@ -16,6 +16,9 @@
 		23C312DD2E78015500342F7C /* Intents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23C312DC2E78015500342F7C /* Intents.framework */; };
 		23C312E42E78015500342F7C /* SiriIntentsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 23C312DA2E78015500342F7C /* SiriIntentsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		23C312EC2E7806AB00342F7C /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 23C312EB2E7806AB00342F7C /* GRDB */; };
+		23D82A5DA49496D9E0370887 /* IdentifiedRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A19C99C3D410D8854B01C0CF /* IdentifiedRowTests.swift */; };
+		46624DEF47FDBF724404E5E0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E0A264D696DB89EB255BEA4 /* Foundation.framework */; };
+		EE49A8EDD4423396C78DABE2 /* StableIdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6793C3A51095FE68378E031D /* StableIdTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -45,7 +48,14 @@
 			containerPortal = 2312D6042E6090E2007F756D /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 2312D60B2E6090E2007F756D;
-			remoteInfo = "QQPlayer";
+			remoteInfo = QQPlayer;
+		};
+		BA18890A696F326C8CA4F998 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2312D6042E6090E2007F756D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2312D60B2E6090E2007F756D;
+			remoteInfo = QQPlayer;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -66,7 +76,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		2312D60C2E6090E2007F756D /* QQPlayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "QQPlayer.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		0E0A264D696DB89EB255BEA4 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		2312D60C2E6090E2007F756D /* QQPlayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QQPlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		239B247B2EE59BEC009F83F1 /* PlayerWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PlayerWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		239B247C2EE59BEC009F83F1 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		239B247E2EE59BEC009F83F1 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -74,7 +85,10 @@
 		23AF81352E71E15D0005527C /* Share.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Share.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		23C312DA2E78015500342F7C /* SiriIntentsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SiriIntentsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		23C312DC2E78015500342F7C /* Intents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Intents.framework; path = System/Library/Frameworks/Intents.framework; sourceTree = SDKROOT; };
+		6793C3A51095FE68378E031D /* StableIdTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StableIdTests.swift; sourceTree = "<group>"; };
 		7E57AB1E0000000000000003 /* QQPlayerSiriTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QQPlayerSiriTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A19C99C3D410D8854B01C0CF /* IdentifiedRowTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = IdentifiedRowTests.swift; sourceTree = "<group>"; };
+		B708099358914775F10BAE5F /* QQPlayerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QQPlayerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -122,7 +136,7 @@
 				2312D6502E6090E2007F756D /* Exceptions for "QQPlayer" folder in "QQPlayer" target */,
 				239B24A22EE5F806009F83F1 /* Exceptions for "QQPlayer" folder in "PlayerWidgetExtension" target */,
 			);
-			path = "QQPlayer";
+			path = QQPlayer;
 			sourceTree = "<group>";
 		};
 		239B24802EE59BEC009F83F1 /* PlayerWidget */ = {
@@ -151,6 +165,8 @@
 		};
 		7E57AB1E0000000000000001 /* QQPlayerSiriTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = QQPlayerSiriTests;
 			sourceTree = "<group>";
 		};
@@ -198,6 +214,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EA89D66C6B3FB7A8E12FC173 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				46624DEF47FDBF724404E5E0 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -212,6 +236,7 @@
 				7E57AB1E0000000000000001 /* QQPlayerSiriTests */,
 				23C312DB2E78015500342F7C /* Frameworks */,
 				2312D60D2E6090E2007F756D /* Products */,
+				6340A698F069DD4C6EBF660D /* QQPlayerTests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -223,6 +248,7 @@
 				23C312DA2E78015500342F7C /* SiriIntentsExtension.appex */,
 				239B247B2EE59BEC009F83F1 /* PlayerWidgetExtension.appex */,
 				7E57AB1E0000000000000003 /* QQPlayerSiriTests.xctest */,
+				B708099358914775F10BAE5F /* QQPlayerTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -233,8 +259,27 @@
 				23C312DC2E78015500342F7C /* Intents.framework */,
 				239B247C2EE59BEC009F83F1 /* WidgetKit.framework */,
 				239B247E2EE59BEC009F83F1 /* SwiftUI.framework */,
+				6DD1F42DAA4891B4DF29507C /* iOS */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		6340A698F069DD4C6EBF660D /* QQPlayerTests */ = {
+			isa = PBXGroup;
+			children = (
+				6793C3A51095FE68378E031D /* StableIdTests.swift */,
+				A19C99C3D410D8854B01C0CF /* IdentifiedRowTests.swift */,
+			);
+			name = QQPlayerTests;
+			path = QQPlayerTests;
+			sourceTree = "<group>";
+		};
+		6DD1F42DAA4891B4DF29507C /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				0E0A264D696DB89EB255BEA4 /* Foundation.framework */,
+			);
+			name = iOS;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -259,12 +304,12 @@
 			fileSystemSynchronizedGroups = (
 				2312D60E2E6090E2007F756D /* QQPlayer */,
 			);
-			name = "QQPlayer";
+			name = QQPlayer;
 			packageProductDependencies = (
 				2312D6192E6090E4007F756D /* GRDB */,
 				230D66362E894889007C642A /* SFBAudioEngine */,
 			);
-			productName = "QQPlayer";
+			productName = QQPlayer;
 			productReference = 2312D60C2E6090E2007F756D /* QQPlayer.app */;
 			productType = "com.apple.product-type.application";
 		};
@@ -284,8 +329,6 @@
 				239B24802EE59BEC009F83F1 /* PlayerWidget */,
 			);
 			name = PlayerWidgetExtension;
-			packageProductDependencies = (
-			);
 			productName = PlayerWidgetExtension;
 			productReference = 239B247B2EE59BEC009F83F1 /* PlayerWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
@@ -306,8 +349,6 @@
 				23AF81362E71E15D0005527C /* Share */,
 			);
 			name = Share;
-			packageProductDependencies = (
-			);
 			productName = Share;
 			productReference = 23AF81352E71E15D0005527C /* Share.appex */;
 			productType = "com.apple.product-type.app-extension";
@@ -352,11 +393,27 @@
 				7E57AB1E0000000000000001 /* QQPlayerSiriTests */,
 			);
 			name = QQPlayerSiriTests;
-			packageProductDependencies = (
-			);
 			productName = QQPlayerSiriTests;
 			productReference = 7E57AB1E0000000000000003 /* QQPlayerSiriTests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		AC4D23167CDF8A94F2CA6D89 /* QQPlayerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6F97FE05E1DC10781BC8C989 /* Build configuration list for PBXNativeTarget "QQPlayerTests" */;
+			buildPhases = (
+				5C19010A98F95F53F4F68F6A /* Sources */,
+				EA89D66C6B3FB7A8E12FC173 /* Frameworks */,
+				68110A23893218F1C21FF04A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				70929B396E4287988D89DDD4 /* PBXTargetDependency */,
+			);
+			name = QQPlayerTests;
+			productName = QQPlayerTests;
+			productReference = B708099358914775F10BAE5F /* QQPlayerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -399,7 +456,7 @@
 			mainGroup = 2312D6032E6090E2007F756D;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				2312D6182E6090E4007F756D /* XCRemoteSwiftPackageReference "GRDB" */,
+				2312D6182E6090E4007F756D /* XCRemoteSwiftPackageReference "GRDB.swift" */,
 				230D66352E894889007C642A /* XCRemoteSwiftPackageReference "SFBAudioEngine" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -412,6 +469,7 @@
 				23C312D92E78015500342F7C /* SiriIntentsExtension */,
 				239B247A2EE59BEC009F83F1 /* PlayerWidgetExtension */,
 				7E57AB1E0000000000000002 /* QQPlayerSiriTests */,
+				AC4D23167CDF8A94F2CA6D89 /* QQPlayerTests */,
 			);
 		};
 /* End PBXProject section */
@@ -439,6 +497,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		23C312D82E78015500342F7C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		68110A23893218F1C21FF04A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -483,6 +548,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5C19010A98F95F53F4F68F6A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EE49A8EDD4423396C78DABE2 /* StableIdTests.swift in Sources */,
+				23D82A5DA49496D9E0370887 /* IdentifiedRowTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		7E57AB1E0000000000000004 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -507,6 +581,12 @@
 			isa = PBXTargetDependency;
 			target = 23C312D92E78015500342F7C /* SiriIntentsExtension */;
 			targetProxy = 23C312E22E78015500342F7C /* PBXContainerItemProxy */;
+		};
+		70929B396E4287988D89DDD4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = QQPlayer;
+			target = 2312D60B2E6090E2007F756D /* QQPlayer */;
+			targetProxy = BA18890A696F326C8CA4F998 /* PBXContainerItemProxy */;
 		};
 		7E57AB1E000000000000000B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -646,20 +726,20 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "QQPlayer/QQPlayer.entitlements";
+				CODE_SIGN_ENTITLEMENTS = QQPlayer/QQPlayer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 58;
 				DEVELOPMENT_TEAM = B6FA37AYT5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "QQPlayer/Info.plist";
+				INFOPLIST_FILE = QQPlayer/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = QQPlayer;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.2.4;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.daxmate.qqplayer.ios";
+				PRODUCT_BUNDLE_IDENTIFIER = com.daxmate.qqplayer.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -677,20 +757,20 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "QQPlayer/QQPlayer.entitlements";
+				CODE_SIGN_ENTITLEMENTS = QQPlayer/QQPlayer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 58;
 				DEVELOPMENT_TEAM = B6FA37AYT5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "QQPlayer/Info.plist";
+				INFOPLIST_FILE = QQPlayer/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = QQPlayer;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.2.4;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.daxmate.qqplayer.ios";
+				PRODUCT_BUNDLE_IDENTIFIER = com.daxmate.qqplayer.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -723,7 +803,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.2.4;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.daxmate.qqplayer.ios.PlayerWidget";
+				PRODUCT_BUNDLE_IDENTIFIER = com.daxmate.qqplayer.ios.PlayerWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -755,7 +835,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.2.4;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.daxmate.qqplayer.ios.PlayerWidget";
+				PRODUCT_BUNDLE_IDENTIFIER = com.daxmate.qqplayer.ios.PlayerWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -784,7 +864,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.2.4;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.daxmate.qqplayer.ios.Share";
+				PRODUCT_BUNDLE_IDENTIFIER = com.daxmate.qqplayer.ios.Share;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -810,7 +890,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.2.4;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.daxmate.qqplayer.ios.Share";
+				PRODUCT_BUNDLE_IDENTIFIER = com.daxmate.qqplayer.ios.Share;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -836,7 +916,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.2.4;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.daxmate.qqplayer.ios.SiriIntentsExtension";
+				PRODUCT_BUNDLE_IDENTIFIER = com.daxmate.qqplayer.ios.SiriIntentsExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -862,7 +942,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.2.4;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.daxmate.qqplayer.ios.SiriIntentsExtension";
+				PRODUCT_BUNDLE_IDENTIFIER = com.daxmate.qqplayer.ios.SiriIntentsExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -880,13 +960,13 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.daxmate.qqplayer.ios.QQPlayerSiriTests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.daxmate.qqplayer.ios.QQPlayerSiriTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "QQPlayer";
+				TEST_TARGET_NAME = QQPlayer;
 			};
 			name = Debug;
 		};
@@ -899,13 +979,70 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.daxmate.qqplayer.ios.QQPlayerSiriTests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.daxmate.qqplayer.ios.QQPlayerSiriTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "QQPlayer";
+				TEST_TARGET_NAME = QQPlayer;
+			};
+			name = Release;
+		};
+		BF2870FC9D517084CB7D697D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = B6FA37AYT5;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.daxmate.qqplayer.ios.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/QQPlayer.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/QQPlayer";
+			};
+			name = Debug;
+		};
+		FACB615D6D5AD010E4B81CB5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = B6FA37AYT5;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.daxmate.qqplayer.ios.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/QQPlayer.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/QQPlayer";
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
@@ -957,6 +1094,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		6F97FE05E1DC10781BC8C989 /* Build configuration list for PBXNativeTarget "QQPlayerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FACB615D6D5AD010E4B81CB5 /* Release */,
+				BF2870FC9D517084CB7D697D /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		7E57AB1E0000000000000007 /* Build configuration list for PBXNativeTarget "QQPlayerSiriTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -977,7 +1123,7 @@
 				version = 0.13.0;
 			};
 		};
-		2312D6182E6090E4007F756D /* XCRemoteSwiftPackageReference "GRDB" */ = {
+		2312D6182E6090E4007F756D /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/groue/GRDB.swift";
 			requirement = {
@@ -995,12 +1141,12 @@
 		};
 		2312D6192E6090E4007F756D /* GRDB */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 2312D6182E6090E4007F756D /* XCRemoteSwiftPackageReference "GRDB" */;
+			package = 2312D6182E6090E4007F756D /* XCRemoteSwiftPackageReference "GRDB.swift" */;
 			productName = GRDB;
 		};
 		23C312EB2E7806AB00342F7C /* GRDB */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 2312D6182E6090E4007F756D /* XCRemoteSwiftPackageReference "GRDB" */;
+			package = 2312D6182E6090E4007F756D /* XCRemoteSwiftPackageReference "GRDB.swift" */;
 			productName = GRDB;
 		};
 /* End XCSwiftPackageProductDependency section */

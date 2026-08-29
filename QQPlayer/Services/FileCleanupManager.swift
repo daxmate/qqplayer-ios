@@ -11,11 +11,10 @@ import SwiftUI
 @MainActor
 class FileCleanupManager: ObservableObject {
     static let shared = FileCleanupManager()
-    
-    
+
     private let databaseManager = DatabaseManager.shared
     private let stateManager = StateManager.shared
-    
+
     private init() {}
 
     /// Reconciles only roots that the indexer successfully enumerated during
@@ -57,7 +56,7 @@ class FileCleanupManager: ObservableObject {
             print("🧹 Scan reconciliation failed: \(error)")
         }
     }
-    
+
     func checkForOrphanedFiles() async {
         print("🧹 Checking for library files that no longer exist...")
 
@@ -68,14 +67,14 @@ class FileCleanupManager: ObservableObject {
         } else {
             print("🧹 No iCloud folder available; reconciling local and external files")
         }
-        
+
         do {
             // Get all tracks from database
             let allTracks = try databaseManager.getAllTracks()
             print("🧹 Found \(allTracks.count) tracks in database")
-            
+
             var nonExistentTracks: [Track] = []
-            
+
             for track in allTracks {
                 let trackURL = URL(fileURLWithPath: track.path)
                 print("🧹 Checking track: \(trackURL.lastPathComponent)")
@@ -154,11 +153,11 @@ class FileCleanupManager: ObservableObject {
                     }
                 }
             }
-            
+
             // Auto-clean files that don't exist anywhere
             if !nonExistentTracks.isEmpty {
                 print("🧹 Auto-cleaning \(nonExistentTracks.count) files that don't exist anywhere")
-                
+
                 for track in nonExistentTracks {
                     do {
                         print("🧹 Auto-cleaning database entry for non-existent file: \(URL(fileURLWithPath: track.path).lastPathComponent)")
@@ -174,13 +173,13 @@ class FileCleanupManager: ObservableObject {
                         print("🧹 Error auto-cleaning file \(track.path): \(error)")
                     }
                 }
-                
+
                 // Notify UI to refresh since we made database changes
                 NotificationCenter.default.post(name: NSNotification.Name("LibraryNeedsRefresh"), object: nil)
             }
-            
+
             print("🧹 No additional cleanup needed")
-            
+
         } catch {
             print("🧹 Error checking for orphaned files: \(error)")
         }
@@ -191,7 +190,6 @@ class FileCleanupManager: ObservableObject {
         let rootPath = rootURL.standardizedFileURL.path
         return path == rootPath || path.hasPrefix(rootPath + "/")
     }
-    
 
     private func checkExternalFileAccessibility(_ fileURL: URL, stableId: String) async -> Bool {
         // First check if file exists at the path
@@ -323,7 +321,7 @@ class FileCleanupManager: ObservableObject {
 
             let data = try fileHandle.read(upToCount: 1024)
 
-            if let data = data, data.count > 0 {
+            if let data = data, !data.isEmpty {
                 print("🧹     ✅ External file accessible and readable via bookmark (\(data.count) bytes read)")
                 return true
             } else {

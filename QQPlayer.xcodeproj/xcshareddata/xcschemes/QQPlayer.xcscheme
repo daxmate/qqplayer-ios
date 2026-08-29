@@ -34,9 +34,9 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "7E57AB1E0000000000000002"
-               BuildableName = "QQPlayerSiriTests.xctest"
-               BlueprintName = "QQPlayerSiriTests"
+               BlueprintIdentifier = "AC4D23167CDF8A94F2CA6D89"
+               BuildableName = "QQPlayerTests.xctest"
+               BlueprintName = "QQPlayerTests"
                ReferencedContainer = "container:QQPlayer.xcodeproj">
             </BuildableReference>
          </TestableReference>

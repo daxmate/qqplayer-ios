@@ -5,11 +5,11 @@
 //  Main app coordinator that manages all services
 //
 
-import Foundation
+import AVFoundation
 import Combine
+import Foundation
 import Intents
 import UIKit
-import AVFoundation
 import WidgetKit
 
 extension Dictionary {
@@ -31,7 +31,7 @@ enum iCloudStatus: Equatable {
     case offline
     case authenticationRequired
     case error(Error)
-    
+
     static func == (lhs: iCloudStatus, rhs: iCloudStatus) -> Bool {
         switch (lhs, rhs) {
         case (.available, .available),
@@ -51,29 +51,29 @@ enum iCloudStatus: Equatable {
 @MainActor
 class AppCoordinator: ObservableObject {
     static let shared = AppCoordinator()
-    
+
     @Published var isInitialized = false
     @Published var initializationError: Error?
     @Published var isiCloudAvailable = false
     @Published var iCloudStatus: iCloudStatus = .offline
 
     @Published var showSyncAlert = false
-    
+
     private var isInitialSyncCompleted = false
-    
+
     let databaseManager = DatabaseManager.shared
     let stateManager = StateManager.shared
     let libraryIndexer = LibraryIndexer.shared
     let playerEngine = PlayerEngine.shared
     let cloudDownloadManager = CloudDownloadManager.shared
     let fileCleanupManager = FileCleanupManager.shared
-    
+
     private var cancellables = Set<AnyCancellable>()
-    
+
     private init() {
         setupBindings()
     }
-    
+
     func initialize() async {
         print("🚀 AppCoordinator.initialize() started")
 
@@ -131,7 +131,7 @@ class AppCoordinator: ObservableObject {
             }
             print("App initialized in local mode - iCloud not signed in")
 
-        case .containerUnavailable, .error(_):
+        case .containerUnavailable, .error:
             isiCloudAvailable = false
             initializationError = AppCoordinatorError.iCloudContainerInaccessible
             // Still initialize in local mode for functionality
@@ -191,7 +191,7 @@ class AppCoordinator: ObservableObject {
 
         return shouldScan
     }
-    
+
     // url(forUbiquityContainerIdentifier:) blocks while iCloud sets the
     // container up - seconds on a first install - and Apple's documentation is
     // explicit that it must not be called on the main thread. This whole check
@@ -202,7 +202,7 @@ class AppCoordinator: ObservableObject {
             writeICloudDiagnostic("notSignedIn: ubiquityIdentityToken == nil")
             return .notSignedIn
         }
-        
+
         // Check if we can get the container URL. The container root is NOT a
         // "ubiquitous item" — isUbiquitousItem is only true for items explicitly
         // registered via setUbiquitous — so we must not gate on that resource
@@ -213,23 +213,23 @@ class AppCoordinator: ObservableObject {
             return .containerUnavailable
         }
         writeICloudDiagnostic("containerURL = \(containerURL.path)")
-        
+
         print("NSUbiquitousContainers:",
               Bundle.main.object(forInfoDictionaryKey: "NSUbiquitousContainers") ?? "nil")
-        
+
         // Try to create the app folder
         do {
             let appFolderURL = containerURL.appendingPathComponent("QQPlayer", isDirectory: true)
-            
+
             if !FileManager.default.fileExists(atPath: appFolderURL.path) {
-                try FileManager.default.createDirectory(at: appFolderURL, 
-                                                     withIntermediateDirectories: true, 
-                                                     attributes: nil)
+                try FileManager.default.createDirectory(at: appFolderURL,
+                                                        withIntermediateDirectories: true,
+                                                        attributes: nil)
                 writeICloudDiagnostic("created app folder: \(appFolderURL.path)")
             } else {
                 writeICloudDiagnostic("app folder already exists: \(appFolderURL.path)")
             }
-            
+
             print("iCloud container set up at: \(appFolderURL)")
             return .available
         } catch {
@@ -237,7 +237,7 @@ class AppCoordinator: ObservableObject {
             return .error(error)
         }
     }
-    
+
     /// Writes iCloud diagnostics to Documents/iCloudDiagnostics.txt so we can
     /// see on-device what checkiCloudStatus actually resolved to.
     nonisolated private func writeICloudDiagnostic(_ message: String) {
@@ -256,7 +256,7 @@ class AppCoordinator: ObservableObject {
             print("⚠️ Failed to write iCloud diagnostic: \(error)")
         }
     }
-    
+
     // nonisolated so the blocking work inside - a coordinated iCloud read and
     // the database writes - runs off the main actor. It used to run inline on
     // the main thread during launch, which is a large part of why a first
@@ -280,13 +280,13 @@ class AppCoordinator: ObservableObject {
                 let existing = Set(databaseFavorites)
                 let missing = savedFavorites.filter { !existing.contains($0) }
                 try databaseManager.addToFavorites(trackStableIds: missing)
-                
+
                 // Get final state after restoration
                 print("🔍 Getting final state after restoration...")
                 let finalFavorites = try databaseManager.getFavorites()
                 print("📊 Final favorites count: \(finalFavorites.count)")
                 print("📊 Final favorites list: \(finalFavorites)")
-                
+
                 // Only save if there were actual changes
                 if finalFavorites != savedFavorites {
                     print("💾 Saving updated favorites...")
@@ -303,26 +303,26 @@ class AppCoordinator: ObservableObject {
             } else {
                 print("📭 No favorites to sync")
             }
-            
+
         } catch {
             print("❌ Failed to sync favorites: \(error)")
         }
-        
+
         // Mark initial sync as completed to allow future saves
         await MainActor.run { self.isInitialSyncCompleted = true }
         print("✅ Initial favorites sync completed")
     }
-    
+
     private func startLibraryIndexing() async {
         libraryIndexer.start()
     }
-    
+
     private func startOfflineLibraryIndexing() async {
         // In offline mode, we don't use NSMetadataQuery (iCloud specific)
         // Instead, we scan the app's Documents directory for music files
         libraryIndexer.startOfflineMode()
     }
-    
+
     private func setupBindings() {
         libraryIndexer.$isIndexing
             .sink { [weak self] isIndexing in
@@ -347,24 +347,23 @@ class AppCoordinator: ObservableObject {
             }
             .store(in: &cancellables)
     }
-    
+
     func handleiCloudAuthenticationError() {
         guard iCloudStatus != .authenticationRequired else { return }
-        
+
         iCloudStatus = .authenticationRequired
         isiCloudAvailable = false
         showSyncAlert = true
-        
+
         // Stop any ongoing iCloud operations
         libraryIndexer.switchToOfflineMode()
-        
+
         // Notify CloudDownloadManager about status change
         NotificationCenter.default.post(name: NSNotification.Name("iCloudAuthStatusChanged"), object: nil)
-        
-        
+
         print("🔐 iCloud authentication error detected - switched to offline mode")
     }
-    
+
     private func onIndexingCompleted() async {
         do {
             let favorites = try databaseManager.getFavorites()
@@ -459,7 +458,7 @@ class AppCoordinator: ObservableObject {
         await DiscogsAPIService.shared.purgeExpiredDiskCache()
         await HybridMusicAPIService.shared.purgeExpiredDiskCache()
     }
-    
+
     // Creating the container folder and writing the placeholder files are
     // synchronous iCloud file operations; keep them off the main actor.
     nonisolated private func forceiCloudFolderCreation() async {
@@ -467,14 +466,14 @@ class AppCoordinator: ObservableObject {
             try stateManager.createAppFolderIfNeeded()
             if let folderURL = stateManager.getMusicFolderURL() {
                 print("🏗️ iCloud folder created/verified at: \(folderURL)")
-                
+
                 // Create test files to trigger iCloud Drive visibility (as per research)
                 let tempFile = folderURL.appendingPathComponent(".qqplayer-placeholder")
                 let testFile = folderURL.appendingPathComponent("Welcome.txt")
-                
+
                 let tempContent = "QQPlayer folder - you can delete this file"
                 let welcomeContent = "Welcome to QQPlayer!\n\nYou can add your FLAC music files directly to this folder in the Files app.\n\nThe app will automatically detect and index any music files you add here.\n\nEnjoy your music!"
-                
+
                 try tempContent.write(to: tempFile, atomically: true, encoding: .utf8)
                 try welcomeContent.write(to: testFile, atomically: true, encoding: .utf8)
                 print("📄 Created placeholder and welcome files to ensure folder visibility")
@@ -483,7 +482,7 @@ class AppCoordinator: ObservableObject {
             print("⚠️ Failed to create iCloud folder: \(error)")
         }
     }
-    
+
     // Reads every playlist file out of the iCloud container and writes the
     // results to the database - all blocking work, so it runs off the main actor.
     nonisolated private func restorePlaylistsFromiCloud() async {
@@ -492,12 +491,12 @@ class AppCoordinator: ObservableObject {
             print("⚠️ Skipping playlist restoration - iCloud not available or authentication required")
             return
         }
-        
+
         do {
             print("🔄 Starting playlist restoration from iCloud...")
             let playlistStates = try stateManager.getAllPlaylists()
             print("📂 Found \(playlistStates.count) playlists in iCloud storage")
-            
+
             for playlistState in playlistStates {
                 // Check if playlist already exists in database
                 let existingPlaylists = try databaseManager.getAllPlaylists()
@@ -563,7 +562,7 @@ class AppCoordinator: ObservableObject {
             print("✅ Playlist restoration completed")
         } catch {
             print("❌ Failed to restore playlists from iCloud: \(error)")
-            
+
             // Check if this is an authentication error
             if let stateError = error as? StateManagerError, stateError == .iCloudNotAvailable {
                 print("🔐 StateManager authentication error - switching to offline mode")
@@ -571,16 +570,16 @@ class AppCoordinator: ObservableObject {
             }
         }
     }
-    
+
     private func verifyDatabaseRelationships() async {
         do {
             print("🔍 Verifying database relationships...")
             let tracks = try databaseManager.getAllTracks()
             let albums = try databaseManager.getAllAlbums()
             let artists = try databaseManager.getAllArtists()
-            
+
             print("📊 Database stats - Tracks: \(tracks.count), Albums: \(albums.count), Artists: \(artists.count)")
-            
+
             let validArtistIds = Set(artists.compactMap(\.id))
             let validAlbumIds = Set(albums.compactMap(\.id))
 
@@ -588,7 +587,7 @@ class AppCoordinator: ObservableObject {
             var tracksWithoutAlbum = 0
             var invalidArtistRefs = 0
             var invalidAlbumRefs = 0
-            
+
             for track in tracks {
                 // Check artist relationship
                 if let artistId = track.artistId {
@@ -598,8 +597,8 @@ class AppCoordinator: ObservableObject {
                 } else {
                     tracksWithoutArtist += 1
                 }
-                
-                // Check album relationship  
+
+                // Check album relationship
                 if let albumId = track.albumId {
                     if !validAlbumIds.contains(albumId) {
                         invalidAlbumRefs += 1
@@ -608,18 +607,18 @@ class AppCoordinator: ObservableObject {
                     tracksWithoutAlbum += 1
                 }
             }
-            
+
             print("🔍 Verification complete:")
             print("   - Tracks without artist: \(tracksWithoutArtist)")
             print("   - Tracks without album: \(tracksWithoutAlbum)")
             print("   - Invalid artist refs: \(invalidArtistRefs)")
             print("   - Invalid album refs: \(invalidAlbumRefs)")
-            
+
         } catch {
             print("❌ Failed to verify database relationships: \(error)")
         }
     }
-    
+
     // Same as restorePlaylistsFromiCloud: iCloud reads plus per-track database
     // writes, so it must not hold the main actor.
     nonisolated private func retryPlaylistRestoration() async {
@@ -628,16 +627,15 @@ class AppCoordinator: ObservableObject {
             print("⚠️ Skipping retry playlist restoration - iCloud not available or authentication required")
             return
         }
-        
+
         do {
             print("🔄 Retrying playlist restoration after database fixes...")
             let playlistStates = try stateManager.getAllPlaylists()
             let existingPlaylists = try databaseManager.getAllPlaylists()
-            
+
             for playlistState in playlistStates {
                 if let existingPlaylist = existingPlaylists.first(where: { $0.slug == playlistState.slug }),
                    let playlistId = existingPlaylist.id {
-                    
                     // Check if playlist is empty and try to restore tracks
                     let currentItems = try databaseManager.getPlaylistItems(playlistId: playlistId)
                     if currentItems.isEmpty {
@@ -660,7 +658,7 @@ class AppCoordinator: ObservableObject {
             print("✅ Playlist restoration retry completed")
         } catch {
             print("❌ Failed to retry playlist restoration: \(error)")
-            
+
             // Check if this is an authentication error
             if let stateError = error as? StateManagerError, stateError == .iCloudNotAvailable {
                 print("🔐 StateManager authentication error in retry - switching to offline mode")
@@ -668,14 +666,13 @@ class AppCoordinator: ObservableObject {
             }
         }
     }
-    
-    
+
     // MARK: - Public API
-    
+
     func getAllTracks() throws -> [Track] {
         return try databaseManager.getAllTracks()
     }
-    
+
     func manualSync() async {
         print("🔄 Manual sync triggered - attempting library indexing")
 
@@ -689,17 +686,17 @@ class AppCoordinator: ObservableObject {
         print("📋 Performing manual sync - user requested fresh library scan")
         await startLibraryIndexing()
     }
-    
+
     func getAllAlbums() throws -> [Album] {
         return try databaseManager.getAllAlbums()
     }
-    
+
     func toggleFavorite(trackStableId: String) throws {
         print("🔄 Toggle favorite for track: \(trackStableId)")
-        
+
         let wasLiked = try databaseManager.isFavorite(trackStableId: trackStableId)
         print("📊 Track was liked before toggle: \(wasLiked)")
-        
+
         if wasLiked {
             try databaseManager.removeFromFavorites(trackStableId: trackStableId)
             print("❌ Removed from favorites: \(trackStableId)")
@@ -714,11 +711,11 @@ class AppCoordinator: ObservableObject {
         // Verify the database operation worked
         let isNowLiked = try databaseManager.isFavorite(trackStableId: trackStableId)
         print("📊 Track is now liked after toggle: \(isNowLiked)")
-        
+
         // Get current favorites count from database
         let currentFavorites = try databaseManager.getFavorites()
         print("📊 Total favorites in database after toggle: \(currentFavorites.count)")
-        
+
         // Always save favorites (both locally and to iCloud if available)
         Task {
             do {
@@ -726,7 +723,7 @@ class AppCoordinator: ObservableObject {
                 print("📊 Favorites to save: \(favorites.count) - \(favorites)")
                 try stateManager.saveFavorites(favorites)
                 print("💾 Favorites saved: \(favorites.count) total")
-                
+
                 // Verify save worked by loading back
                 let loadedFavorites = try stateManager.loadFavorites()
                 print("📊 Loaded favorites after save: \(loadedFavorites.count) - \(loadedFavorites)")
@@ -735,22 +732,22 @@ class AppCoordinator: ObservableObject {
             }
         }
     }
-    
+
     func isFavorite(trackStableId: String) throws -> Bool {
         return try databaseManager.isFavorite(trackStableId: trackStableId)
     }
-    
+
     func getFavorites() throws -> [String] {
         return try databaseManager.getFavorites()
     }
-    
+
     // MARK: - Playlist operations
-    
+
     func addToPlaylist(playlistId: Int64, trackStableId: String) throws {
         try databaseManager.addToPlaylist(playlistId: playlistId, trackStableId: trackStableId)
         syncPlaylistsToCloud()
     }
-    
+
     func removeFromPlaylist(playlistId: Int64, trackStableId: String) throws {
         try databaseManager.removeFromPlaylist(playlistId: playlistId, trackStableId: trackStableId)
         syncPlaylistsToCloud()
@@ -785,22 +782,22 @@ class AppCoordinator: ObservableObject {
     func isTrackInPlaylist(playlistId: Int64, trackStableId: String) throws -> Bool {
         return try databaseManager.isTrackInPlaylist(playlistId: playlistId, trackStableId: trackStableId)
     }
-    
+
     func deletePlaylist(playlistId: Int64) throws {
         // Get playlist info before deleting from database
         let playlists = try databaseManager.getAllPlaylists()
         guard let playlist = playlists.first(where: { $0.id == playlistId }) else {
             throw AppCoordinatorError.playlistNotFound
         }
-        
+
         let playlistSlug = playlist.slug
-        
+
         // Delete from database
         try databaseManager.deletePlaylist(playlistId: playlistId)
-        
+
         // Delete from iCloud and local storage
         try stateManager.deletePlaylist(slug: playlistSlug)
-        
+
         print("✅ Playlist '\(playlist.title)' deleted from database and cloud storage")
     }
 
@@ -812,13 +809,13 @@ class AppCoordinator: ObservableObject {
     func updatePlaylistAccessed(playlistId: Int64) throws {
         try databaseManager.updatePlaylistAccessed(playlistId: playlistId)
     }
-    
+
     func updatePlaylistLastPlayed(playlistId: Int64) throws {
         try databaseManager.updatePlaylistLastPlayed(playlistId: playlistId)
         // Update widget to show most recently played playlists
         syncPlaylistsToCloud()
     }
-    
+
     private var isSyncingPlaylists = false
     private var hasCompletedInitialIndexing = false
 
@@ -978,7 +975,7 @@ class AppCoordinator: ObservableObject {
         WidgetCenter.shared.reloadAllTimelines()
         print("🔄 Widget timeline reload triggered")
     }
-    
+
     func playTrack(_ track: Track, queue: [Track] = []) async {
         await playerEngine.playTrack(track, queue: queue)
     }
@@ -993,7 +990,6 @@ class AppCoordinator: ObservableObject {
 
         if let mediaTypeRaw = userInfo["mediaType"] as? Int,
            let mediaType = INMediaItemType(rawValue: mediaTypeRaw) {
-
             switch mediaType {
             case .song:
                 await handleSongPlayback(userInfo: userInfo)
@@ -1032,7 +1028,6 @@ class AppCoordinator: ObservableObject {
         }
     }
 
-
     private func handlePlaylistPlayback(userInfo: [String: Any]) async {
         do {
             if let playlistName = userInfo["mediaName"] as? String {
@@ -1066,7 +1061,6 @@ class AppCoordinator: ObservableObject {
             print("❌ Error playing general music: \(error)")
         }
     }
-
 
     func prepareSiriAudioSession() async {
         // Delegate to PlayerEngine to handle background session setup for Siri
@@ -1358,7 +1352,7 @@ class AppCoordinator: ObservableObject {
             "favorite", "favourite", "liked", "loved",
             "favori", "favoris", "préféré", "préférés", "préférées",
             "prefere", "preferes", "aimé", "aimés", "aimées", "aime",
-            "coup de coeur", "coups de coeur", "coup de cœur", "coups de cœur"
+            "coup de coeur", "coups de coeur", "coup de cœur", "coups de cœur",
         ]
         return keywords.contains { lowered.contains($0) }
     }
@@ -1371,7 +1365,7 @@ enum AppCoordinatorError: Error {
     case databaseError
     case indexingError
     case playlistNotFound
-    
+
     var localizedDescription: String {
         switch self {
         case .iCloudNotAvailable:

@@ -120,7 +120,7 @@ struct SFBTrack: Identifiable {
 
 extension SFBTrack: Equatable {
     /// Returns true if the two tracks have the same `id`
-    static func ==(lhs: SFBTrack, rhs: SFBTrack) -> Bool {
+    static func == (lhs: SFBTrack, rhs: SFBTrack) -> Bool {
         return lhs.id == rhs.id
     }
 }

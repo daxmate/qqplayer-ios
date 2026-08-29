@@ -5,9 +5,9 @@
 //  Created by CLQ on 28/08/2025.
 //
 
-import SwiftUI
 import AVFoundation
 import Intents
+import SwiftUI
 
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, handle intent: INIntent, completionHandler: @escaping (INIntentResponse) -> Void) {
@@ -49,7 +49,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                     playlistVocabulary.append(contentsOf: [
                         "ma playlist", "ma liste de lecture", "mes playlists",
                         "liste de lecture", "playlist", "playlists",
-                        "Liked Songs", "Favorites", "Favourites", "Favoris"
+                        "Liked Songs", "Favorites", "Favourites", "Favoris",
                     ])
 
                     let playlistNames = NSOrderedSet(array: playlistVocabulary)
@@ -96,9 +96,9 @@ struct QQPlayerApp: App {
                     DatabaseSuspensionCoordinator.shared.start()
                     await appCoordinator.initialize()
                     #if canImport(MediaIntents)
-                    if #available(iOS 27.0, *) {
-                        SpotlightLibraryIndexer.shared.activate()
-                    }
+                        if #available(iOS 27.0, *) {
+                            SpotlightLibraryIndexer.shared.activate()
+                        }
                     #endif
                     await createiCloudContainerPlaceholder()
                 }
@@ -119,7 +119,7 @@ struct QQPlayerApp: App {
                 }
         }
     }
-    
+
     private func handleDidEnterBackground() {
         print("🔍 DIAGNOSTIC - backgroundTimeRemaining:", UIApplication.shared.backgroundTimeRemaining)
 
@@ -143,7 +143,7 @@ struct QQPlayerApp: App {
             PlayerEngine.shared.suspendUITimersForBackground()
         }
     }
-    
+
     private func handleWillEnterForeground() {
         // Restart timers when foregrounding
         Task { @MainActor in
@@ -188,7 +188,7 @@ struct QQPlayerApp: App {
 
         return shouldScan
     }
-    
+
     private func handleWillResignActive() {
         guard PlayerEngine.shared.isPlaying else {
             releaseAudioSessionIfIdle()
@@ -221,7 +221,7 @@ struct QQPlayerApp: App {
             print("ℹ️ Audio session was already inactive or could not be released: \(error)")
         }
     }
-    
+
     private func handleOpenURL(_ url: URL) {
         print("🔗 Received URL: \(url.absoluteString)")
 
@@ -280,14 +280,14 @@ struct QQPlayerApp: App {
             print("❌ iCloud Drive not available")
             return
         }
-        
+
         let documentsURL = iCloudURL.appendingPathComponent("Documents")
         let placeholderURL = documentsURL.appendingPathComponent(".qqplayer_placeholder")
-        
+
         do {
             // Create Documents directory if it doesn't exist
             try FileManager.default.createDirectory(at: documentsURL, withIntermediateDirectories: true, attributes: nil)
-            
+
             // Create placeholder file if it doesn't exist
             if !FileManager.default.fileExists(atPath: placeholderURL.path) {
                 let placeholderText = "This folder contains music files for QQPlayer.\nPlace your FLAC files here to add them to your library."

@@ -7,28 +7,28 @@
 //
 
 #if canImport(MediaIntents)
-import AppIntents
+    import AppIntents
 
-@available(iOS 27.0, *)
-@AppEnum(schema: .audio.playbackAttributes)
-enum PlaybackAttributes: String {
-    case shuffle
-    case `repeat`
+    @available(iOS 27.0, *)
+    @AppEnum(schema: .audio.playbackAttributes)
+    enum PlaybackAttributes: String {
+        case shuffle
+        case `repeat`
 
-    static let caseDisplayRepresentations: [PlaybackAttributes: DisplayRepresentation] = [
-        .shuffle: DisplayRepresentation(
-            title: LocalizedStringResource(
-                "Shuffle",
-                comment: "PlaybackAttributes case label: shuffle the queue."
-            )
-        ),
-        .repeat: DisplayRepresentation(
-            title: LocalizedStringResource(
-                "Repeat",
-                comment: "PlaybackAttributes case label: repeat the queue."
-            )
-        )
-    ]
-}
+        static let caseDisplayRepresentations: [PlaybackAttributes: DisplayRepresentation] = [
+            .shuffle: DisplayRepresentation(
+                title: LocalizedStringResource(
+                    "Shuffle",
+                    comment: "PlaybackAttributes case label: shuffle the queue."
+                )
+            ),
+            .repeat: DisplayRepresentation(
+                title: LocalizedStringResource(
+                    "Repeat",
+                    comment: "PlaybackAttributes case label: repeat the queue."
+                )
+            ),
+        ]
+    }
 
 #endif // canImport(MediaIntents)

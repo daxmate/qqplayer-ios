@@ -10,7 +10,6 @@ import Foundation
 
 @MainActor
 final class IntentPlaybackService {
-
     private var playerEngine: PlayerEngine { PlayerEngine.shared }
     private var coordinator: AppCoordinator { AppCoordinator.shared }
     private var database: DatabaseManager { DatabaseManager.shared }
