@@ -118,6 +118,7 @@ struct PlayerView: View {
     @State private var sleepTimerTask: Task<Void, Never>?
     @State private var sleepTimerEndDate: Date?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack {
@@ -236,6 +237,18 @@ struct PlayerView: View {
 
                 // 小歌词窗口常驻：切歌自动加载歌词（不再等按钮点击）
                 loadLyrics()
+            }
+            .onChange(of: showLyricsSheet) { _, isOpen in
+                // 离开全屏歌词界面：退出跟唱模式（用户 2026-08-29 拍板）
+                if !isOpen {
+                    KaraokeController.shared.setKaraokeOn(false)
+                }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                // App 到后台：退出跟唱模式（用户 2026-08-29 拍板）
+                if phase == .background {
+                    KaraokeController.shared.setKaraokeOn(false)
+                }
             }
     }
 

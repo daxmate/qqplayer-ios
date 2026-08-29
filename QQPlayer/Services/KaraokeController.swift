@@ -271,6 +271,11 @@ final class KaraokeController: ObservableObject {
 private struct PlayerEngineKaraokeActions: KaraokeActions {
     func seekAndPlay(to time: TimeInterval) async {
         await PlayerEngine.shared.seek(to: time)
+        // 暂停态点击上一句/下一句/歌词行也要自动播放（用户 2026-08-29 拍板）：
+        // seek 只更新位置不改变播放态，这里补 play()
+        if !PlayerEngine.shared.isPlaying {
+            PlayerEngine.shared.play()
+        }
     }
 
     func seekAndPause(to time: TimeInterval) async {
