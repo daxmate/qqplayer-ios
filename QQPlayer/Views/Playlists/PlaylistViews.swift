@@ -765,7 +765,8 @@ struct PlaylistDetailScreen: View {
                 let artists = try Artist.filter(artistIds.contains(Column("id"))).fetchAll(db)
                 for artist in artists {
                     if let id = artist.id {
-                        cache[id] = artist.name
+                        // 简繁归一：行副标题按当前 UI 语言显示同一字形
+                        cache[id] = ArtistNameNormalizer.displayName(artist.name)
                     }
                 }
             }

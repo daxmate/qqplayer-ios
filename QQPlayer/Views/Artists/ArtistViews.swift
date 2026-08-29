@@ -4,7 +4,7 @@ import SwiftUI
 struct ArtistsScreen: View {
     let allTracks: [Track]
     @EnvironmentObject private var appCoordinator: AppCoordinator
-    @State private var artists: [Artist] = []
+    @State private var artists: [ArtistNameNormalizer.NormalizedArtist] = []
     @State private var settings = DeleteSettings.load()
 
     var body: some View {
@@ -29,9 +29,9 @@ struct ArtistsScreen: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    List(artists, id: \.id) { artist in
+                    List(artists, id: \.id) { item in
                         ZStack {
-                            NavigationLink(destination: ArtistDetailScreen(artist: artist, allTracks: allTracks)) {
+                            NavigationLink(destination: ArtistDetailScreen(artists: item.artists, allTracks: allTracks)) {
                                 EmptyView()
                             }
                             .opacity(0.0)
@@ -42,7 +42,7 @@ struct ArtistsScreen: View {
                                     .frame(width: 24, height: 24)
 
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(artist.name)
+                                    Text(item.displayName)
                                         .font(.headline)
 
                                     Text(Localized.artist)
@@ -92,7 +92,9 @@ struct ArtistsScreen: View {
 
     private func loadArtists() {
         do {
-            artists = try appCoordinator.databaseManager.getAllArtists()
+            let allArtists = try appCoordinator.databaseManager.getAllArtists()
+            // 简繁归一：同名简繁两行按归一 key 分组，每组一个显示项
+            artists = ArtistNameNormalizer.groupedArtists(allArtists)
         } catch {
             print("Failed to load artists: \(error)")
         }
@@ -128,7 +130,7 @@ struct ArtistListView: View {
                         .frame(width: 24, height: 24)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(artist.name)
+                        Text(ArtistNameNormalizer.displayName(artist.name))
                             .font(.headline)
 
                         Text("Artist")
@@ -151,7 +153,8 @@ struct ArtistListView: View {
 }
 
 struct ArtistDetailScreen: View {
-    let artist: Artist
+    /// 归一后的一组歌手（同名简繁两行归并后传入）；primaryArtist 用于专辑/网络信息
+    let artists: [Artist]
     let allTracks: [Track]
     @EnvironmentObject private var appCoordinator: AppCoordinator
     @StateObject private var hybridAPI = HybridMusicAPIService.shared
@@ -169,13 +172,26 @@ struct ArtistDetailScreen: View {
         appCoordinator.playerEngine
     }
 
+    /// 组内首位歌手（专辑/艺术家信息等用）
+    private var artist: Artist {
+        artists.first ?? Artist(id: nil, name: "")
+    }
+
+    /// 归一显示名（标题 + 网络艺术家信息搜索用）
+    private var displayName: String {
+        ArtistNameNormalizer.displayName(for: artists.map(\.name))
+    }
+
     private var artistTracks: [Track] {
         let tracks: [Track]
-        if let artistId = artist.id,
-           let databaseTracks = try? appCoordinator.databaseManager.getTracksByArtistId(artistId) {
+        let artistIds = artists.compactMap(\.id)
+        if !artistIds.isEmpty,
+           let databaseTracks = try? appCoordinator.databaseManager.getTracksByArtistIds(artistIds) {
             tracks = databaseTracks
         } else {
-            tracks = allTracks.filter { $0.artistId == artist.id }
+            tracks = allTracks.filter { track in
+                artists.contains { $0.id == track.artistId }
+            }
         }
 
         // Filter out incompatible formats when connected to CarPlay
@@ -307,7 +323,7 @@ struct ArtistDetailScreen: View {
                     }
                     Spacer()
                     HStack {
-                        Text(artist.name)
+                        Text(displayName)
                             .font(.title)
                             .fontWeight(.bold)
                             .foregroundColor(.white)
@@ -350,7 +366,7 @@ struct ArtistDetailScreen: View {
     @ViewBuilder
     private var simpleHeader: some View {
         VStack(spacing: 16) {
-            Text(artist.name)
+            Text(displayName)
                 .font(.largeTitle)
                 .fontWeight(.bold)
                 .multilineTextAlignment(.center)
@@ -561,7 +577,7 @@ struct ArtistDetailScreen: View {
         isLoading = true
         Task { @MainActor in
             do {
-                let fetchedArtist = try await HybridMusicAPIService.shared.searchArtist(name: artist.name)
+                let fetchedArtist = try await HybridMusicAPIService.shared.searchArtist(name: displayName)
                 self.unifiedArtist = fetchedArtist
                 self.isLoading = false
                 if let fetchedArtist = fetchedArtist { await loadArtistImage(from: fetchedArtist.images) }
@@ -578,7 +594,7 @@ struct ArtistDetailScreen: View {
         Task { @MainActor in
             do {
                 let currentSource = unifiedArtist?.source
-                let fetchedArtist = try await HybridMusicAPIService.shared.searchAlternativeArtist(name: artist.name, currentSource: currentSource)
+                let fetchedArtist = try await HybridMusicAPIService.shared.searchAlternativeArtist(name: displayName, currentSource: currentSource)
 
                 if let fetchedArtist = fetchedArtist {
                     self.unifiedArtist = fetchedArtist
@@ -604,7 +620,7 @@ struct ArtistDetailScreen: View {
         Task { @MainActor in
             do {
                 let currentSource = unifiedArtist?.source
-                let fetchedArtist = try await HybridMusicAPIService.shared.searchSimilarArtist(originalName: artist.name, currentSource: currentSource)
+                let fetchedArtist = try await HybridMusicAPIService.shared.searchSimilarArtist(originalName: displayName, currentSource: currentSource)
 
                 if let fetchedArtist = fetchedArtist {
                     self.unifiedArtist = fetchedArtist
@@ -631,13 +647,13 @@ struct ArtistDetailScreen: View {
                 let currentSource = unifiedArtist?.source
 
                 // First try different source with same name
-                print("🔄 Trying different source for: \(artist.name)")
-                var fetchedArtist = try await HybridMusicAPIService.shared.searchAlternativeArtist(name: artist.name, currentSource: currentSource)
+                print("🔄 Trying different source for: \(displayName)")
+                var fetchedArtist = try await HybridMusicAPIService.shared.searchAlternativeArtist(name: displayName, currentSource: currentSource)
 
                 // If that fails, try similar names with different sources
                 if fetchedArtist == nil {
-                    print("🔄 Trying similar names for: \(artist.name)")
-                    fetchedArtist = try await HybridMusicAPIService.shared.searchSimilarArtist(originalName: artist.name, currentSource: currentSource)
+                    print("🔄 Trying similar names for: \(displayName)")
+                    fetchedArtist = try await HybridMusicAPIService.shared.searchSimilarArtist(originalName: displayName, currentSource: currentSource)
                 }
 
                 if let fetchedArtist = fetchedArtist {
@@ -745,7 +761,7 @@ struct ArtistTrackRowView: View {
                        try Artist.fetchOne(db, key: artistId)
                    }),
                    let allArtistTracks = try? DatabaseManager.shared.getTracksByArtistId(artistId) {
-                    NavigationLink(destination: ArtistDetailScreen(artist: artist, allTracks: allArtistTracks)) {
+                    NavigationLink(destination: ArtistDetailScreenWrapper(artistName: artist.name, allTracks: allArtistTracks)) {
                         Label(Localized.showArtistPage, systemImage: "person.circle")
                     }
                 }

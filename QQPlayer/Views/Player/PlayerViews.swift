@@ -649,7 +649,7 @@ struct PlayerView: View {
                     let userInfo = ["artist": artist, "allTracks": allTracks] as [String: Any]
                     NotificationCenter.default.post(name: NSNotification.Name("NavigateToArtistFromPlayer"), object: nil, userInfo: userInfo)
                 }) {
-                    Text((try? DatabaseManager.shared.getArtistDisplayName(forTrackStableId: track.stableId, fallbackArtistId: track.artistId)) ?? artist.name)
+                    Text((try? DatabaseManager.shared.getArtistDisplayName(forTrackStableId: track.stableId, fallbackArtistId: track.artistId)) ?? ArtistNameNormalizer.displayName(artist.name))
                         .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .caption : .subheadline)
                         .foregroundColor(.secondary)
                         .lineLimit(1)
@@ -1141,7 +1141,7 @@ struct MiniPlayerView: View {
                                let artist = try? DatabaseManager.shared.read({ db in
                                    try Artist.fetchOne(db, key: artistId)
                                }) {
-                                Text(artist.name)
+                                Text(ArtistNameNormalizer.displayName(artist.name))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                     .lineLimit(1)
@@ -1439,7 +1439,7 @@ struct TrackRowView: View, @MainActor Equatable {
                     if let artistId = track.artistId,
                        let artist = try? DatabaseManager.shared.read({ db in try Artist.fetchOne(db, key: artistId) }),
                        let allArtistTracks = try? DatabaseManager.shared.getTracksByArtistId(artistId) {
-                        NavigationLink(destination: ArtistDetailScreen(artist: artist, allTracks: allArtistTracks)) {
+                        NavigationLink(destination: ArtistDetailScreenWrapper(artistName: artist.name, allTracks: allArtistTracks)) {
                             Label(Localized.showArtistPage, systemImage: "person.circle")
                         }
                     }

@@ -494,7 +494,7 @@ struct LibraryView: View {
                 set: { if !$0 { searchArtistToNavigate = nil } }
             )) {
                 if let artist = searchArtistToNavigate {
-                    ArtistDetailScreen(artist: artist, allTracks: searchArtistTracks)
+                    ArtistDetailScreenWrapper(artistName: artist.name, allTracks: searchArtistTracks)
                 }
             }
             .navigationDestination(isPresented: Binding(
@@ -866,7 +866,8 @@ struct TrackListView: View {
                 let artists = try Artist.filter(artistIds.contains(Column("id"))).fetchAll(db)
                 for artist in artists {
                     if let id = artist.id {
-                        cache[id] = artist.name
+                        // 简繁归一：同一歌手的繁/简两行归一到同一字形
+                        cache[id] = ArtistNameNormalizer.displayName(artist.name)
                     }
                 }
             }
@@ -1708,7 +1709,7 @@ struct SearchView: View {
                                 ForEach(results.albums, id: \.id) { album in
                                     SearchAlbumRowView(
                                         album: album,
-                                        albumArtistName: album.albumArtist ?? album.artistId.flatMap { artistNameCache[$0] },
+                                        albumArtistName: album.albumArtist.flatMap { ArtistNameNormalizer.displayName($0) } ?? album.artistId.flatMap { artistNameCache[$0] },
                                         onDismiss: onDismiss,
                                         onNavigate: onNavigateToAlbum
                                     )
@@ -1731,10 +1732,10 @@ struct SearchView: View {
                                     .fontWeight(.bold)
                                     .padding(.horizontal, 16)
 
-                                ForEach(results.artists, id: \.id) { artist in
+                                ForEach(ArtistNameNormalizer.groupedArtists(results.artists), id: \.id) { group in
                                     VStack(alignment: .leading, spacing: 0) {
                                         SearchArtistRowView(
-                                            artist: artist,
+                                            artist: group.primaryArtist,
                                             onDismiss: onDismiss,
                                             onNavigate: onNavigateToArtist
                                         )
@@ -1748,7 +1749,7 @@ struct SearchView: View {
 
                                         // Show this artist's albums below
                                         SearchArtistAlbumsRow(
-                                            artist: artist,
+                                            artist: group.primaryArtist,
                                             onDismiss: onDismiss,
                                             onNavigateToAlbum: onNavigateToAlbum
                                         )
@@ -2002,7 +2003,7 @@ struct SearchView: View {
                            try Artist.fetchOne(db, key: artistId)
                        }),
                        let allArtistTracks = try? DatabaseManager.shared.getTracksByArtistId(artistId) {
-                        NavigationLink(destination: ArtistDetailScreen(artist: artist, allTracks: allArtistTracks)) {
+                        NavigationLink(destination: ArtistDetailScreenWrapper(artistName: artist.name, allTracks: allArtistTracks)) {
                             Label(Localized.showArtistPage, systemImage: "person.circle")
                         }
                     }
@@ -2102,7 +2103,7 @@ struct SearchView: View {
                         .frame(width: 24, height: 24)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(artist.name)
+                        Text(ArtistNameNormalizer.displayName(artist.name))
                             .font(.body)
                             .fontWeight(.medium)
                             .foregroundColor(.primary)

@@ -175,7 +175,8 @@ struct AlbumDetailScreen: View {
 
     private var albumArtist: String {
         if let albumArtist = album.albumArtist, !albumArtist.isEmpty {
-            return albumArtist
+            // 简繁归一：专辑页歌手名按当前 UI 语言显示（如 "周杰倫" → "周杰伦"）
+            return ArtistNameNormalizer.displayName(albumArtist)
         }
         if let artistId = album.artistId,
            let artistName = artistNameCache[artistId] {
@@ -602,12 +603,12 @@ struct AlbumTrackRowView: View {
 struct ArtistDetailScreenWrapper: View {
     let artistName: String
     let allTracks: [Track]
-    @State private var artist: Artist?
+    @State private var artists: [Artist] = []
 
     var body: some View {
         Group {
-            if let artist {
-                ArtistDetailScreen(artist: artist, allTracks: allTracks)
+            if !artists.isEmpty {
+                ArtistDetailScreen(artists: artists, allTracks: allTracks)
             } else {
                 VStack(spacing: 16) {
                     ProgressView()
@@ -622,12 +623,15 @@ struct ArtistDetailScreenWrapper: View {
 
     private func loadArtist() {
         do {
-            artist = try DatabaseManager.shared.read { db in
-                try Artist.filter(Column("name") == artistName).fetchOne(db)
-            } ?? Artist(id: nil, name: artistName)
+            // searchArtists 已做简繁归一：输"周杰伦"也能命中"周傑倫"行；
+            // 同名简繁两行归为一组，组内全部 artist 传入详情聚合曲目
+            let matched = try DatabaseManager.shared.searchArtists(query: artistName, limit: 100)
+            let grouped = ArtistNameNormalizer.groupedArtists(matched)
+            let target = grouped.first { $0.artists.contains { $0.name == artistName } } ?? grouped.first
+            artists = target?.artists ?? [Artist(id: nil, name: artistName)]
         } catch {
             print("Failed to load artist: \(error)")
-            artist = Artist(id: nil, name: artistName)
+            artists = [Artist(id: nil, name: artistName)]
         }
     }
 }

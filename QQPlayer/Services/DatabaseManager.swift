@@ -817,9 +817,17 @@ class DatabaseManager: @unchecked Sendable {
 
     func searchArtists(query: String, limit: Int = 20) throws -> [Artist] {
         return try read { db in
-            let pattern = "%\(query)%"
-            return try Artist
-                .filter(Column("name").like(pattern))
+            // 简繁归一：query 生成两种字形变体（当前方向转换 + 反向转换），
+            // 简体 UI 下输"周杰伦"也能匹配库里"周傑倫"（反之对称）
+            let patterns = ArtistNameNormalizer.searchVariants(of: query).map { "%\($0)%" }
+            var request = Artist.all()
+            if patterns.count == 1 {
+                request = request.filter(Column("name").like(patterns[0]))
+            } else {
+                let conditions = patterns.map { Column("name").like($0) }
+                request = request.filter(conditions.dropFirst().reduce(conditions[0]) { $0 || $1 })
+            }
+            return try request
                 .order(Column("name"))
                 .limit(limit)
                 .fetchAll(db)
@@ -1016,7 +1024,8 @@ class DatabaseManager: @unchecked Sendable {
 
             for artist in artists {
                 if let id = artist.id {
-                    result[id] = artist.name
+                    // 显示层简繁归一：同一歌手的繁/简两行归一到同一字形
+                    result[id] = ArtistNameNormalizer.displayName(artist.name)
                 }
             }
 
@@ -1055,7 +1064,7 @@ class DatabaseManager: @unchecked Sendable {
             )
 
             if !names.isEmpty {
-                let display = names.joined(separator: " / ")
+                let display = names.map { ArtistNameNormalizer.displayName($0) }.joined(separator: " / ")
                 self.artistDisplayNameCacheLock.lock()
                 self.artistDisplayNameCache[stableId] = display
                 self.artistDisplayNameCacheLock.unlock()
@@ -1064,7 +1073,7 @@ class DatabaseManager: @unchecked Sendable {
 
             // Fallback results depend on fallbackArtistId, so don't cache them
             guard let fallbackArtistId else { return nil }
-            return try Artist.fetchOne(db, key: fallbackArtistId)?.name
+            return try Artist.fetchOne(db, key: fallbackArtistId).map { ArtistNameNormalizer.displayName($0.name) }
         }
     }
 
@@ -1116,7 +1125,7 @@ class DatabaseManager: @unchecked Sendable {
             }
 
             for (stableId, names) in groupedNames where !names.isEmpty {
-                result[stableId] = names.joined(separator: " / ")
+                result[stableId] = names.map { ArtistNameNormalizer.displayName($0) }.joined(separator: " / ")
             }
 
             let fallbackArtistIds = Set(missingStableIds.compactMap { stableId in
@@ -1134,7 +1143,7 @@ class DatabaseManager: @unchecked Sendable {
                 for stableId in missingStableIds where result[stableId] == nil {
                     if let artistId = fallbackArtistIdsByStableId[stableId],
                        let name = namesById[artistId] {
-                        result[stableId] = name
+                        result[stableId] = ArtistNameNormalizer.displayName(name)
                     }
                 }
             }
@@ -1235,6 +1244,27 @@ class DatabaseManager: @unchecked Sendable {
         }
     }
 
+    /// 按多个 artist id 查曲目（去重 union），供归一后的歌手详情聚合
+    /// （同名简繁两行 artist 的曲目合并显示）。
+    func getTracksByArtistIds(_ ids: [Int64]) throws -> [Track] {
+        guard !ids.isEmpty else { return [] }
+        let uniqueIds = Array(Set(ids))
+        let placeholders = Array(repeating: "?", count: uniqueIds.count).joined(separator: ",")
+        return try read { db in
+            return try Track.fetchAll(
+                db,
+                sql: """
+                    SELECT DISTINCT track.*
+                    FROM track
+                    LEFT JOIN track_artist ON track_artist.track_stable_id = track.stable_id
+                    WHERE track.artist_id IN (\(placeholders)) OR track_artist.artist_id IN (\(placeholders))
+                    ORDER BY track.title
+                """,
+                arguments: StatementArguments(uniqueIds + uniqueIds)
+            )
+        }
+    }
+
     // MARK: - Search operations
 
     private func rankedTrackSearch(in db: Database, query: String, limit: Int?) throws -> [Track] {
@@ -1285,9 +1315,16 @@ class DatabaseManager: @unchecked Sendable {
 
     func searchArtists(query: String) throws -> [Artist] {
         return try read { db in
-            let searchPattern = "%\(query)%"
-            return try Artist
-                .filter(Column("name").like(searchPattern))
+            // 简繁归一：与 searchArtists(query:limit:) 一致，query 生成两种字形变体
+            let patterns = ArtistNameNormalizer.searchVariants(of: query).map { "%\($0)%" }
+            var request = Artist.all()
+            if patterns.count == 1 {
+                request = request.filter(Column("name").like(patterns[0]))
+            } else {
+                let conditions = patterns.map { Column("name").like($0) }
+                request = request.filter(conditions.dropFirst().reduce(conditions[0]) { $0 || $1 })
+            }
+            return try request
                 .order(Column("name"))
                 .fetchAll(db)
         }
