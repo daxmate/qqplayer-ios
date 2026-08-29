@@ -870,6 +870,8 @@ class PlayerEngine: NSObject, ObservableObject {
         audioEngine = AVAudioEngine()
         playerNode = AVAudioPlayerNode()
         timePitchNode = AVAudioUnitTimePitch()
+        // 新 timePitch 实例 rate 默认 1.0：恢复当前倍速（异常恢复路径不丢变速）
+        timePitchNode.rate = Float(currentPlaybackRate)
         eqManager.setAudioEngine(nil)
         // Reset flags
         hasSetupAudioEngine = false
