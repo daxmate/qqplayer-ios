@@ -113,9 +113,32 @@ struct PlayerView: View {
         ZStack {
             ScreenSpecificBackgroundView(screen: .player)
             mainContent
+            dismissButton
         }
         // Cap Dynamic Type so large accessibility sizes don't overflow the player layout
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+    }
+
+    // 全屏关闭入口：左上角下拉箭头（点封面收起仍保留；sheet 时代靠下滑关闭，全屏后必须有显式按钮）
+    private var dismissButton: some View {
+        VStack {
+            HStack {
+                Button {
+                    NotificationCenter.default.post(name: NSNotification.Name("MinimizePlayer"), object: nil)
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .frame(width: 40, height: 40)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+                .padding(.leading, 8)
+                .padding(.top, 2)
+
+                Spacer()
+            }
+            Spacer()
+        }
     }
 
     private var mainContent: some View {
@@ -212,7 +235,8 @@ struct PlayerView: View {
             let maxWidth = min(geometry.size.width - 40, 360)
             let artworkSize = min(maxWidth, geometry.size.height)
             let gestureWidth = max(geometry.size.width, 1)
-            let pageDistance = artworkSize + 18
+            // 相邻封面初始位置推到屏幕外（静止时完全不露出边缘），跟手滑动时从屏幕边缘滑入
+            let pageDistance = geometry.size.width / 2 + artworkSize / 2 + 12
             let swipeProgress = min(abs(dragOffset) / pageDistance, 1)
             let signedProgress = max(-1, min(1, dragOffset / pageDistance))
             let canNavigate = playerEngine.playbackQueue.count > 1
@@ -1167,12 +1191,9 @@ struct MiniPlayerView: View {
                         isExpanded = true
                     }
                 }
-                .sheet(isPresented: $isExpanded) {
-                    // Full screen player as sheet
+                .fullScreenCover(isPresented: $isExpanded) {
+                    // 全屏播放页（2026-08-29：sheet 弹窗改全屏覆盖，无圆角/拖动条/背景露出）
                     PlayerView()
-                        .presentationDetents([.large])
-                        .presentationDragIndicator(.visible)
-                        .interactiveDismissDisabled(false)
                         .accentColor(settings.backgroundColorChoice.color)
                 }
                 .task(id: playerEngine.currentTrack?.stableId) {
