@@ -1,3 +1,9 @@
+# QQPlayer (iOS)
+
+> **fork 声明**：本项目基于 [Cosmos Music Player](https://github.com/clquwu/Cosmos-Music-Player)（GPL-3.0，作者 Raphael Boullay Le Fur）二次开发，详见 [NOTICE.md](NOTICE.md)。本仓库整体以 GPL-3.0 发布。
+
+---
+
 # Cosmos Music Player 🎵
 
 [![Download on the App Store](https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg)](https://apps.apple.com/fr/app/cosmos-offline-music-player/id6751984723?l=en-GB)
