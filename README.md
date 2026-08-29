@@ -593,9 +593,8 @@ DISCOGS_CONSUMER_SECRET=your_discogs_consumer_secret
 
 ### 致谢 🎨
 
+- **上游项目**：特别感谢 [Cosmos Music Player](https://github.com/clquwu/Cosmos-Music-Player) 及其作者 [@clquwu](https://github.com/clquwu)（Raphael Boullay Le Fur）——本项目基于其 GPL-3.0 开源代码二次开发
 - **歌词 API**：特别感谢 [LRCLIB](https://github.com/tranxuanthang/lrclib) 项目（作者 tranxuanthang）
-- **Logo 设计**：由 **Zerrotic** 创作（Discord 用户名 zerrotic）
-- **App Store 截图**：由 **MrVedakkaN** 设计（Discord 用户名 mrvedakkan）
 
 ## 作者 👥
 
