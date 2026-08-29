@@ -23,6 +23,10 @@ class CloudDownloadManager: NSObject, ObservableObject {
     private var hasDetectedSystematicFailure = false
     private var consecutiveFailures = 0
     private var lastFailureTime: Date?
+    // Per-file failure dedup: repeated failures of the SAME file within the
+    // window count once — only distinct files accumulate toward the
+    // threshold. A single slow/large download must never trip offline mode.
+    private var lastFailureURL: URL?
     private let maxConsecutiveFailures = 3
     private let failureResetTime: TimeInterval = 300 // 5 minutes
 
@@ -71,17 +75,30 @@ class CloudDownloadManager: NSObject, ObservableObject {
     }
 
     @MainActor
-    func detectSystematicFailure() {
+    func detectSystematicFailure(for url: URL? = nil) {
         // Reset failure count if enough time has passed since last failure
         if let lastFailure = lastFailureTime, Date().timeIntervalSince(lastFailure) > failureResetTime {
             consecutiveFailures = 0
+            lastFailureURL = nil
             print("🔄 Resetting failure count after \(Int(failureResetTime / 60)) minutes")
+        }
+
+        // Deduplicate per file: the same file failing repeatedly within the
+        // window (e.g. one large download that keeps timing out) is a single
+        // failure, not many. Only distinct files accumulate. A nil URL
+        // (external report without file context) always counts.
+        if let url = url, url == lastFailureURL {
+            lastFailureTime = Date()
+            print("⏭️ Same file already counted in failure window: \(url.lastPathComponent) - not incrementing")
+            return
         }
 
         consecutiveFailures += 1
         lastFailureTime = Date()
+        lastFailureURL = url
 
-        print("⚠️ iCloud failure detected (\(consecutiveFailures)/\(maxConsecutiveFailures))")
+        let fileSuffix = url.map { " for \($0.lastPathComponent)" } ?? ""
+        print("⚠️ iCloud failure detected (\(consecutiveFailures)/\(maxConsecutiveFailures))\(fileSuffix)")
 
         if consecutiveFailures >= maxConsecutiveFailures && !hasDetectedSystematicFailure {
             hasDetectedSystematicFailure = true
@@ -97,9 +114,10 @@ class CloudDownloadManager: NSObject, ObservableObject {
     func resetFailureCount() {
         if consecutiveFailures > 0 {
             consecutiveFailures = 0
-            lastFailureTime = nil
             print("✅ Reset iCloud failure count - successful operation detected")
         }
+        lastFailureTime = nil
+        lastFailureURL = nil
     }
 
     @MainActor
@@ -108,6 +126,7 @@ class CloudDownloadManager: NSObject, ObservableObject {
         hasDetectedSystematicFailure = false
         consecutiveFailures = 0
         lastFailureTime = nil
+        lastFailureURL = nil
 
         // Restart the metadata query if needed
         Task {
@@ -334,19 +353,20 @@ class CloudDownloadManager: NSObject, ObservableObject {
                             return
                         }
 
-                        // Only trigger failure detection if we can't read the file at all
-                        print("⚠️ File not downloaded and not readable - incrementing failure count")
-                        detectSystematicFailure()
-
-                        // If we haven't reached systematic failure threshold yet, try to start download
-                        if !hasDetectedSystematicFailure {
-                            print("🔽 Attempting to download file: \(url.lastPathComponent)")
-                            await startDownload(url)
-                            return
-                        } else {
+                        // Not downloaded and not readable. Starting the download
+                        // is the NORMAL path for a not-yet-downloaded file — a
+                        // large FLAC/DSF file legitimately takes minutes, so
+                        // this is NOT counted as a failure here. Failures only
+                        // accumulate from real error paths (auth errors,
+                        // unreadable status, download-start errors) and are
+                        // deduplicated per file.
+                        if hasDetectedSystematicFailure {
                             print("❌ Systematic failure detected - cannot ensure file is local: \(url.lastPathComponent)")
                             throw CloudDownloadError.fileNotFound
                         }
+                        print("🔽 Attempting to download file: \(url.lastPathComponent)")
+                        await startDownload(url)
+                        return
 
                     case .downloaded:
                         print("✅ File already downloaded: \(url.lastPathComponent)")
@@ -364,7 +384,7 @@ class CloudDownloadManager: NSObject, ObservableObject {
                             resetFailureCount()
                             return
                         }
-                        detectSystematicFailure()
+                        detectSystematicFailure(for: url)
                         if hasDetectedSystematicFailure {
                             throw CloudDownloadError.fileNotFound
                         }
@@ -380,7 +400,7 @@ class CloudDownloadManager: NSObject, ObservableObject {
                     }
 
                     // Only detect failure if file is not readable
-                    detectSystematicFailure()
+                    detectSystematicFailure(for: url)
                     if hasDetectedSystematicFailure {
                         throw CloudDownloadError.fileNotFound
                     }
@@ -409,7 +429,7 @@ class CloudDownloadManager: NSObject, ObservableObject {
 
                 // Only detect failure if file is not readable
                 print("⚠️ iCloud error and file not readable - detecting failure")
-                detectSystematicFailure()
+                detectSystematicFailure(for: url)
 
                 if hasDetectedSystematicFailure {
                     print("❌ Systematic failure - file not available: \(url.lastPathComponent)")
@@ -511,11 +531,14 @@ class CloudDownloadManager: NSObject, ObservableObject {
             // Check if this is a timeout or authentication error
             if let nsError = error as NSError? {
                 if nsError.domain == NSPOSIXErrorDomain && nsError.code == 60 {
-                    print("⏰ Timeout error at download start - detecting systematic failure")
-                    detectSystematicFailure()
+                    // Timeout at download start is a per-file/transient issue
+                    // (a large file can take a while to begin streaming) — not
+                    // evidence of a system-wide iCloud failure, so it is not
+                    // counted.
+                    print("⏰ Timeout error at download start - not counted as systematic failure")
                 } else if nsError.domain == NSPOSIXErrorDomain && nsError.code == 81 {
                     print("🔐 Authentication error at download start - detecting systematic failure")
-                    detectSystematicFailure()
+                    detectSystematicFailure(for: url)
                 }
             }
 
@@ -528,7 +551,10 @@ class CloudDownloadManager: NSObject, ObservableObject {
     private func startFallbackProgressMonitor(_ url: URL) {
         let task = Task {
             var attempts = 0
-            let maxAttempts = 60 // 30 seconds max
+            // 2 minutes max (0.5s per poll). Large FLAC/DSF downloads routinely
+            // outlive the old 30s window; a timeout here only means THIS file is
+            // slow or stalled, never that iCloud is down as a whole.
+            let maxAttempts = 240
 
             while attempts < maxAttempts && downloadingFiles.contains(url) {
                 do {
@@ -563,18 +589,17 @@ class CloudDownloadManager: NSObject, ObservableObject {
                 } catch {
                     print("❌ Fallback progress check failed: \(error)")
 
-                    // Check if this is a timeout or authentication error
+                    // Classify the error: only true authentication errors (code
+                    // 81) are system-level and count toward offline mode.
+                    // Timeouts (code 60) are per-file/transient — a large
+                    // download may simply be slow — so they are logged and we
+                    // keep polling until the monitor window ends, where the task
+                    // is dropped without counting.
                     if let nsError = error as NSError? {
-                        if nsError.domain == NSPOSIXErrorDomain && nsError.code == 60 {
-                            print("⏰ Timeout detected during progress check - detecting systematic failure")
-                            await MainActor.run {
-                                CloudDownloadManager.shared.detectSystematicFailure()
-                            }
-                            return
-                        } else if nsError.domain == NSPOSIXErrorDomain && nsError.code == 81 {
+                        if nsError.domain == NSPOSIXErrorDomain && nsError.code == 81 {
                             print("🔐 Authentication error detected during progress check - detecting systematic failure")
                             await MainActor.run {
-                                CloudDownloadManager.shared.detectSystematicFailure()
+                                CloudDownloadManager.shared.detectSystematicFailure(for: url)
                             }
                             return
                         }
@@ -585,17 +610,16 @@ class CloudDownloadManager: NSObject, ObservableObject {
                 try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
             }
 
-            // Timeout - assume download failed and check if we should switch to offline mode
+            // Timeout — the file was still not downloaded when the monitor
+            // window ended. This means only that THIS download was slow or
+            // stalled; it is not evidence of a system-wide iCloud failure, so we
+            // simply drop the task (the user can retry via ensureLocal).
             await MainActor.run {
                 if downloadingFiles.contains(url) {
-                    print("⏰ Download timeout for: \(url.lastPathComponent)")
+                    print("⏰ Download timeout for: \(url.lastPathComponent) - removing task (not counted as systematic failure)")
                     downloadingFiles.remove(url)
                     downloadProgress.removeValue(forKey: url)
                     downloadTasks.removeValue(forKey: url)
-
-                    // If any files are timing out, detect systematic failure
-                    print("🚫 Download timeout detected - detecting systematic failure")
-                    detectSystematicFailure()
                     stopProgressQueryIfIdle()
                 }
             }
