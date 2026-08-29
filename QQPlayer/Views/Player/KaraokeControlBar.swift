@@ -82,30 +82,27 @@ struct KaraokeControlBar: View {
 
     // MARK: - AB 循环
 
-    /// AB 按钮：长按 0.5s → 当前句为 A（进入等选终点）；已启用时单击退出。
-    /// ExclusiveGesture：长按成功后本次抬起不再触发单击（吞 click，桌面 longPressFired 同款）。
+    /// AB 按钮：单击切换（用户 2026-08-29 拍板：不用长按）。
+    /// 未启用 → 以当前句为 A 进入等选终点；已启用 → 退出 AB 循环。
+    /// 等选终点态点击歌词行即设 B（clickLine 决策）。
     private var abButton: some View {
-        pill(isHighlighted: karaoke.abLoop != nil) {
-            Text(abLabel)
+        Button {
+            if karaoke.abLoop != nil {
+                karaoke.exitABLoop()
+            } else {
+                guard let index = currentLineIndex else { return }
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                karaoke.enterABLoop(currentLine: index)
+            }
+        } label: {
+            pill(isHighlighted: karaoke.abLoop != nil) {
+                Text(abLabel)
+            }
         }
-        .gesture(
-            ExclusiveGesture(
-                LongPressGesture(minimumDuration: 0.5)
-                    .onEnded { _ in
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        guard let index = currentLineIndex else { return }
-                        karaoke.enterABLoop(currentLine: index)
-                    },
-                TapGesture()
-                    .onEnded { _ in
-                        guard karaoke.abLoop != nil else { return }
-                        karaoke.exitABLoop()
-                    }
-            )
-        )
+        .buttonStyle(PlainButtonStyle())
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel("AB 循环")
-        .accessibilityHint("长按以当前句为起点，点击歌词设置终点；单击退出")
+        .accessibilityHint("单击以当前句为起点，点击歌词设置终点；再单击退出")
     }
 
     // MARK: - 胶囊样式

@@ -94,15 +94,29 @@ struct KaraokeControllerTests {
         expectSingleSeek(fake, time: 5.0, play: false)
     }
 
-    @Test("未到句末不动作（含句中与两句之间）")
-    func noActionBeforeLineEnd() async {
-        let fake = await makeFake(expireJumpQuiet: false)
+    @Test("回归：非末句播完即触发（缓存行句末检测，单句循环真正生效）")
+    func midLineEndTriggersWithCachedLine() async {
+        let fake = await makeFake(expireJumpQuiet: true)
         let kc = KaraokeController.shared
         kc.setKaraokeOn(true)
         kc.setLyrics(makeLines(0, 5))
 
-        kc.handlePlaybackTick(time: 4.0, duration: 10.0) // 第 0 句内，未到 5.0
-        kc.handlePlaybackTick(time: 6.0, duration: 10.0) // 第 1 句内，未到 duration
+        kc.handlePlaybackTick(time: 4.0, duration: 10.0) // 缓存第 0 句（[0,5)）
+        kc.handlePlaybackTick(time: 5.0, duration: 10.0) // 第 0 句播完（5.0 = 句末）
+        await drainMainActor()
+
+        expectSingleSeek(fake, time: 0.0, play: false) // 句末自动停：回第 0 句句首暂停
+    }
+
+    @Test("未到句末不动作（句中采样不触发）")
+    func noActionBeforeLineEnd() async {
+        let fake = await makeFake(expireJumpQuiet: true)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5))
+
+        kc.handlePlaybackTick(time: 4.0, duration: 10.0) // 缓存第 0 句（句首 0，句末 5）
+        kc.handlePlaybackTick(time: 4.5, duration: 10.0) // 仍在第 0 句内，未到句末
         await drainMainActor()
 
         #expect(fake.seeks.isEmpty)
@@ -201,7 +215,7 @@ struct KaraokeControllerTests {
         expectSingleSeek(fake, time: 0.0, play: true)
     }
 
-    @Test("AB 区间中间句：句末自然推进，不干预")
+    @Test("AB 区间中间句：句末自然推进（缓存行 +1），不干预不跳转")
     func abMiddleLineNaturalProgress() async {
         let fake = await makeFake(expireJumpQuiet: true)
         let kc = KaraokeController.shared
@@ -210,7 +224,8 @@ struct KaraokeControllerTests {
         kc.enterABLoop(currentLine: 0)
         kc.clickLine(index: 3) // B = 3
 
-        kc.handlePlaybackTick(time: 9.0, duration: 15.0) // 第 1 句末（9.0），仍处区间内
+        kc.handlePlaybackTick(time: 6.0, duration: 15.0) // 缓存第 1 句（[5,9)）
+        kc.handlePlaybackTick(time: 9.0, duration: 15.0) // 第 1 句末：推进缓存行，不跳转
         await drainMainActor()
 
         #expect(fake.seeks.isEmpty)

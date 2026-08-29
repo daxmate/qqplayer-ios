@@ -202,9 +202,9 @@ struct LyricsView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 32)
-        .padding(.vertical, isActive ? 24 : 16)
+        .padding(.vertical, karaoke.isKaraokeOn ? 18 : (isActive ? 24 : 16))
         .id(index)
-        .scaleEffect(isActive ? 1.02 : (distance <= 1 ? 0.97 : 0.94), anchor: .center)
+        .scaleEffect(karaoke.isKaraokeOn ? 1.0 : (isActive ? 1.02 : (distance <= 1 ? 0.97 : 0.94)), anchor: .center)
         .opacity(lineOpacity(distance: distance, isActive: isActive))
         .animation(
             .interpolatingSpring(
@@ -233,6 +233,9 @@ struct LyricsView: View {
     }
 
     private func translationFontSize(isActive: Bool, distance: Int) -> CGFloat {
+        if karaoke.isKaraokeOn {
+            return isActive ? 16 : 14 // 跟唱：全部可见，当前句翻译略大
+        }
         if isActive {
             return 16
         } else if distance <= 1 {
@@ -243,6 +246,9 @@ struct LyricsView: View {
     }
 
     private func translationColor(distance: Int, isActive: Bool) -> Color {
+        if karaoke.isKaraokeOn {
+            return isActive ? settings.backgroundColorChoice.color.opacity(0.95) : .secondary.opacity(0.7)
+        }
         if isActive {
             return settings.backgroundColorChoice.color.opacity(0.95)
         } else if distance <= 1 {
@@ -255,6 +261,10 @@ struct LyricsView: View {
     }
 
     private func fontForLine(isActive: Bool, distance: Int) -> Font {
+        if karaoke.isKaraokeOn {
+            // 跟唱：整屏歌词等大可见（当前句略大加粗），不聚焦淡出
+            return .system(size: isActive ? 22 : 19, weight: isActive ? .bold : .regular)
+        }
         if isActive {
             return .system(size: 26, weight: .bold)
         } else if distance <= 1 {
@@ -265,6 +275,10 @@ struct LyricsView: View {
     }
 
     private func lineColor(distance: Int, isActive: Bool) -> Color {
+        if karaoke.isKaraokeOn {
+            // 跟唱：当前句主题色，其余正常可见
+            return isActive ? settings.backgroundColorChoice.color : .primary.opacity(0.8)
+        }
         if isActive {
             // 当前句用设置中的主题色
             return settings.backgroundColorChoice.color
@@ -278,6 +292,9 @@ struct LyricsView: View {
     }
 
     private func lineOpacity(distance: Int, isActive: Bool) -> Double {
+        if karaoke.isKaraokeOn {
+            return isActive ? 1.0 : 0.8 // 跟唱：整屏可见，不强淡出
+        }
         if isActive {
             return 1.0
         } else if distance <= 1 {
