@@ -67,15 +67,87 @@ enum ArtistNameNormalizer {
         return map
     }()
 
+    // MARK: - 保护表（单字映射丢失多义项的修正）
+
+    /// 单字简→繁映射为每个简字只保留一个传统字形（发→發/干→幹/后→後/里→裏/复→復/于→於…），
+    /// 反转生成繁→简后另一义项彻底丢失，导致语境错误（千里之外→千裏之外）与姓氏误转
+    /// （于文文→於文文）。这里用两层保护修正 toTraditional 方向的输出，不修改
+    /// SimplifiedTraditionalMap（3895 行 OpenCC 数据）：
+    /// 1. 姓氏保护：名字首字命中常见多义/多音姓氏时，保留原字或替换为正确传统姓氏字形；
+    /// 2. 精确词保护：转换结果整词命中时回改为正确传统字形（千裏→千里、頭發→頭髮、
+    ///    皇後→皇后、相幹→相干、重復→重複…）。
+    /// 反向（toSimplified）无需保护：表中收录的传统字形（發/後/裏…）均正确归并回
+    /// 简化字；表中未收录的字形（髮/複/覆/乾 等）保持原样，属既有行为，不在本次修正范围。
+
+    /// 姓氏保护：首字命中这些常见多义/多音姓氏时，toTraditional 不再按单字表盲转。
+    /// 注：单/叶/万/宁/种/钟 等姓氏单字表转换后即正确传统字形（單/葉/萬/寧/種/鍾），
+    /// 不在保护之列，避免把本应转繁的姓氏留在简体。
+    static let surnameProtectedChars: Set<Character> = [
+        // 单字表会误转（发→發 式义项塌缩）
+        "于", "范", "余", "郁", "云", "冲", "朴", "干", "涂", "后",
+        // 单字表暂无对应项，显式保护防未来表变更引入误转
+        "沈", "谷", "姜", "曲", "曾", "查", "仇", "解",
+    ]
+
+    /// 姓氏字形覆盖：正确传统字形与简体字不同的姓氏（冲→沖；其余姓氏保留原字）。
+    static let surnameTraditionalOverrides: [Character: Character] = [
+        "冲": "沖",
+    ]
+
+    /// 精确词保护：toTraditional 转换结果上的整词回改（错误繁体词 → 正确繁体词）。
+    /// 均为二字词且互相无子串冲突，顺序替换即安全；若将来加入更长词，需改最长匹配。
+    static let traditionalWordCorrections: [(wrong: String, correct: String)] = [
+        // 里（长度单位/地名，非"裏"）
+        ("千裏", "千里"), ("萬裏", "萬里"), ("公裏", "公里"), ("英裏", "英里"),
+        ("海裏", "海里"), ("裏程", "里程"), ("故裏", "故里"), ("鄉裏", "鄉里"),
+        ("鄰裏", "鄰里"), ("裏約", "里約"),
+        // 发（头发/毛发，非"發"）
+        ("頭發", "頭髮"), ("理發", "理髮"), ("毛發", "毛髮"), ("假發", "假髮"),
+        ("發型", "髮型"), ("發夾", "髮夾"), ("發廊", "髮廊"), ("發絲", "髮絲"),
+        ("發辮", "髮辮"), ("發質", "髮質"), ("發簪", "髮簪"),
+        // 后（皇后/天后/后羿，非"後"）
+        ("皇後", "皇后"), ("天後", "天后"), ("後羿", "后羿"), ("王後", "王后"),
+        ("太後", "太后"),
+        // 干（相干/若干，非"幹"；首字"干"按姓氏保护处理，干杯/干净 等不属歌手名语境）
+        ("相幹", "相干"), ("若幹", "若干"),
+        // 里（地名音译，非"裏"）
+        ("馬裏", "馬里"), ("巴裏", "巴里"),
+        // 复（複：重复/复习/复杂等，非"復"）
+        ("重復", "重複"), ("復習", "複習"), ("復雜", "複雜"), ("復印", "複印"),
+        ("復數", "複數"), ("反復", "反覆"), ("答復", "答覆"), ("復蓋", "覆蓋"),
+        ("顛復", "顛覆"),
+    ]
+
+    /// toTraditional 转换 + 保护修正：先逐字转换（首字命中保护姓氏则用正确姓氏字形），
+    /// 再对转换结果做精确词回改。
+    static func convertToTraditional(_ name: String) -> String {
+        let chars = Array(name)
+        var converted = ""
+        converted.reserveCapacity(name.utf16.count)
+        for (index, char) in chars.enumerated() {
+            if index == 0, surnameProtectedChars.contains(char) {
+                converted.append(surnameTraditionalOverrides[char] ?? char)
+            } else {
+                converted.append(simplifiedToTraditionalMap[char] ?? char)
+            }
+        }
+        var result = converted
+        for (wrong, correct) in traditionalWordCorrections {
+            result = result.replacingOccurrences(of: wrong, with: correct)
+        }
+        return result
+    }
+
     // MARK: - 转换
 
     /// 归一 key（用于分组）：按方向逐字转换；identity 返回原名。
+    /// toTraditional 方向带保护修正（姓氏/精确词），toSimplified 反向天然安全无需修正。
     static func normalizedKey(_ name: String, direction: Direction) -> String {
         switch direction {
         case .toSimplified:
             return String(name.map { traditionalToSimplifiedMap[$0] ?? $0 })
         case .toTraditional:
-            return String(name.map { simplifiedToTraditionalMap[$0] ?? $0 })
+            return convertToTraditional(name)
         case .identity:
             return name
         }
@@ -119,7 +191,7 @@ enum ArtistNameNormalizer {
     /// identity 方向只返回原名。
     static func searchVariants(of query: String, direction: Direction) -> [String] {
         guard direction != .identity else { return [query] }
-        let toTraditional = String(query.map { simplifiedToTraditionalMap[$0] ?? $0 })
+        let toTraditional = convertToTraditional(query)
         let toSimplified = String(query.map { traditionalToSimplifiedMap[$0] ?? $0 })
         var variants = [query]
         for variant in [toSimplified, toTraditional] where !variants.contains(variant) {

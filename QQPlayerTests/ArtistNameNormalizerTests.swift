@@ -175,4 +175,122 @@ struct ArtistNameNormalizerTests {
         #expect(groups.count == 1)
         #expect(groups[0].displayName == "宇多田ヒカル")
     }
+
+    // MARK: - 保护表：姓氏保护（toTraditional）
+
+    @Test("姓氏保护：单字表会误转的姓氏，首字不转/转正确字形")
+    func surnameProtected() {
+        #expect(ArtistNameNormalizer.normalizedKey("于文文", direction: .toTraditional) == "于文文")
+        #expect(ArtistNameNormalizer.normalizedKey("范玮琪", direction: .toTraditional) == "范瑋琪")
+        #expect(ArtistNameNormalizer.normalizedKey("余华", direction: .toTraditional) == "余華")
+        #expect(ArtistNameNormalizer.normalizedKey("郁可唯", direction: .toTraditional) == "郁可唯")
+        #expect(ArtistNameNormalizer.normalizedKey("云朵", direction: .toTraditional) == "云朵")
+        #expect(ArtistNameNormalizer.normalizedKey("冲田总司", direction: .toTraditional) == "沖田總司") // 冲→沖
+        #expect(ArtistNameNormalizer.normalizedKey("朴树", direction: .toTraditional) == "朴樹")
+        #expect(ArtistNameNormalizer.normalizedKey("干露露", direction: .toTraditional) == "干露露")
+        #expect(ArtistNameNormalizer.normalizedKey("涂磊", direction: .toTraditional) == "涂磊")
+        // 显式保护但单字表本就无对应项的姓氏，同样保留原字
+        #expect(ArtistNameNormalizer.normalizedKey("沈腾", direction: .toTraditional) == "沈騰")
+        #expect(ArtistNameNormalizer.normalizedKey("谷爱凌", direction: .toTraditional) == "谷愛凌")
+        #expect(ArtistNameNormalizer.normalizedKey("姜文", direction: .toTraditional) == "姜文")
+        #expect(ArtistNameNormalizer.normalizedKey("曲婉婷", direction: .toTraditional) == "曲婉婷")
+        #expect(ArtistNameNormalizer.normalizedKey("曾志伟", direction: .toTraditional) == "曾志偉")
+        #expect(ArtistNameNormalizer.normalizedKey("查良镛", direction: .toTraditional) == "查良鏞")
+        #expect(ArtistNameNormalizer.normalizedKey("仇晓飞", direction: .toTraditional) == "仇曉飛")
+        #expect(ArtistNameNormalizer.normalizedKey("解晓东", direction: .toTraditional) == "解曉東")
+    }
+
+    @Test("姓氏保护：非首字的 云/于 等仍按语境转（首字规则不误伤）")
+    func surnameProtectionFirstCharOnly() {
+        #expect(ArtistNameNormalizer.normalizedKey("王云", direction: .toTraditional) == "王雲")
+        #expect(ArtistNameNormalizer.normalizedKey("张于", direction: .toTraditional) == "張於")
+    }
+
+    @Test("姓氏保护：本应转繁的姓氏不受影响（单/叶/万/宁/种/钟）")
+    func surnameShouldConvert() {
+        #expect(ArtistNameNormalizer.normalizedKey("单田芳", direction: .toTraditional) == "單田芳")
+        #expect(ArtistNameNormalizer.normalizedKey("叶倩文", direction: .toTraditional) == "葉倩文")
+        #expect(ArtistNameNormalizer.normalizedKey("万芳", direction: .toTraditional) == "萬芳")
+        #expect(ArtistNameNormalizer.normalizedKey("宁浩", direction: .toTraditional) == "寧浩")
+        #expect(ArtistNameNormalizer.normalizedKey("种丹妮", direction: .toTraditional) == "種丹妮")
+        #expect(ArtistNameNormalizer.normalizedKey("钟南山", direction: .toTraditional) == "鍾南山")
+    }
+
+    // MARK: - 保护表：精确词保护（toTraditional）
+
+    @Test("语境保护：里（长度单位）不转裏")
+    func contextWordLi() {
+        #expect(ArtistNameNormalizer.normalizedKey("千里之外", direction: .toTraditional) == "千里之外")
+        #expect(ArtistNameNormalizer.normalizedKey("万里", direction: .toTraditional) == "萬里")
+        #expect(ArtistNameNormalizer.normalizedKey("公里", direction: .toTraditional) == "公里")
+        #expect(ArtistNameNormalizer.normalizedKey("英里", direction: .toTraditional) == "英里")
+        // 那里/这里 的"里"是方位义，仍按裏转
+        #expect(ArtistNameNormalizer.normalizedKey("那里", direction: .toTraditional) == "那裏")
+        #expect(ArtistNameNormalizer.normalizedKey("这里", direction: .toTraditional) == "這裏")
+    }
+
+    @Test("语境保护：发（头发义）转髮")
+    func contextWordFa() {
+        #expect(ArtistNameNormalizer.normalizedKey("头发", direction: .toTraditional) == "頭髮")
+        #expect(ArtistNameNormalizer.normalizedKey("理发", direction: .toTraditional) == "理髮")
+        #expect(ArtistNameNormalizer.normalizedKey("发质", direction: .toTraditional) == "髮質")
+        #expect(ArtistNameNormalizer.normalizedKey("假发", direction: .toTraditional) == "假髮")
+    }
+
+    @Test("语境保护：后（王后/天后义）不转後")
+    func contextWordHou() {
+        #expect(ArtistNameNormalizer.normalizedKey("皇后", direction: .toTraditional) == "皇后")
+        #expect(ArtistNameNormalizer.normalizedKey("天后", direction: .toTraditional) == "天后")
+        #expect(ArtistNameNormalizer.normalizedKey("后羿", direction: .toTraditional) == "后羿")
+        #expect(ArtistNameNormalizer.normalizedKey("王后", direction: .toTraditional) == "王后")
+        // 后 亦为姓氏（后弦），首字保留
+        #expect(ArtistNameNormalizer.normalizedKey("后弦", direction: .toTraditional) == "后弦")
+    }
+
+    @Test("语境保护：干（相干/若干）不误转幹")
+    func contextWordGan() {
+        #expect(ArtistNameNormalizer.normalizedKey("相干", direction: .toTraditional) == "相干")
+        #expect(ArtistNameNormalizer.normalizedKey("若干", direction: .toTraditional) == "若干")
+        // 首字"干"按姓氏保护保留原字（干杯/干净 等不属歌手名语境）
+        #expect(ArtistNameNormalizer.normalizedKey("干杯", direction: .toTraditional) == "干杯")
+    }
+
+    @Test("语境保护：复（複义）不误转復")
+    func contextWordFu() {
+        #expect(ArtistNameNormalizer.normalizedKey("重复", direction: .toTraditional) == "重複")
+        #expect(ArtistNameNormalizer.normalizedKey("复习", direction: .toTraditional) == "複習")
+        #expect(ArtistNameNormalizer.normalizedKey("复杂", direction: .toTraditional) == "複雜")
+        #expect(ArtistNameNormalizer.normalizedKey("反复", direction: .toTraditional) == "反覆")
+    }
+
+    // MARK: - 保护表：不破坏既有行为
+
+    @Test("保护不破坏日文假名免疫")
+    func protectionKanaImmune() {
+        #expect(ArtistNameNormalizer.normalizedKey("宇多田ヒカル", direction: .toTraditional) == "宇多田ヒカル")
+        #expect(ArtistNameNormalizer.normalizedKey("沖田総司", direction: .toTraditional) == "沖田総司")
+    }
+
+    @Test("保护后的 displayName 保留原名（转换后不变）")
+    func protectedDisplayName() {
+        #expect(ArtistNameNormalizer.displayName("千里之外", direction: .toTraditional) == "千里之外")
+        #expect(ArtistNameNormalizer.displayName("于文文", direction: .toTraditional) == "于文文")
+        #expect(ArtistNameNormalizer.displayName("皇后", direction: .toTraditional) == "皇后")
+        #expect(ArtistNameNormalizer.displayName("头发", direction: .toTraditional) == "頭髮")
+    }
+
+    @Test("保护后的 searchVariants 不含错误繁体变体")
+    func protectedSearchVariants() {
+        let variants = ArtistNameNormalizer.searchVariants(of: "千里之外", direction: .toTraditional)
+        #expect(variants.contains("千里之外"))
+        #expect(!variants.contains("千裏之外"))
+    }
+
+    @Test("toSimplified 反向无需保护：多繁体归并回正确简体")
+    func protectedToSimplified() {
+        #expect(ArtistNameNormalizer.normalizedKey("於文文", direction: .toSimplified) == "于文文")
+        #expect(ArtistNameNormalizer.normalizedKey("發生", direction: .toSimplified) == "发生")
+        #expect(ArtistNameNormalizer.normalizedKey("千裏之外", direction: .toSimplified) == "千里之外")
+        #expect(ArtistNameNormalizer.normalizedKey("皇後", direction: .toSimplified) == "皇后")
+    }
 }
