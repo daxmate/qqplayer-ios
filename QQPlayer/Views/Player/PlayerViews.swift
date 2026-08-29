@@ -117,6 +117,8 @@ struct PlayerView: View {
     @State private var settings = DeleteSettings.load()
     @State private var sleepTimerTask: Task<Void, Never>?
     @State private var sleepTimerEndDate: Date?
+    /// AirPlay 路由选择器宿主（常驻层级，见 RoutePickerHost / showAirPlayPicker）
+    @State private var routePickerView: AVRoutePickerView?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 
@@ -132,6 +134,16 @@ struct PlayerView: View {
                 }
             }
             .frame(width: 0, height: 0)
+            // AirPlay 路由选择器宿主：常驻层级保证内部按钮随布局加载（见 showAirPlayPicker）。
+            // 透明 + 不响应点击，仅作程序化触发的宿主。
+            RoutePickerHost { picker in
+                Task { @MainActor in
+                    self.routePickerView = picker
+                }
+            }
+            .frame(width: 44, height: 44)
+            .opacity(0)
+            .allowsHitTesting(false)
             mainContent
 
             // 全屏歌词页：满屏覆盖（右滑入/右滑出），与播放页同一 ZStack，随下拉一起跟手
@@ -951,17 +963,30 @@ struct PlayerView: View {
         }
     }
 
+    /// 弹出系统 AirPlay 路由选择器。
+    /// 上游遗留：离屏创建的 AVRoutePickerView 未加入 window 层级时 subviews 为空，
+    /// 遍历找不到内部 UIButton → 弹窗静默失效且无降级。
+    /// 现改为触发常驻视图层级的 RoutePickerHost（内部按钮已随布局加载），
+    /// 递归查找按钮并模拟点击；仍失败时打日志便于定位（系统版本可能变化）。
     private func showAirPlayPicker() {
-        let routePickerView = AVRoutePickerView()
-        routePickerView.prioritizesVideoDevices = false
-
-        // Find the button inside the route picker and simulate a tap
-        for subview in routePickerView.subviews {
-            if let button = subview as? UIButton {
-                button.sendActions(for: .touchUpInside)
-                break
-            }
+        guard let picker = routePickerView else {
+            // 理论上不会发生：按钮只在 PlayerView 挂载后可见
+            print("⚠️ AirPlay: route picker 未挂载，无法弹出选择器")
+            return
         }
+        if let button = Self.routePickerButton(in: picker) {
+            button.sendActions(for: .touchUpInside)
+        } else {
+            print("⚠️ AirPlay: 未找到 route picker 内部按钮（系统版本可能变化）")
+        }
+    }
+
+    private static func routePickerButton(in view: UIView) -> UIButton? {
+        if let button = view as? UIButton { return button }
+        for subview in view.subviews {
+            if let found = routePickerButton(in: subview) { return found }
+        }
+        return nil
     }
 }
 
@@ -1150,7 +1175,6 @@ struct MiniPlayerView: View {
     @StateObject private var artworkManager = ArtworkManager.shared
     @State private var isExpanded = false
     @State private var currentArtwork: UIImage?
-    @State private var dragOffset: CGFloat = 0
     @State private var settings = DeleteSettings.load()
 
     var body: some View {
@@ -1285,21 +1309,18 @@ struct MiniPlayerView: View {
                     // Minimize the player when artist navigation is requested
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
                         isExpanded = false
-                        dragOffset = 0 // Reset drag offset immediately
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToAlbumFromPlayer"))) { _ in
                     // Minimize the player when album navigation is requested
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
                         isExpanded = false
-                        dragOffset = 0
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MinimizePlayer"))) { _ in
                     // Minimize the player when artwork is tapped
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
                         isExpanded = false
-                        dragOffset = 0
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("BackgroundColorChanged"))) { _ in
@@ -1355,7 +1376,6 @@ struct TrackRowView: View, @MainActor Equatable {
 
     // Internal state only (does not trigger external redraws)
     @State private var isFavorite = false
-    @State private var isPressed = false
     @State private var showPlaylistDialog = false
     @State private var artworkImage: UIImage?
     @State private var showDeleteConfirmation = false
@@ -1515,8 +1535,6 @@ struct TrackRowView: View, @MainActor Equatable {
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(deleteSettings.backgroundColorChoice.color.opacity(0.12))
-                .scaleEffect(isPressed ? 1.0 : 0.01)
-                .opacity(isPressed ? 1.0 : 0.0)
         )
         .sheet(isPresented: $showPlaylistDialog) {
             PlaylistSelectionView(track: track)
@@ -1573,83 +1591,26 @@ struct TrackRowView: View, @MainActor Equatable {
     }
 }
 
-struct WaveformView: View {
-    let isPlaying: Bool
-    let color: Color
-    @State private var waveHeights: [CGFloat] = Array(repeating: 2, count: 6)
-    @State private var timer: Timer?
-    @State private var animationTrigger = false
+/// AVRoutePickerView 的 UIViewRepresentable 宿主。
+/// 背景：离屏创建的 AVRoutePickerView 未加入 window 层级时 subviews 为空，
+/// 找不到内部 UIButton → AirPlay 弹窗静默失效。常驻进 PlayerView 层级后内部
+/// 按钮随布局加载完成，showAirPlayPicker() 即可程序化触发。
+/// 视觉上完全隐藏（透明 + 不响应点击），仅作触发宿主。
+private struct RoutePickerHost: UIViewRepresentable {
+    let onResolve: (AVRoutePickerView) -> Void
 
-    var body: some View {
-        HStack(alignment: .center, spacing: 1) {
-            ForEach(0 ..< waveHeights.count, id: \.self) { index in
-                RoundedRectangle(cornerRadius: 0.5)
-                    .fill(color.opacity(0.8))
-                    .frame(width: 2, height: waveHeights[index])
-                    .animation(
-                        .easeInOut(duration: 0.3)
-                            .repeatForever(autoreverses: true),
-                        value: animationTrigger
-                    )
-            }
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let picker = AVRoutePickerView()
+        picker.prioritizesVideoDevices = false
+        picker.alpha = 0.01
+        // 延迟到下一 runloop 回调：避免在视图更新期间修改 @State
+        Task { @MainActor in
+            onResolve(picker)
         }
-        .onAppear {
-            startWaveform()
-        }
-        .onDisappear {
-            stopWaveform()
-        }
-        .onChange(of: isPlaying) { newValue in
-            if newValue {
-                startWaveform()
-            } else {
-                stopWaveform()
-            }
-        }
+        return picker
     }
 
-    private func startWaveform() {
-        guard timer == nil && isPlaying else { return }
-
-        // Start with animated heights
-        updateWaveHeights()
-
-        timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { _ in
-            Task { @MainActor in
-                if isPlaying {
-                    updateWaveHeights()
-                    animationTrigger.toggle()
-                }
-            }
-        }
-    }
-
-    private func stopWaveform() {
-        timer?.invalidate()
-        timer = nil
-
-        // Animate to flat line when stopped
-        withAnimation(.easeOut(duration: 0.4)) {
-            waveHeights = Array(repeating: 2, count: waveHeights.count)
-        }
-    }
-
-    private func updateWaveHeights() {
-        guard isPlaying else { return }
-
-        let newHeights: [CGFloat] = [
-            CGFloat.random(in: 3 ... 12),
-            CGFloat.random(in: 6 ... 14),
-            CGFloat.random(in: 2 ... 10),
-            CGFloat.random(in: 8 ... 16),
-            CGFloat.random(in: 4 ... 11),
-            CGFloat.random(in: 5 ... 13),
-        ]
-
-        withAnimation(.easeInOut(duration: 0.3)) {
-            waveHeights = newHeights
-        }
-    }
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }
 
 /// 通过 responder 链解析宿主 UIViewController.view（fullScreenCover 的 hosting view）。
