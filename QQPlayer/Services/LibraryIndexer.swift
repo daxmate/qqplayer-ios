@@ -642,15 +642,24 @@ class LibraryIndexer: NSObject, ObservableObject {
             if let existingPlaylist = try databaseManager.getFolderPlaylist(forPath: folderPath) {
                 print("🔄 Syncing existing folder playlist: \(existingPlaylist.title)")
 
-                // Sync the existing playlist with current folder contents
-                try databaseManager.syncPlaylistWithFolder(playlistId: existingPlaylist.id!, trackStableIds: trackStableIds)
+                // The DB primary key should never be nil here, but a nil row
+                // must not crash the folder-sync hot path (audit: force unwrap)
+                guard let playlistId = existingPlaylist.id else {
+                    print("❌ Skipping folder playlist sync - existing playlist has no id: \(existingPlaylist.title)")
+                    return
+                }
+                try databaseManager.syncPlaylistWithFolder(playlistId: playlistId, trackStableIds: trackStableIds)
                 print("✅ Synced playlist '\(existingPlaylist.title)' with folder contents")
             } else {
                 // Create new folder playlist
                 print("➕ Creating new folder playlist: \(folderName)")
 
                 let playlist = try databaseManager.createFolderPlaylist(title: folderName, folderPath: folderPath)
-                try databaseManager.syncPlaylistWithFolder(playlistId: playlist.id!, trackStableIds: trackStableIds)
+                guard let playlistId = playlist.id else {
+                    print("❌ Skipping folder playlist sync - created playlist has no id: \(playlist.title)")
+                    return
+                }
+                try databaseManager.syncPlaylistWithFolder(playlistId: playlistId, trackStableIds: trackStableIds)
                 print("✅ Created folder playlist '\(playlist.title)' with \(trackStableIds.count) tracks")
             }
 
@@ -1205,15 +1214,24 @@ class LibraryIndexer: NSObject, ObservableObject {
                 if let existingPlaylist = try databaseManager.getFolderPlaylist(forPath: folderPath) {
                     print("🔄 Syncing existing shared folder playlist: \(existingPlaylist.title)")
 
-                    // Sync the existing playlist with current folder contents
-                    try databaseManager.syncPlaylistWithFolder(playlistId: existingPlaylist.id!, trackStableIds: trackStableIds)
+                    // The DB primary key should never be nil here, but a nil
+                    // row must not crash the folder-sync hot path (audit)
+                    guard let playlistId = existingPlaylist.id else {
+                        print("❌ Skipping shared folder playlist sync - existing playlist has no id: \(existingPlaylist.title)")
+                        return
+                    }
+                    try databaseManager.syncPlaylistWithFolder(playlistId: playlistId, trackStableIds: trackStableIds)
                     print("✅ Synced shared playlist '\(existingPlaylist.title)' with folder contents")
                 } else {
                     // Create new folder playlist for shared folder
                     print("➕ Creating new shared folder playlist: \(folderName)")
 
                     let playlist = try databaseManager.createFolderPlaylist(title: folderName, folderPath: folderPath)
-                    try databaseManager.syncPlaylistWithFolder(playlistId: playlist.id!, trackStableIds: trackStableIds)
+                    guard let playlistId = playlist.id else {
+                        print("❌ Skipping shared folder playlist sync - created playlist has no id: \(playlist.title)")
+                        return
+                    }
+                    try databaseManager.syncPlaylistWithFolder(playlistId: playlistId, trackStableIds: trackStableIds)
                     print("✅ Created shared folder playlist '\(playlist.title)' with \(trackStableIds.count) tracks")
                 }
 
@@ -1613,6 +1631,10 @@ class AudioMetadataParser {
         var offset = 4
 
         while offset < data.count {
+            // The 30s parse timeout cancels this task; bail out promptly
+            // instead of running the whole file parse to completion (audit)
+            try Task.checkCancellation()
+
             let blockHeader = data[offset]
             let isLast = (blockHeader & 0x80) != 0
             let blockType = blockHeader & 0x7F
@@ -1847,6 +1869,7 @@ class AudioMetadataParser {
 
             // Parse common metadata
             for item in commonMetadata {
+                try Task.checkCancellation()
                 switch item.commonKey {
                 case .commonKeyTitle:
                     title = try? await item.load(.stringValue)
@@ -1876,6 +1899,7 @@ class AudioMetadataParser {
 
             // Check for additional ID3 tags
             for metadata in allMetadata {
+                try Task.checkCancellation()
                 if let key = metadata.commonKey?.rawValue {
                     switch key {
                     case "albumArtist":
@@ -1961,6 +1985,11 @@ class AudioMetadataParser {
                     }
                 }
             }
+        } catch is CancellationError {
+            // Propagate cancellation instead of swallowing it in the generic
+            // metadata-failure handler below (audit: cancelled parses must
+            // stop, not keep going)
+            throw CancellationError()
         } catch {
             print("Failed to load asset metadata: \(error)")
         }

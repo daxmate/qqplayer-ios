@@ -61,6 +61,7 @@ class ArtworkManager: ObservableObject {
             ) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.clearCache()
+                    self?.flushMappingIfDirty()
                 }
             }
         )
@@ -72,6 +73,7 @@ class ArtworkManager: ObservableObject {
             ) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.clearCache()
+                    self?.flushMappingIfDirty()
                 }
             }
         )
@@ -102,6 +104,36 @@ class ArtworkManager: ObservableObject {
         } catch {
             print("⚠️ Failed to save artwork mapping: \(error)")
         }
+    }
+
+    // Mapping persistence is debounced: updateMapping runs on the main actor
+    // for every newly-cached artwork, and rewriting the whole plist per call
+    // was a synchronous main-thread IO storm on the first scroll (audit). A
+    // dirty flag plus one coalescing task writes at most every 500ms.
+    private var mappingDirty = false
+    private var mappingSaveTask: Task<Void, Never>?
+
+    private func saveMappingDebounced() {
+        mappingDirty = true
+        guard mappingSaveTask == nil else { return }
+        mappingSaveTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard let self else { return }
+            self.mappingSaveTask = nil
+            guard self.mappingDirty else { return }
+            self.mappingDirty = false
+            self.saveMapping()
+        }
+    }
+
+    /// Flushes a pending debounced write immediately (app backgrounding or
+    /// memory warning, so a just-written mapping is never lost).
+    private func flushMappingIfDirty() {
+        guard mappingDirty else { return }
+        mappingSaveTask?.cancel()
+        mappingSaveTask = nil
+        mappingDirty = false
+        saveMapping()
     }
 
     func clearCache() {
@@ -142,22 +174,6 @@ class ArtworkManager: ObservableObject {
 
         print("🔄 Force refreshing artwork for: \(track.title)")
         return await getArtwork(for: track)
-    }
-
-    /// Pre-process and cache artwork during library indexing (background operation)
-    func cacheArtwork(for track: Track) async {
-        // Skip if already mapped (already has cached artwork)
-        if artworkMapping[track.stableId] != nil {
-            return
-        }
-
-        print("💾 Pre-caching artwork for: \(track.title)")
-
-        // Extract artwork from audio file
-        if let image = await extractArtwork(from: URL(fileURLWithPath: track.path)) {
-            // Save to disk cache (will deduplicate automatically)
-            await saveToDiskCache(image: image, stableId: track.stableId)
-        }
     }
 
     func getArtwork(for track: Track) async -> UIImage? {
@@ -328,7 +344,7 @@ class ArtworkManager: ObservableObject {
 
     private func updateMapping(stableId: String, artworkHash: String) async {
         artworkMapping[stableId] = artworkHash
-        saveMapping()
+        saveMappingDebounced()
     }
 
     /// Clean up artwork files for tracks that no longer exist

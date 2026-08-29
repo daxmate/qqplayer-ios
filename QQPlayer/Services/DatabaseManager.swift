@@ -363,6 +363,15 @@ class DatabaseManager: @unchecked Sendable {
     private func migrateDatabaseIfNeeded() throws {
         var stableIdRemapping: [String: String] = [:]
 
+        // The two full-table scans below (path dedup + stable-id migration)
+        // are idempotent, but re-running them on every launch added visible
+        // startup latency on 2000+ track libraries. Run them once and record
+        // completion; upsertTrack's runtime dedup keeps new duplicates in
+        // check afterwards (audit: two full-table scans per launch).
+        let legacyMigrationKey = "database.legacyTrackMigrationsCompleted.v2"
+        let needsLegacyMigration = !UserDefaults.standard.bool(forKey: legacyMigrationKey)
+        var didRunLegacyMigration = false
+
         try write { db in
             // Migration: Add folder sync columns to playlist table
             do {
@@ -466,103 +475,106 @@ class DatabaseManager: @unchecked Sendable {
                 print("⚠️ Database migration: album_artist_link table setup failed: \(error)")
             }
 
-            // Migration: remove true duplicates that point at the exact same file path.
-            // Do not deduplicate by filename; different album folders may legally contain same-named files.
-            do {
-                let allTracks = try Track.fetchAll(db)
-                let groupedByPath = Dictionary(grouping: allTracks, by: { track in
-                    URL(fileURLWithPath: track.path).standardizedFileURL.path
-                })
+            if needsLegacyMigration {
+                // Migration: remove true duplicates that point at the exact same file path.
+                // Do not deduplicate by filename; different album folders may legally contain same-named files.
+                do {
+                    let allTracks = try Track.fetchAll(db)
+                    let groupedByPath = Dictionary(grouping: allTracks, by: { track in
+                        URL(fileURLWithPath: track.path).standardizedFileURL.path
+                    })
 
-                for (path, duplicates) in groupedByPath where duplicates.count > 1 {
-                    let sorted = duplicates.sorted { ($0.id ?? 0) > ($1.id ?? 0) }
-                    let keep = sorted.first!
+                    for (path, duplicates) in groupedByPath where duplicates.count > 1 {
+                        let sorted = duplicates.sorted { ($0.id ?? 0) > ($1.id ?? 0) }
+                        let keep = sorted.first!
 
-                    for duplicate in sorted.dropFirst() {
+                        for duplicate in sorted.dropFirst() {
+                            try db.execute(
+                                sql: "UPDATE OR IGNORE favorite SET track_stable_id = ? WHERE track_stable_id = ?",
+                                arguments: [keep.stableId, duplicate.stableId]
+                            )
+                            try db.execute(
+                                sql: "UPDATE playlist_item SET track_stable_id = ? WHERE track_stable_id = ?",
+                                arguments: [keep.stableId, duplicate.stableId]
+                            )
+                            try db.execute(
+                                sql: "UPDATE OR IGNORE track_artist SET track_stable_id = ? WHERE track_stable_id = ?",
+                                arguments: [keep.stableId, duplicate.stableId]
+                            )
+                            try db.execute(sql: "DELETE FROM favorite WHERE track_stable_id = ?", arguments: [duplicate.stableId])
+                            try db.execute(sql: "DELETE FROM playlist_item WHERE track_stable_id = ?", arguments: [duplicate.stableId])
+                            try db.execute(sql: "DELETE FROM track_artist WHERE track_stable_id = ?", arguments: [duplicate.stableId])
+                            // Duplicate rows are the SAME physical file, so their play
+                            // history records real plays of the kept song - migrate it
+                            // to the kept stable ID instead of dropping it (P0-3)
+                            try db.execute(
+                                sql: "UPDATE play_history SET track_stable_id = ? WHERE track_stable_id = ?",
+                                arguments: [keep.stableId, duplicate.stableId]
+                            )
+                            try Track.filter(Column("id") == duplicate.id).deleteAll(db)
+                        }
+
+                        print("✅ Database: Removed \(duplicates.count - 1) duplicate track row(s) for path: \(path)")
+                    }
+                } catch {
+                    print("⚠️ Database migration: Path duplicate cleanup failed: \(error)")
+                }
+
+                // Migration: filename-based stable IDs collapse same-named songs in different albums.
+                // Use normalized full paths so files in different folders remain distinct even with identical filenames.
+                do {
+                    let tracks = try Track.fetchAll(db)
+                    var updatedCount = 0
+
+                    for track in tracks {
+                        let newStableId = Self.generatePathStableId(forPath: track.path)
+
+                        guard track.stableId != newStableId else {
+                            continue
+                        }
+
+                        try db.execute(
+                            sql: "UPDATE track SET stable_id = ? WHERE id = ?",
+                            arguments: [newStableId, track.id]
+                        )
+
                         try db.execute(
                             sql: "UPDATE OR IGNORE favorite SET track_stable_id = ? WHERE track_stable_id = ?",
-                            arguments: [keep.stableId, duplicate.stableId]
+                            arguments: [newStableId, track.stableId]
                         )
+
                         try db.execute(
                             sql: "UPDATE playlist_item SET track_stable_id = ? WHERE track_stable_id = ?",
-                            arguments: [keep.stableId, duplicate.stableId]
+                            arguments: [newStableId, track.stableId]
                         )
+
                         try db.execute(
                             sql: "UPDATE OR IGNORE track_artist SET track_stable_id = ? WHERE track_stable_id = ?",
-                            arguments: [keep.stableId, duplicate.stableId]
+                            arguments: [newStableId, track.stableId]
                         )
-                        try db.execute(sql: "DELETE FROM favorite WHERE track_stable_id = ?", arguments: [duplicate.stableId])
-                        try db.execute(sql: "DELETE FROM playlist_item WHERE track_stable_id = ?", arguments: [duplicate.stableId])
-                        try db.execute(sql: "DELETE FROM track_artist WHERE track_stable_id = ?", arguments: [duplicate.stableId])
-                        // Duplicate rows are the SAME physical file, so their play
-                        // history records real plays of the kept song - migrate it
-                        // to the kept stable ID instead of dropping it (P0-3)
+                        try db.execute(sql: "DELETE FROM track_artist WHERE track_stable_id = ?", arguments: [track.stableId])
+
+                        // Play history follows the song to its new path-based ID
+                        // instead of being orphaned (P0-3)
                         try db.execute(
                             sql: "UPDATE play_history SET track_stable_id = ? WHERE track_stable_id = ?",
-                            arguments: [keep.stableId, duplicate.stableId]
+                            arguments: [newStableId, track.stableId]
                         )
-                        try Track.filter(Column("id") == duplicate.id).deleteAll(db)
+
+                        stableIdRemapping[track.stableId] = newStableId
+                        updatedCount += 1
                     }
 
-                    print("✅ Database: Removed \(duplicates.count - 1) duplicate track row(s) for path: \(path)")
-                }
-            } catch {
-                print("⚠️ Database migration: Path duplicate cleanup failed: \(error)")
-            }
-
-            // Migration: filename-based stable IDs collapse same-named songs in different albums.
-            // Use normalized full paths so files in different folders remain distinct even with identical filenames.
-            do {
-                let tracks = try Track.fetchAll(db)
-                var updatedCount = 0
-
-                for track in tracks {
-                    let newStableId = Self.generatePathStableId(forPath: track.path)
-
-                    guard track.stableId != newStableId else {
-                        continue
+                    if updatedCount > 0 {
+                        print("✅ Database: Migrated \(updatedCount) stable IDs from filename-based to path-based")
+                    } else {
+                        print("ℹ️ Database: Stable IDs already path-based")
                     }
-
-                    try db.execute(
-                        sql: "UPDATE track SET stable_id = ? WHERE id = ?",
-                        arguments: [newStableId, track.id]
-                    )
-
-                    try db.execute(
-                        sql: "UPDATE OR IGNORE favorite SET track_stable_id = ? WHERE track_stable_id = ?",
-                        arguments: [newStableId, track.stableId]
-                    )
-
-                    try db.execute(
-                        sql: "UPDATE playlist_item SET track_stable_id = ? WHERE track_stable_id = ?",
-                        arguments: [newStableId, track.stableId]
-                    )
-
-                    try db.execute(
-                        sql: "UPDATE OR IGNORE track_artist SET track_stable_id = ? WHERE track_stable_id = ?",
-                        arguments: [newStableId, track.stableId]
-                    )
-                    try db.execute(sql: "DELETE FROM track_artist WHERE track_stable_id = ?", arguments: [track.stableId])
-
-                    // Play history follows the song to its new path-based ID
-                    // instead of being orphaned (P0-3)
-                    try db.execute(
-                        sql: "UPDATE play_history SET track_stable_id = ? WHERE track_stable_id = ?",
-                        arguments: [newStableId, track.stableId]
-                    )
-
-                    stableIdRemapping[track.stableId] = newStableId
-                    updatedCount += 1
+                } catch {
+                    print("⚠️ Database migration: Path-based stable ID migration failed: \(error)")
+                    // Don't throw - allow app to continue and re-index will handle it
                 }
-
-                if updatedCount > 0 {
-                    print("✅ Database: Migrated \(updatedCount) stable IDs from filename-based to path-based")
-                } else {
-                    print("ℹ️ Database: Stable IDs already path-based")
-                }
-            } catch {
-                print("⚠️ Database migration: Path-based stable ID migration failed: \(error)")
-                // Don't throw - allow app to continue and re-index will handle it
+                didRunLegacyMigration = true
             }
 
             // Add UNIQUE constraint to stable_id to prevent duplicates
@@ -575,6 +587,12 @@ class DatabaseManager: @unchecked Sendable {
         }
 
         migrateExternalFileBookmarkKeys(stableIdRemapping)
+
+        // Only mark completion after the write transaction committed, so a
+        // failed migration is retried on the next launch.
+        if didRunLegacyMigration {
+            UserDefaults.standard.set(true, forKey: legacyMigrationKey)
+        }
     }
 
     private func migrateExternalFileBookmarkKeys(_ stableIdRemapping: [String: String]) {
@@ -623,6 +641,7 @@ class DatabaseManager: @unchecked Sendable {
 
     func upsertTrack(_ track: Track) throws {
         defer { invalidateArtistDisplayNameCache() }
+        var savedTrack: Track?
         try write { db in
             var trackToSave = track
 
@@ -638,10 +657,14 @@ class DatabaseManager: @unchecked Sendable {
             }
 
             // Safety check: Remove any duplicates with the same path but different stable_id
-            // This handles edge cases where migration didn't run or failed
-            let duplicates = try Track.filter(Column("path") == trackToSave.path && Column("stable_id") != trackToSave.stableId).fetchAll(db)
+            // This handles edge cases where migration didn't run or failed.
+            // Compare on the standardized path, matching getTrack(byPath:)'s
+            // normalized fallback so iCloud container UUID changes cannot
+            // hide duplicates (audit: inconsistent path spelling).
+            let normalizedPath = Self.standardizedPath(trackToSave.path)
+            let duplicates = try Track.filter(Column("path") == normalizedPath && Column("stable_id") != trackToSave.stableId).fetchAll(db)
             if !duplicates.isEmpty {
-                print("⚠️ Found \(duplicates.count) duplicate(s) for path: \(trackToSave.path)")
+                print("⚠️ Found \(duplicates.count) duplicate(s) for path: \(normalizedPath)")
                 for duplicate in duplicates {
                     // Transfer favorites and playlist items to the new stable_id
                     try db.execute(
@@ -669,8 +692,15 @@ class DatabaseManager: @unchecked Sendable {
             }
 
             try trackToSave.save(db)
+            savedTrack = trackToSave
+        }
 
-            try self.cleanupStaleUnplayableDuplicates(db: db, matching: trackToSave)
+        // File-existence checks and the follow-up delete run OUTSIDE the
+        // upsert write transaction: syscalls no longer pin the single GRDB
+        // writer, which used to serialize all four concurrent indexers
+        // (audit: file IO inside a write transaction).
+        if let savedTrack {
+            try cleanupStaleUnplayableDuplicates(matching: savedTrack)
         }
     }
 
@@ -715,64 +745,60 @@ class DatabaseManager: @unchecked Sendable {
         return !normalizedDuplicateTitle(track.title).isEmpty
     }
 
-    private func isStrictStaleDuplicate(_ stale: Track, of keeper: Track) -> Bool {
-        guard stale.stableId != keeper.stableId,
-              !FileManager.default.fileExists(atPath: stale.path),
-              FileManager.default.fileExists(atPath: keeper.path),
-              hasReliableDuplicateMetadata(stale),
-              hasReliableDuplicateMetadata(keeper),
-              stale.artistId == keeper.artistId,
-              stale.durationMs == keeper.durationMs,
-              stale.fileSize == keeper.fileSize else {
-            return false
-        }
-
-        let staleFilename = URL(fileURLWithPath: stale.path).lastPathComponent.lowercased()
-        let keeperFilename = URL(fileURLWithPath: keeper.path).lastPathComponent.lowercased()
-        return staleFilename == keeperFilename &&
-            normalizedDuplicateTitle(stale.title) == normalizedDuplicateTitle(keeper.title)
-    }
-
-    private func cleanupStaleUnplayableDuplicates(db: Database, matching newTrack: Track) throws {
+    /// Removes rows whose file no longer exists when a twin (same title,
+    /// duration, size, artist) just got saved. Runs OUTSIDE the upsert write
+    /// transaction in three phases so file-existence syscalls never pin the
+    /// single GRDB writer (audit: file IO inside a write transaction):
+    ///   1. read transaction: SQL-prefiltered candidate rows (no IO)
+    ///   2. outside any transaction: file-existence + metadata checks
+    ///   3. short write transaction: merge references + delete confirmed stales
+    private func cleanupStaleUnplayableDuplicates(matching newTrack: Track) throws {
         guard hasReliableDuplicateMetadata(newTrack),
               FileManager.default.fileExists(atPath: newTrack.path) else {
             return
         }
 
-        // Prefilter by the strict-duplicate criteria in SQL. Fetching ALL
-        // tracks here made every import O(n^2) in rows AND file-exists
-        // syscalls - the main cause of watchdog kills on 2000+ file imports
-        let tracks = try Track
-            .filter(Column("artist_id") == newTrack.artistId
-                && Column("duration_ms") == newTrack.durationMs
-                && Column("file_size") == newTrack.fileSize
-                && Column("stable_id") != newTrack.stableId)
-            .fetchAll(db)
-        for stale in tracks where isStrictStaleDuplicate(stale, of: newTrack) {
-            try self.mergeTrackReferences(db: db, from: stale.stableId, to: newTrack.stableId)
-            try Track.filter(Column("stable_id") == stale.stableId).deleteAll(db)
-            print("🗑️ Removed strict stale duplicate: \(stale.title) at \(stale.path)")
+        // Phase 1: Prefilter by the strict-duplicate criteria in SQL. Fetching
+        // ALL tracks here made every import O(n^2) in rows AND file-exists
+        // syscalls - the main cause of watchdog kills on 2000+ file imports.
+        let candidates = try read { db in
+            try Track
+                .filter(Column("artist_id") == newTrack.artistId
+                    && Column("duration_ms") == newTrack.durationMs
+                    && Column("file_size") == newTrack.fileSize
+                    && Column("stable_id") != newTrack.stableId)
+                .fetchAll(db)
         }
-    }
 
-    func cleanupStrictStaleDuplicatesForImportedTracks() throws {
+        // Phase 2: file-existence + metadata checks, no database handle held.
+        let staleCandidates = candidates.compactMap { stale -> (stableId: String, title: String)? in
+            guard stale.stableId != newTrack.stableId,
+                  !FileManager.default.fileExists(atPath: stale.path),
+                  FileManager.default.fileExists(atPath: newTrack.path),
+                  hasReliableDuplicateMetadata(stale),
+                  hasReliableDuplicateMetadata(newTrack),
+                  stale.artistId == newTrack.artistId,
+                  stale.durationMs == newTrack.durationMs,
+                  stale.fileSize == newTrack.fileSize else {
+                return nil
+            }
+
+            let staleFilename = URL(fileURLWithPath: stale.path).lastPathComponent.lowercased()
+            let keeperFilename = URL(fileURLWithPath: newTrack.path).lastPathComponent.lowercased()
+            guard staleFilename == keeperFilename,
+                  normalizedDuplicateTitle(stale.title) == normalizedDuplicateTitle(newTrack.title) else {
+                return nil
+            }
+            return (stale.stableId, stale.title)
+        }
+        guard !staleCandidates.isEmpty else { return }
+
+        // Phase 3: one short write transaction deletes only confirmed stales.
         try write { db in
-            let tracks = try Track.fetchAll(db)
-            let existingRows = tracks.filter {
-                FileManager.default.fileExists(atPath: $0.path) && self.hasReliableDuplicateMetadata($0)
-            }
-            let missingRows = tracks.filter {
-                !FileManager.default.fileExists(atPath: $0.path) && self.hasReliableDuplicateMetadata($0)
-            }
-
-            for stale in missingRows {
-                guard let keeper = existingRows.first(where: { self.isStrictStaleDuplicate(stale, of: $0) }) else {
-                    continue
-                }
-
-                try self.mergeTrackReferences(db: db, from: stale.stableId, to: keeper.stableId)
+            for stale in staleCandidates {
+                try self.mergeTrackReferences(db: db, from: stale.stableId, to: newTrack.stableId)
                 try Track.filter(Column("stable_id") == stale.stableId).deleteAll(db)
-                print("🗑️ Removed strict stale duplicate after import: \(stale.title) at \(stale.path)")
+                print("🗑️ Removed strict stale duplicate: \(stale.title)")
             }
         }
     }
@@ -1346,6 +1372,16 @@ class DatabaseManager: @unchecked Sendable {
 
     // MARK: - Search operations
 
+    /// Escapes `%`, `_` and `\` so user input is matched literally instead of
+    /// acting as LIKE wildcards (audit: unescaped LIKE pattern matched the
+    /// whole library for a `%` query).
+    private func escapeLikePattern(_ pattern: String) -> String {
+        pattern
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "%", with: "\\%")
+            .replacingOccurrences(of: "_", with: "\\_")
+    }
+
     private func rankedTrackSearch(in db: Database, query: String, limit: Int?) throws -> [Track] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
@@ -1355,14 +1391,41 @@ class DatabaseManager: @unchecked Sendable {
         }
 
         let literalRequest = Track
-            .filter(Column("title").like("%\(trimmed)%"))
+            .filter(Column("title").like("%\(escapeLikePattern(trimmed))%", escape: "\\"))
             .order(Column("title"))
         let literal = try (limit.map { literalRequest.limit($0) } ?? literalRequest).fetchAll(db)
         if !literal.isEmpty { return literal }
 
         // Siri transcription and spelling errors rarely survive a SQL LIKE.
-        // Rank the full library only after the cheap literal lookup misses.
-        let ranked = try Track.fetchAll(db).map { track in
+        // Rank only a cheaply-prefiltered candidate set instead of loading the
+        // whole library and Levenshtein-ing every row (audit): a length window
+        // (a 0.58 similarity floor forces title length within ~0.5x-2x of the
+        // query) plus a contains-first-char filter shrink the candidate set
+        // from the full table to a few hundred rows. The first-char filter
+        // also matches the full-width variant so 全角 queries still hit
+        // half-width titles.
+        let queryLength = trimmed.count
+        let lowerBound = max(1, Int(Double(queryLength) * 0.5))
+        let upperBound = max(queryLength + 1, Int(Double(queryLength) * 2.0) + 1)
+        var request = Track.filter(
+            length(Column("title")) >= lowerBound && length(Column("title")) <= upperBound
+        )
+        if let firstChar = trimmed.first {
+            let fullWidthChar = String(firstChar)
+            let halfWidthChar = fullWidthChar.applyingTransform(.fullwidthToHalfwidth, reverse: false) ?? fullWidthChar
+            let escapedChar = escapeLikePattern(fullWidthChar)
+            if halfWidthChar == fullWidthChar {
+                request = request.filter(Column("title").like("%\(escapedChar)%", escape: "\\"))
+            } else {
+                let escapedHalfWidth = escapeLikePattern(halfWidthChar)
+                request = request.filter(
+                    Column("title").like("%\(escapedChar)%", escape: "\\")
+                        || Column("title").like("%\(escapedHalfWidth)%", escape: "\\")
+                )
+            }
+        }
+
+        let ranked = try request.fetchAll(db).map { track in
             (track: track, score: trimmed.qqplayerSearchSimilarity(to: track.title))
         }
         .filter { $0.score >= 0.58 }
@@ -1461,7 +1524,9 @@ class DatabaseManager: @unchecked Sendable {
         let favorites = try read { db in
             return try Favorite.fetchAll(db).map { $0.trackStableId }
         }
-        print("🗃️ Database: Retrieved \(favorites.count) favorites - \(favorites)")
+        // Count only - dumping every favorite ID spammed the log for large
+        // libraries and leaked private track identifiers (audit)
+        print("🗃️ Database: Retrieved \(favorites.count) favorites")
         return favorites
     }
 
@@ -1475,24 +1540,37 @@ class DatabaseManager: @unchecked Sendable {
             for playlist in playlists {
                 guard let playlistId = playlist.id else { continue }
 
-                // Get all items for this playlist
-                let items = try PlaylistItem.filter(Column("playlist_id") == playlistId).fetchAll(db)
+                // Fetch every item of this playlist together with its track
+                // path in ONE LEFT JOIN query instead of one Track lookup per
+                // item (audit: N+1 queries on manual playlist cleanup).
+                let rows = try Row.fetchAll(db, sql: """
+                SELECT pi.position, pi.track_stable_id, t.path
+                FROM playlist_item pi
+                LEFT JOIN track t ON t.stable_id = pi.track_stable_id
+                WHERE pi.playlist_id = ?
+                ORDER BY pi.position
+                """, arguments: [playlistId])
 
                 // Group by track path (need to join with track table)
                 var seenPaths: Set<String> = [] // paths we've already seen
                 var itemsToRemove: [PlaylistItem] = []
 
-                for item in items {
-                    // Get the track for this item
-                    if let track = try Track.filter(Column("stable_id") == item.trackStableId).fetchOne(db) {
-                        if seenPaths.contains(track.path) {
-                            // Duplicate found - mark for removal
-                            itemsToRemove.append(item)
-                            print("⚠️ Playlist '\(playlist.title)': Found duplicate for '\(track.title)' at position \(item.position)")
-                        } else {
-                            // First occurrence - keep it
-                            seenPaths.insert(track.path)
-                        }
+                for row in rows {
+                    let position: Int = row["position"]
+                    let trackStableId: String = row["track_stable_id"]
+                    let path: String? = row["path"]
+
+                    // A nil path means the track row is gone; the item is kept
+                    // (orphan cleanup handles it) and cannot be a duplicate.
+                    guard let path else { continue }
+
+                    if seenPaths.contains(path) {
+                        // Duplicate found - mark for removal
+                        itemsToRemove.append(PlaylistItem(playlistId: playlistId, position: position, trackStableId: trackStableId))
+                        print("⚠️ Playlist '\(playlist.title)': Found duplicate for path '\(path)' at position \(position)")
+                    } else {
+                        // First occurrence - keep it
+                        seenPaths.insert(path)
                     }
                 }
 
@@ -1546,28 +1624,15 @@ class DatabaseManager: @unchecked Sendable {
             return
         }
 
+        // One DELETE removes every item whose track is gone, replacing the
+        // per-item existence query (audit: N+1). The trackCount==0 safety
+        // gate above still protects against an unreadable/empty library.
         let deletedCount = try write { db in
-            // Get all playlist items
-            let allItems = try PlaylistItem.fetchAll(db)
-            var orphanedCount = 0
-
-            print("🔍 Checking \(allItems.count) playlist items against \(trackCount) tracks")
-
-            for item in allItems {
-                // Check if track still exists
-                let trackExists = try Track.filter(Column("stable_id") == item.trackStableId).fetchOne(db) != nil
-
-                if !trackExists {
-                    // Remove orphaned item
-                    try PlaylistItem
-                        .filter(Column("playlist_id") == item.playlistId && Column("track_stable_id") == item.trackStableId)
-                        .deleteAll(db)
-                    orphanedCount += 1
-                    print("🗑️ Removed orphaned playlist item: \(item.trackStableId)")
-                }
-            }
-
-            return orphanedCount
+            try db.execute(sql: """
+            DELETE FROM playlist_item
+            WHERE track_stable_id NOT IN (SELECT stable_id FROM track)
+            """)
+            return db.changesCount
         }
 
         if deletedCount > 0 {
@@ -2192,32 +2257,32 @@ class DatabaseManager: @unchecked Sendable {
     // MARK: - EQ Operations
 
     func getAllEQPresets() async throws -> [EQPreset] {
-        return try read { db in
+        try await dbWriter.read { db in
             return try EQPreset.order(Column("name")).fetchAll(db)
         }
     }
 
     func getEQPreset(id: Int64) async throws -> EQPreset? {
-        return try read { db in
+        try await dbWriter.read { db in
             return try EQPreset.filter(Column("id") == id).fetchOne(db)
         }
     }
 
     func saveEQPreset(_ preset: EQPreset) async throws -> EQPreset {
-        return try write { db in
+        try await dbWriter.write { db in
             return try preset.insertAndFetch(db) ?? preset
         }
     }
 
     func deleteEQPreset(_ preset: EQPreset) async throws {
-        _ = try write { db in
+        try await dbWriter.write { db in
             try preset.delete(db)
         }
     }
 
     func getBands(for preset: EQPreset) async throws -> [EQBand] {
         guard let presetId = preset.id else { return [] }
-        return try read { db in
+        return try await dbWriter.read { db in
             return try EQBand
                 .filter(Column("preset_id") == presetId)
                 .order(Column("band_index"))
@@ -2226,19 +2291,19 @@ class DatabaseManager: @unchecked Sendable {
     }
 
     func saveEQBand(_ band: EQBand) async throws {
-        try write { db in
+        try await dbWriter.write { db in
             try band.save(db)
         }
     }
 
     func getEQSettings() async throws -> EQSettings? {
-        return try read { db in
+        try await dbWriter.read { db in
             return try EQSettings.fetchOne(db)
         }
     }
 
     func saveEQSettings(_ settings: EQSettings) async throws {
-        try write { db in
+        try await dbWriter.write { db in
             // Delete existing settings first (there should only be one row)
             try EQSettings.deleteAll(db)
             try settings.save(db)

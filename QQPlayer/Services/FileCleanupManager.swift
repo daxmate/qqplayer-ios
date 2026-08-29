@@ -41,7 +41,6 @@ class FileCleanupManager: ObservableObject {
             for track in missingTracks {
                 do {
                     try databaseManager.deleteTrack(byStableId: track.stableId)
-                    await deleteArtworkCache(for: track.stableId)
                     print("🧹 Removed missing track: \(track.title)")
                 } catch {
                     print("🧹 Failed to remove missing track \(track.title): \(error)")
@@ -166,9 +165,6 @@ class FileCleanupManager: ObservableObject {
                         // filename was incompatible with path-based IDs and
                         // silently left deleted tracks in previous builds.
                         try databaseManager.deleteTrack(byStableId: track.stableId)
-
-                        // Delete cached artwork for this track
-                        await deleteArtworkCache(for: track.stableId)
                     } catch {
                         print("🧹 Error auto-cleaning file \(track.path): \(error)")
                     }
@@ -334,14 +330,5 @@ class FileCleanupManager: ObservableObject {
             print("🧹     ❌ Error type: \(type(of: error))")
             return false
         }
-    }
-
-    // MARK: - Artwork Cache Cleanup
-
-    private func deleteArtworkCache(for stableId: String) async {
-        // Note: We don't delete the actual artwork file as other tracks might use it
-        // The artwork manager will clean up unused files during cleanupOrphanedArtwork
-        // Just notify that we're removing this track's artwork reference
-        print("🧹 Removed artwork reference for: \(stableId)")
     }
 }
