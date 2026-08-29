@@ -41,3 +41,14 @@ struct SmartPlaylistUILogicTests {
         #expect(subtitle == "9 decades")
     }
 }
+
+// MARK: - 封面拼贴布局决策
+
+@Test func coverLayoutByArtworkCount() {
+    #expect(SmartPlaylistUILogic.coverLayout(artworkCount: 0) == .icon)
+    #expect(SmartPlaylistUILogic.coverLayout(artworkCount: 1) == .single)
+    #expect(SmartPlaylistUILogic.coverLayout(artworkCount: 2) == .single)
+    #expect(SmartPlaylistUILogic.coverLayout(artworkCount: 3) == .single)
+    #expect(SmartPlaylistUILogic.coverLayout(artworkCount: 4) == .grid2x2)
+    #expect(SmartPlaylistUILogic.coverLayout(artworkCount: 5) == .grid2x2)
+}

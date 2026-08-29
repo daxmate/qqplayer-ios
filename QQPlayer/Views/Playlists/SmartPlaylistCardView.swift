@@ -25,6 +25,19 @@ enum SmartPlaylistUILogic {
         }
     }
 
+    /// 封面拼贴布局决策：0 张 → 图标；1-3 张 → 单封面；4 张 → 2×2 拼贴。
+    static func coverLayout(artworkCount: Int) -> CoverLayout {
+        switch artworkCount {
+        case 0: return .icon
+        case 1 ... 3: return .single
+        default: return .grid2x2
+        }
+    }
+
+    enum CoverLayout {
+        case icon, single, grid2x2
+    }
+
     /// Card badge: song count for track-based kinds, decade count for decades.
     /// Formatting is injected so the decision is testable without localization.
     static func cardSubtitle(
@@ -48,17 +61,42 @@ enum SmartPlaylistUILogic {
 struct SmartPlaylistCardView: View {
     let info: SmartPlaylistCardInfo
 
+    @StateObject private var artworkManager = ArtworkManager.shared
+    @State private var artworks: [UIImage] = []
+    @State private var didLoadCovers = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Icon area, matching PlaylistCardView's square artwork geometry.
+            // Artwork area, matching PlaylistCardView's square artwork geometry.
             ZStack {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color.gray.opacity(0.2))
                     .aspectRatio(1, contentMode: .fit)
 
-                Image(systemName: SmartPlaylistUILogic.iconName(for: info.kind))
-                    .font(.system(size: 40))
-                    .foregroundColor(.secondary)
+                switch SmartPlaylistUILogic.coverLayout(artworkCount: artworks.count) {
+                case .icon:
+                    Image(systemName: SmartPlaylistUILogic.iconName(for: info.kind))
+                        .font(.system(size: 40))
+                        .foregroundColor(.secondary)
+                case .single:
+                    GeometryReader { geometry in
+                        artworkView(at: 0, size: geometry.size.width)
+                    }
+                case .grid2x2:
+                    GeometryReader { geometry in
+                        let size = (geometry.size.width - 2) / 2
+                        VStack(spacing: 2) {
+                            HStack(spacing: 2) {
+                                artworkView(at: 0, size: size)
+                                artworkView(at: 1, size: size)
+                            }
+                            HStack(spacing: 2) {
+                                artworkView(at: 2, size: size)
+                                artworkView(at: 3, size: size)
+                            }
+                        }
+                    }
+                }
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .contentShape(RoundedRectangle(cornerRadius: 12))
@@ -82,5 +120,44 @@ struct SmartPlaylistCardView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Localized.smartPlaylistTitle(info.kind))
         .accessibilityAddTraits(.isButton)
+        .task {
+            await loadCovers()
+        }
+    }
+
+    @ViewBuilder
+    private func artworkView(at index: Int, size: CGFloat) -> some View {
+        if index < artworks.count {
+            Image(uiImage: artworks[index])
+                .resizable()
+                .scaledToFill()
+                .frame(width: size, height: size)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: artworks.count >= 4 ? 6 : 12))
+        } else {
+            RoundedRectangle(cornerRadius: artworks.count >= 4 ? 6 : 12)
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: size, height: size)
+                .overlay(
+                    Image(systemName: "music.note")
+                        .foregroundColor(.secondary)
+                        .font(.system(size: size / 4))
+                )
+        }
+    }
+
+    private func loadCovers() async {
+        guard !didLoadCovers else { return }
+        didLoadCovers = true
+        guard let tracks = try? SmartPlaylistStore.coverTracks(for: info.kind) else { return }
+        var loaded: [UIImage] = []
+        for track in tracks.prefix(4) {
+            if let artwork = await artworkManager.getThumbnail(for: track, maxPixelSize: 256) {
+                loaded.append(artwork)
+            }
+        }
+        await MainActor.run {
+            artworks = loaded
+        }
     }
 }

@@ -117,6 +117,36 @@ enum SmartPlaylistStore {
         ]
     }
 
+    /// 置顶卡片封面拼贴用的曲目：track 类歌单取前 limit 首；
+    /// decades 取前 limit 个非空年代桶各 1 首（尽量覆盖不同年代封面）。
+    static func coverTracks(for kind: SmartPlaylistKind, limit: Int = 4) throws -> [Track] {
+        try DatabaseManager.shared.read { db in
+            try coverTracks(for: kind, from: db, limit: limit)
+        }
+    }
+
+    static func coverTracks(for kind: SmartPlaylistKind, from db: Database, limit: Int) throws -> [Track] {
+        switch kind {
+        case .recentAdded:
+            return Array(try recentAddedTracks(from: db, limit: limit))
+        case .recentPlayed:
+            return Array(try recentPlayedTracks(from: db, limit: limit))
+        case .topPlayed:
+            return try topPlayedTracks(from: db, limit: limit).map(\.track)
+        case .decades:
+            var result: [Track] = []
+            // DecadeBucketInfo.count 是 Int（非 Collection），empty_count 误报
+            // swiftlint:disable:next empty_count
+            let buckets = try decadeBuckets(from: db).filter { $0.count > 0 }
+            for bucket in buckets.prefix(limit) {
+                if let first = try tracks(inDecade: bucket.key, from: db, limit: 1).first {
+                    result.append(first)
+                }
+            }
+            return result
+        }
+    }
+
     // MARK: - Testable query cores (in-memory Database)
 
     static func recentAddedTracks(from db: Database, limit: Int) throws -> [Track] {

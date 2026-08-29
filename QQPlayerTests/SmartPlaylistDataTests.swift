@@ -194,4 +194,30 @@ struct SmartPlaylistDataTests {
             #expect(Self.stableIds(limited) == ["t7", "t2"])
         }
     }
+
+    // MARK: - 卡片封面拼贴曲目
+
+    @Test("coverTracks：track 类歌单取前 limit 首")
+    func coverTracksForTrackKinds() throws {
+        let dbQueue = try Self.makeDatabase()
+        try dbQueue.read { db in
+            let recentAdded = try SmartPlaylistStore.coverTracks(for: .recentAdded, from: db, limit: 4)
+            #expect(Self.stableIds(recentAdded) == ["t2", "t5", "t3", "t7"])
+
+            let recentPlayed = try SmartPlaylistStore.coverTracks(for: .recentPlayed, from: db, limit: 4)
+            #expect(Self.stableIds(recentPlayed) == ["t6", "t7", "t1", "t3"])
+
+            let topPlayed = try SmartPlaylistStore.coverTracks(for: .topPlayed, from: db, limit: 4)
+            #expect(Self.stableIds(topPlayed) == ["t1", "t7", "t3", "t2"])
+        }
+    }
+
+    @Test("coverTracks：decades 取前 4 个非空年代桶各 1 首")
+    func coverTracksForDecades() throws {
+        let dbQueue = try Self.makeDatabase()
+        try dbQueue.read { db in
+            let decades = try SmartPlaylistStore.coverTracks(for: .decades, from: db, limit: 4)
+            #expect(Self.stableIds(decades) == ["t1", "t7", "t6", "t3"])
+        }
+    }
 }
