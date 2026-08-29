@@ -148,21 +148,30 @@ class SpotifyAccessToken {
 // MARK: - Spotify API Service
 
 class SpotifyAPIService: ObservableObject, @unchecked Sendable {
-    @MainActor static let shared = SpotifyAPIService()
+    @MainActor static let shared = SpotifyAPIService(
+        clientId: EnvironmentLoader.shared.spotifyClientId,
+        clientSecret: EnvironmentLoader.shared.spotifyClientSecret,
+        session: .shared,
+        cacheDirectory: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+            .first!.appendingPathComponent("SpotifyCache")
+    )
 
-    private let clientId = EnvironmentLoader.shared.spotifyClientId
-    private let clientSecret = EnvironmentLoader.shared.spotifyClientSecret
+    private let clientId: String?
+    private let clientSecret: String?
     private let baseURL = "https://api.spotify.com/v1"
     private let authURL = "https://accounts.spotify.com/api/token"
+    private let session: URLSession
 
     private let cache = NSCache<NSString, CachedSpotifyArtistInfo>()
     private let cacheDirectory: URL
     private var accessToken: SpotifyAccessToken?
 
-    private init() {
-        // Set up cache directory
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        cacheDirectory = documentsPath.appendingPathComponent("SpotifyCache")
+    /// 依赖注入 init（可测性）：生产代码只通过 `shared` 创建，行为与原先完全一致。
+    init(clientId: String?, clientSecret: String?, session: URLSession, cacheDirectory: URL) {
+        self.clientId = clientId
+        self.clientSecret = clientSecret
+        self.session = session
+        self.cacheDirectory = cacheDirectory
 
         // Create cache directory if it doesn't exist
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
@@ -240,7 +249,7 @@ class SpotifyAPIService: ObservableObject, @unchecked Sendable {
         let bodyString = "grant_type=client_credentials"
         request.httpBody = bodyString.data(using: .utf8)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         if let httpResponse = response as? HTTPURLResponse {
             print("📡 Spotify Auth: Response status: \(httpResponse.statusCode)")
@@ -273,7 +282,7 @@ class SpotifyAPIService: ObservableObject, @unchecked Sendable {
 
         print("🌐 Spotify: Making request to: \(urlString)")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         if let httpResponse = response as? HTTPURLResponse {
             print("📡 Spotify: Response status: \(httpResponse.statusCode)")

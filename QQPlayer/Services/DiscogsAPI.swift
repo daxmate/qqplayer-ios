@@ -136,11 +136,18 @@ class CachedArtistInfo: NSObject, Codable {
 // MARK: - Discogs API Service
 
 class DiscogsAPIService: ObservableObject, @unchecked Sendable {
-    @MainActor static let shared = DiscogsAPIService()
+    @MainActor static let shared = DiscogsAPIService(
+        consumerKey: EnvironmentLoader.shared.discogsConsumerKey,
+        consumerSecret: EnvironmentLoader.shared.discogsConsumerSecret,
+        session: .shared,
+        cacheDirectory: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+            .first!.appendingPathComponent("DiscogsCache")
+    )
 
-    private let consumerKey = EnvironmentLoader.shared.discogsConsumerKey
-    private let consumerSecret = EnvironmentLoader.shared.discogsConsumerSecret
+    private let consumerKey: String?
+    private let consumerSecret: String?
     private let baseURL = "https://api.discogs.com"
+    private let session: URLSession
 
     /// Discogs needs both API keys; without them the feature is disabled
     /// (requests return no results) instead of crashing at startup.
@@ -153,10 +160,12 @@ class DiscogsAPIService: ObservableObject, @unchecked Sendable {
     private let cache = NSCache<NSString, CachedArtistInfo>()
     private let cacheDirectory: URL
 
-    private init() {
-        // Set up cache directory
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        cacheDirectory = documentsPath.appendingPathComponent("DiscogsCache")
+    /// 依赖注入 init（可测性）：生产代码只通过 `shared` 创建，行为与原先完全一致。
+    init(consumerKey: String?, consumerSecret: String?, session: URLSession, cacheDirectory: URL) {
+        self.consumerKey = consumerKey
+        self.consumerSecret = consumerSecret
+        self.session = session
+        self.cacheDirectory = cacheDirectory
 
         // Create cache directory if it doesn't exist
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
@@ -216,7 +225,7 @@ class DiscogsAPIService: ObservableObject, @unchecked Sendable {
 
         print("🌐 Discogs: Making request to: \(urlString)")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         if let httpResponse = response as? HTTPURLResponse {
             print("📡 Discogs: Response status: \(httpResponse.statusCode)")
@@ -268,7 +277,7 @@ class DiscogsAPIService: ObservableObject, @unchecked Sendable {
 
         print("🌐 Discogs: Fetching artist details from: \(resourceUrl)")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
             throw DiscogsAPIError.httpError(httpResponse.statusCode)

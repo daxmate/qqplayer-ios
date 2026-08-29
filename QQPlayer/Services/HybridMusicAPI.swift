@@ -124,7 +124,12 @@ extension MusicAPISource: Codable {}
 // MARK: - Hybrid Music API Service
 
 class HybridMusicAPIService: ObservableObject, @unchecked Sendable {
-    @MainActor static let shared = HybridMusicAPIService()
+    @MainActor static let shared = HybridMusicAPIService(
+        discogsAPI: .shared,
+        spotifyAPI: .shared,
+        cacheDirectory: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+            .first!.appendingPathComponent("HybridMusicCache")
+    )
 
     private let discogsAPI: DiscogsAPIService
     private let spotifyAPI: SpotifyAPIService
@@ -132,15 +137,11 @@ class HybridMusicAPIService: ObservableObject, @unchecked Sendable {
     private let cache = NSCache<NSString, CachedUnifiedArtistInfo>()
     private let cacheDirectory: URL
 
-    @MainActor
-    private init() {
-        // Initialize APIs
-        self.discogsAPI = DiscogsAPIService.shared
-        self.spotifyAPI = SpotifyAPIService.shared
-
-        // Set up cache directory
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        cacheDirectory = documentsPath.appendingPathComponent("HybridMusicCache")
+    /// 依赖注入 init（可测性）：生产代码只通过 `shared` 创建，行为与原先完全一致。
+    init(discogsAPI: DiscogsAPIService, spotifyAPI: SpotifyAPIService, cacheDirectory: URL) {
+        self.discogsAPI = discogsAPI
+        self.spotifyAPI = spotifyAPI
+        self.cacheDirectory = cacheDirectory
 
         // Create cache directory if it doesn't exist
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
@@ -269,7 +270,9 @@ class HybridMusicAPIService: ObservableObject, @unchecked Sendable {
 
     // MARK: - Helper Methods
 
-    private func generateNameVariations(_ originalName: String) -> [String] {
+    /// 生成相似艺人名变体（确定顺序、去重、截断到 3 个）。
+    /// 有序去重：Set 迭代顺序不稳定，会让前缀截取的结果随进程随机变化。
+    func generateNameVariations(_ originalName: String) -> [String] {
         var variations: [String] = []
 
         // Remove common suffixes like "- Topic", ", the", etc.
@@ -300,8 +303,9 @@ class HybridMusicAPIService: ObservableObject, @unchecked Sendable {
             variations.append("The " + originalName)
         }
 
-        // Remove duplicates and return first 3 variations
-        return Array(Set(variations)).prefix(3).map { $0 }
+        // 保持生成顺序去重（Set 顺序不稳定，避免结果随进程随机），再截断到 3 个
+        var seen = Set<String>()
+        return variations.filter { seen.insert($0).inserted }.prefix(3).map { $0 }
     }
 
     // MARK: - Caching
