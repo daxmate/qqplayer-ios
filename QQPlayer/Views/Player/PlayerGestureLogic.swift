@@ -34,6 +34,11 @@ enum PlayerDismissGesture {
         translation > 120 || (translation > 40 && predictedTranslation > 260)
     }
 
+    /// 歌词搜索页左滑关闭（从左侧滑入的页面左滑往回推）：与歌词页右滑关闭镜像
+    static func shouldDismissLyricsSearch(translation: CGFloat, predictedTranslation: CGFloat) -> Bool {
+        translation < -120 || (translation < -40 && predictedTranslation < -260)
+    }
+
     /// 播放页封面下拉关闭：位移达 100pt，或位移过半（>40pt）且快速下拉（预测 >300pt）
     static func shouldDismissPlayer(pullOffset: CGFloat, predictedHeight: CGFloat) -> Bool {
         pullOffset >= 100 || (pullOffset >= 40 && predictedHeight > 300)

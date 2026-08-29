@@ -113,6 +113,35 @@ struct PlayerDismissGestureTests {
         // 上滑时 predictedHeight 为负/小，不应触发
         #expect(PlayerDismissGesture.shouldDismissPlayer(pullOffset: 0, predictedHeight: -100) == false)
     }
+
+    // ---- 歌词搜索页左滑关闭（与右滑关闭镜像） ----
+
+    @Test("左滑位移超 120pt：关闭搜索页")
+    func dismissLyricsSearchLargeTranslation() {
+        #expect(PlayerDismissGesture.shouldDismissLyricsSearch(translation: -121, predictedTranslation: 0) == true)
+        #expect(PlayerDismissGesture.shouldDismissLyricsSearch(translation: -300, predictedTranslation: -50) == true)
+    }
+
+    @Test("左滑未达 120pt 且非快速回甩：不关闭搜索页")
+    func dismissLyricsSearchSmallTranslation() {
+        #expect(PlayerDismissGesture.shouldDismissLyricsSearch(translation: -119, predictedTranslation: 0) == false)
+        #expect(PlayerDismissGesture.shouldDismissLyricsSearch(translation: -30, predictedTranslation: -250) == false)
+    }
+
+    @Test("左滑过半（<-40pt）且快速回甩（预测 <-260pt）：关闭搜索页")
+    func dismissLyricsSearchFlick() {
+        #expect(PlayerDismissGesture.shouldDismissLyricsSearch(translation: -41, predictedTranslation: -261) == true)
+        #expect(PlayerDismissGesture.shouldDismissLyricsSearch(translation: -80, predictedTranslation: -300) == true)
+        // 边界：刚好 -40/-260 不关闭
+        #expect(PlayerDismissGesture.shouldDismissLyricsSearch(translation: -40, predictedTranslation: -260) == false)
+        #expect(PlayerDismissGesture.shouldDismissLyricsSearch(translation: -40, predictedTranslation: -300) == false)
+    }
+
+    @Test("右滑（位移为正）不参与搜索页关闭判定")
+    func dismissLyricsSearchIgnoresRight() {
+        #expect(PlayerDismissGesture.shouldDismissLyricsSearch(translation: 100, predictedTranslation: 200) == false)
+        #expect(PlayerDismissGesture.shouldDismissLyricsSearch(translation: 121, predictedTranslation: 300) == false)
+    }
 }
 
 struct MiniLyricSwipeGestureTests {

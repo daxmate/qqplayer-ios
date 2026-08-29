@@ -91,16 +91,16 @@ struct LyricsSearchView: View {
             // 进入页面自动搜索当前歌曲（预填关键词），用户可改词再搜
             doSearch()
         }
-        // 右滑关闭：跟手位移，达阈值/快速回甩滑出（与歌词页关闭同款）
+        // 左滑关闭：跟手位移，达阈值/快速回甩滑出（与全屏歌词页右滑关闭同款，方向镜像）
         .offset(x: dragX)
         .gesture(
             DragGesture(minimumDistance: 8)
                 .onChanged { value in
-                    guard value.translation.width > 0 else { return }
+                    guard value.translation.width < 0 else { return }
                     dragX = value.translation.width
                 }
                 .onEnded { value in
-                    if PlayerDismissGesture.shouldDismissLyrics(
+                    if PlayerDismissGesture.shouldDismissLyricsSearch(
                         translation: value.translation.width,
                         predictedTranslation: value.predictedEndTranslation.width
                     ) {

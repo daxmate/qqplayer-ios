@@ -142,4 +142,14 @@ struct LyricsSearchTests {
         let other = makeTrack("test-track-none")
         #expect(await LyricsManager.shared.hasManualLyrics(for: other) == false)
     }
+
+    // MARK: - 简繁转换（lrclib 繁体标题补搜）
+
+    @Test("简体转繁体：电台情歌 → 電台情歌")
+    func traditionalChineseConversion() {
+        #expect(traditionalChinese("电台情歌") == "電台情歌")
+        #expect(traditionalChinese("莫文蔚") == "莫文蔚")
+        #expect(traditionalChinese("半島鐵盒") == "半島鐵盒") // 已是繁体，原样
+        #expect(traditionalChinese("").isEmpty)
+    }
 }

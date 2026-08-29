@@ -119,11 +119,45 @@ struct LyricsSearchProvider: Sendable {
     // MARK: - lrclib
 
     /// lrclib /api/search：只保留带时间戳的 syncedLyrics（纯文本歌词对播放器无用）
+    /// 简繁双查询：lrclib 收录多为繁体标题（如「電台情歌」），简体查询词会漏；
+    /// 用系统 ICU 转换生成繁体查询词补搜一次，按歌曲 id 去重合并。
     private func searchLRCLib(title: String, artist: String) async -> [LyricsSearchCandidate] {
+        let queries = [
+            (trackName: title, artistName: artist),
+            (trackName: traditionalChinese(title), artistName: traditionalChinese(artist)),
+        ]
+        var seenIDs = Set<Int>()
+        var out: [LyricsSearchCandidate] = []
+        for query in queries {
+            let hits = await fetchLRCLibHits(trackName: query.trackName, artistName: query.artistName)
+            for hit in hits {
+                guard !hit.instrumental,
+                      let synced = hit.syncedLyrics,
+                      !synced.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                      !seenIDs.contains(hit.id) else {
+                    continue
+                }
+                seenIDs.insert(hit.id)
+                out.append(
+                    LyricsSearchCandidate(
+                        source: .lrclib,
+                        title: hit.trackName,
+                        artist: hit.artistName,
+                        duration: hit.duration,
+                        text: synced,
+                        tlyric: nil
+                    )
+                )
+            }
+        }
+        return out
+    }
+
+    private func fetchLRCLibHits(trackName: String, artistName: String) async -> [LRCLibSearchHit] {
         var components = URLComponents(string: "\(lrclibBaseURL)/search")
         components?.queryItems = [
-            URLQueryItem(name: "track_name", value: title),
-            URLQueryItem(name: "artist_name", value: artist),
+            URLQueryItem(name: "track_name", value: trackName),
+            URLQueryItem(name: "artist_name", value: artistName),
         ]
         guard let url = components?.url else { return [] }
 
@@ -139,27 +173,26 @@ struct LyricsSearchProvider: Sendable {
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 return []
             }
-            let hits = try JSONDecoder().decode([LRCLibSearchHit].self, from: data)
-            return hits.compactMap { hit -> LyricsSearchCandidate? in
-                guard !hit.instrumental,
-                      let synced = hit.syncedLyrics,
-                      !synced.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                    return nil
-                }
-                return LyricsSearchCandidate(
-                    source: .lrclib,
-                    title: hit.trackName,
-                    artist: hit.artistName,
-                    duration: hit.duration,
-                    text: synced,
-                    tlyric: nil
-                )
-            }
+            return (try? JSONDecoder().decode([LRCLibSearchHit].self, from: data)) ?? []
         } catch {
             print("❌ Failed to search lrclib.net: \(error)")
             return []
         }
     }
+}
+
+// MARK: - 简繁转换
+
+/// 简体 → 繁体（内置 OpenCC 单字映射表，见 SimplifiedTraditionalMap.swift；
+/// 简繁同形/未收录的字原样返回）。用于 lrclib 等以繁体标题为主的源补搜。
+func traditionalChinese(_ text: String) -> String {
+    guard !text.isEmpty else { return text }
+    var out = ""
+    out.reserveCapacity(text.count)
+    for char in text {
+        out.append(simplifiedToTraditionalMap[char] ?? char)
+    }
+    return out
 }
 
 // MARK: - API 模型
