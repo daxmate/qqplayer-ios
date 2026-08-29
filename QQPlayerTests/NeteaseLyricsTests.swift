@@ -133,6 +133,50 @@ struct NeteaseLyricsMergeTests {
     }
 }
 
+struct MultiTimestampLRCTests {
+    @Test("同一行多时间戳：每个时间戳各生成一行，文本相同且不含残留时间戳")
+    func multiTimestampLine() async {
+        let manager = LyricsManager.shared
+        let lines = await manager.parseSyncedLyrics("[00:12.00][00:15.00]副歌")
+        #expect(lines.count == 2)
+        #expect(lines[0].timestamp == 12.0)
+        #expect(lines[1].timestamp == 15.0)
+        #expect(lines[0].text == "副歌")
+        #expect(lines[1].text == "副歌")
+    }
+
+    @Test("三时间戳行：三行同文本，按时间戳排序")
+    func tripleTimestampLine() async {
+        let manager = LyricsManager.shared
+        let lines = await manager.parseSyncedLyrics("[00:03.00][00:01.00][00:02.00]合唱")
+        #expect(lines.count == 3)
+        #expect(lines.map(\.timestamp) == [1.0, 2.0, 3.0])
+        #expect(lines.allSatisfy { $0.text == "合唱" })
+    }
+
+    @Test("单时间戳行为不变：文本剥离时间戳标记，元数据行跳过")
+    func singleTimestampUnchanged() async {
+        let manager = LyricsManager.shared
+        let lines = await manager.parseSyncedLyrics("[00:01.50]你好\n[ar:周杰伦]\n[00:02.34]世界")
+        #expect(lines.count == 2)
+        #expect(lines[0].timestamp == 1.5)
+        #expect(lines[0].text == "你好")
+        #expect(lines[1].timestamp == 2.34)
+        #expect(lines[1].text == "世界")
+    }
+
+    @Test("翻译行（tlyric）多时间戳：按时间戳拆行后仍能合并进对应歌词行")
+    func multiTimestampTranslationStillMerges() async {
+        let lrc = "[00:12.00]副歌\n[00:15.00]副歌"
+        let tlyric = "[00:12.00][00:15.00]合唱"
+        let manager = LyricsManager.shared
+        let lyrics = await manager.makeLyrics(fromLRC: lrc, tlyric: tlyric)
+        #expect(lyrics.syncedLyrics.count == 2)
+        #expect(lyrics.syncedLyrics[0].translation == "合唱")
+        #expect(lyrics.syncedLyrics[1].translation == "合唱")
+    }
+}
+
 struct NeteaseSongMappingTests {
     @Test("搜索候选选择：标题精确匹配 + 歌手包含优先")
     func bestCandidateSelection() {

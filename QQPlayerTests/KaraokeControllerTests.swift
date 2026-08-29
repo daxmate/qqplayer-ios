@@ -430,4 +430,56 @@ struct KaraokeControllerTests {
         await drainMainActor()
         expectSingleSeek(fake, time: 5.0, play: false)
     }
+
+    // MARK: - 前向 seek / duration 未知（2026-08-29 回归）
+
+    @Test("前向拖进度条：不触发句末自动停，重定位到实际行；后续自然句末仍生效")
+    func forwardSeekDoesNotTriggerLineEnd() async {
+        let fake = await makeFake(expireJumpQuiet: true)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5, 10, 20))
+
+        kc.handlePlaybackTick(time: 6.0, duration: 30.0) // 缓存第 1 句（[5,10)）
+        kc.handlePlaybackTick(time: 19.0, duration: 30.0) // 前跳 13s（>1s = 用户 seek）→ 重定位第 2 句，不弹回
+        await drainMainActor()
+        #expect(fake.seeks.isEmpty)
+
+        kc.handlePlaybackTick(time: 19.25, duration: 30.0) // 自然播放：句中，不触发
+        await drainMainActor()
+        #expect(fake.seeks.isEmpty)
+
+        kc.handlePlaybackTick(time: 20.0, duration: 30.0) // 第 2 句播完 → 句末自动停仍生效
+        await drainMainActor()
+        expectSingleSeek(fake, time: 10.0, play: false)
+    }
+
+    @Test("duration 未知（0）：末句不触发无限句末自动停")
+    func unknownDurationNoLastLineEndLoop() async {
+        let fake = await makeFake(expireJumpQuiet: true)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5))
+
+        kc.handlePlaybackTick(time: 10.0, duration: 0)
+        kc.handlePlaybackTick(time: 10.25, duration: 0)
+        kc.handlePlaybackTick(time: 10.5, duration: 0)
+        await drainMainActor()
+
+        #expect(fake.seeks.isEmpty)
+    }
+
+    @Test("duration 未知（0）：非末句句末检测仍生效（用下一句时间戳）")
+    func unknownDurationMidLineEndStillWorks() async {
+        let fake = await makeFake(expireJumpQuiet: true)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5, 9))
+
+        kc.handlePlaybackTick(time: 8.75, duration: 0) // 缓存第 1 句（[5,9)）
+        kc.handlePlaybackTick(time: 9.0, duration: 0) // 第 1 句播完 → 句末自动停（下一句时间戳 9）
+        await drainMainActor()
+
+        expectSingleSeek(fake, time: 5.0, play: false)
+    }
 }

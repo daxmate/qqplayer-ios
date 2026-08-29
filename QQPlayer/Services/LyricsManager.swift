@@ -908,8 +908,10 @@ actor LyricsManager {
 
     func parseSyncedLyrics(_ lrcText: String) -> [LyricsLine] {
         var lines: [LyricsLine] = []
-        let pattern = #"\[(\d{1,3}):(\d{2})(?:\.(\d{1,3}))?\]\s*(.*)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+        // 只匹配时间戳（不含文本）：同一行可多个时间戳（[00:12.00][00:15.00]text，副歌重复标记常见），
+        // 若在同一个正则里用 (.*) 抓文本，后续 [00:15.00] 会被吞进文本且第二个时间戳丢失
+        let timestampPattern = #"\[(\d{1,3}):(\d{2})(?:\.(\d{1,3}))?\]"#
+        guard let regex = try? NSRegularExpression(pattern: timestampPattern) else {
             return lines
         }
 
@@ -918,15 +920,24 @@ actor LyricsManager {
             let range = NSRange(location: 0, length: nsLine.length)
 
             // Match common [mm:ss], [mm:ss.xx], and [mm:ss.xxx] timestamp formats.
-            if let match = regex.firstMatch(in: line, range: range) {
+            let matches = regex.matches(in: line, range: range)
+            guard !matches.isEmpty else { continue }
+
+            // 文本 = 行内容去掉全部时间戳标记后剩余部分（多时间戳行共享同一文本）
+            let textOnly = nsLine.mutableCopy() as! NSMutableString
+            for match in matches.reversed() {
+                textOnly.deleteCharacters(in: match.range)
+            }
+            let text = textOnly.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            // 每个时间戳生成一条 LyricsLine（时间戳 = 分钟*60 + 秒 + 小数）
+            for match in matches {
                 let minutes = Double(nsLine.substring(with: match.range(at: 1))) ?? 0
                 let seconds = Double(nsLine.substring(with: match.range(at: 2))) ?? 0
                 let fractionRange = match.range(at: 3)
                 let fractionText = fractionRange.location == NSNotFound ? "0" : nsLine.substring(with: fractionRange)
                 let fractionDivisor = pow(10.0, Double(fractionText.count))
                 let fraction = (Double(fractionText) ?? 0) / fractionDivisor
-                let textRange = match.range(at: 4)
-                let text = textRange.location == NSNotFound ? "" : nsLine.substring(with: textRange)
 
                 let timestamp = (minutes * 60) + seconds + fraction
                 lines.append(LyricsLine(timestamp: timestamp, text: text))
