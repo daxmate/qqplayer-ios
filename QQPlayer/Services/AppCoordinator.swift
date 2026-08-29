@@ -201,19 +201,13 @@ class AppCoordinator: ObservableObject {
             return .notSignedIn
         }
         
-        // Check if we can get the container URL
+        // Check if we can get the container URL. The container root is NOT a
+        // "ubiquitous item" — isUbiquitousItem is only true for items explicitly
+        // registered via setUbiquitous — so we must not gate on that resource
+        // value (it is always false here). The URL existing is sufficient proof
+        // the container is usable.
         guard let containerURL = FileManager.default.url(forUbiquityContainerIdentifier: nil) else {
             return .containerUnavailable
-        }
-        
-        // Check if we can actually access the container
-        do {
-            let resourceValues = try containerURL.resourceValues(forKeys: [.isUbiquitousItemKey])
-            if resourceValues.isUbiquitousItem != true {
-                return .containerUnavailable
-            }
-        } catch {
-            return .error(error)
         }
         
         print("NSUbiquitousContainers:",
