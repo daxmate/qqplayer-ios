@@ -2,6 +2,7 @@ import SwiftUI
 
 /// 播放页折叠控制容器：常驻进度条 + 三键（上一首/播放暂停/下一首），
 /// 上滑展开更多按钮（播放顺序 + 队列/定时/歌词/隔空播放），下滑收起。
+/// 三键行与展开工具行均为透明容器：按钮用 Spacer 均匀分布、与进度条同宽。
 struct CollapsiblePlayerControls: View {
     @ObservedObject private var playerEngine = PlayerEngine.shared
     @State private var isExpanded = false
@@ -29,17 +30,24 @@ struct CollapsiblePlayerControls: View {
 
             threeButtonRow
 
-            Image(systemName: isExpanded ? "chevron.down" : "chevron.up")
-                .font(.caption2)
-                .foregroundColor(.secondary)
-
             if isExpanded {
                 expandedSection
+                // 展开后向下箭头置于最底部（提示可下滑收起）
+                chevronIndicator
+            } else {
+                chevronIndicator
             }
         }
-        .gesture(
+        // 全容器可滑动：contentShape 把命中区域扩展到整个容器（含按钮间空隙），
+        // simultaneousGesture 保证在按钮上拖动也能识别（轻点仍归按钮），
+        // 用户可特意挑空白处滑动避免误触。
+        .contentShape(Rectangle())
+        .simultaneousGesture(
             DragGesture(minimumDistance: 12)
                 .onEnded { value in
+                    // 进度条区域（顶部约 60pt：进度条 + 时间标签）的滑动归 seek 拖动独占，
+                    // 不参与展开/收起，避免拖进度条时手指微斜误触折叠。
+                    guard value.startLocation.y > 60 else { return }
                     if value.translation.height < -30, !isExpanded {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                             isExpanded = true
@@ -55,19 +63,17 @@ struct CollapsiblePlayerControls: View {
 
     // MARK: - 常驻三键行
 
+    /// 三键行：三个按钮用 Spacer 均匀分布，容器与进度条同宽（同 .padding(.horizontal, 8)），底色透明
     private var threeButtonRow: some View {
-        HStack(spacing: min(35, UIScreen.main.bounds.width * 0.08)) {
+        HStack(spacing: 0) {
             previousButton
+            Spacer()
             playPauseButton
+            Spacer()
             nextButton
         }
-        .padding(.horizontal, min(21, UIScreen.main.bounds.width * 0.055))
-        .padding(.vertical, 21)
-        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 25))
-        .overlay(
-            RoundedRectangle(cornerRadius: 25)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
     }
 
     private var previousButton: some View {
@@ -78,7 +84,10 @@ struct CollapsiblePlayerControls: View {
         }) {
             Image(systemName: "backward.fill")
                 .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .title2 : .title)
+                .frame(width: 56, height: 56)
+                .contentShape(Rectangle())
         }
+        .buttonStyle(PlainButtonStyle())
     }
 
     private var playPauseButton: some View {
@@ -91,7 +100,10 @@ struct CollapsiblePlayerControls: View {
         }) {
             Image(systemName: playerEngine.isPlaying ? "pause.fill" : "play.fill")
                 .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .title : .largeTitle)
+                .frame(width: 72, height: 72)
+                .contentShape(Rectangle())
         }
+        .buttonStyle(PlainButtonStyle())
     }
 
     private var nextButton: some View {
@@ -102,41 +114,70 @@ struct CollapsiblePlayerControls: View {
         }) {
             Image(systemName: "forward.fill")
                 .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .title2 : .title)
+                .frame(width: 56, height: 56)
+                .contentShape(Rectangle())
         }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    private var chevronIndicator: some View {
+        Image(systemName: isExpanded ? "chevron.down" : "chevron.up")
+            .font(.caption2)
+            .foregroundColor(.secondary)
     }
 
     // MARK: - 展开区
 
     private var expandedSection: some View {
         VStack(spacing: 12) {
-            playOrderButton
-            additionalRow
+            mainToolRow
+            if showSleepTimerButton || showLyricsButton {
+                accessoryRow
+            }
         }
         .padding(.top, 2)
     }
 
-    // 播放顺序四态轮换按钮：顺序播放 → 随机播放 → 循环列表 → 单曲循环
+    /// 主工具行：播放顺序 / 歌单 / 输出源 三键同一容器，摆放方式及底色同三键行（Spacer 均分 + 透明 + 与进度条同宽）
+    private var mainToolRow: some View {
+        HStack(spacing: 0) {
+            playOrderButton
+            Spacer()
+            queueButton
+            Spacer()
+            airPlayButton
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+    }
+
+    /// 辅助行：定时 / 歌词（可开关），样式同主工具行
+    private var accessoryRow: some View {
+        HStack(spacing: 0) {
+            if showSleepTimerButton {
+                sleepTimerButton
+                Spacer()
+            }
+            if showLyricsButton {
+                lyricsButton
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+    }
+
+    // 播放顺序四态轮换按钮：顺序播放 → 随机播放 → 循环列表 → 单曲循环（仅图标，无文字）
     private var playOrderButton: some View {
         Button(action: {
             playerEngine.cyclePlaybackOrderMode()
         }) {
-            HStack(spacing: 8) {
-                Image(systemName: playOrderIcon)
-                    .font(.title3)
-                Text(playOrderTitle)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
-            .foregroundColor(isPlayOrderActive ? accentColor : .primary)
-            .frame(maxWidth: .infinity, minHeight: 30)
-            .padding(.vertical, 14)
+            Image(systemName: playOrderIcon)
+                .font(.title3)
+                .foregroundColor(isPlayOrderActive ? accentColor : .primary)
+                .frame(width: 56, height: 56)
+                .contentShape(Rectangle())
         }
-        .frame(maxWidth: .infinity)
-        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
+        .buttonStyle(PlainButtonStyle())
         .accessibilityLabel(playOrderTitle)
     }
 
@@ -169,26 +210,6 @@ struct CollapsiblePlayerControls: View {
         }
     }
 
-    // 附加行：队列 / 定时 / 歌词 / 隔空播放（逻辑从 PlayerView 整体搬入）
-    private var additionalRow: some View {
-        // Both optional controls can be shown at once. The two settings toggles
-        // are independent, but this row used to have a single shared middle
-        // slot in which the sleep timer took priority - enabling it silently
-        // hid the lyrics button. Each button fills the row evenly, so the
-        // layout absorbs two, three or four of them.
-        HStack(spacing: 12) {
-            queueButton
-            if showSleepTimerButton {
-                sleepTimerButton
-            }
-            if showLyricsButton {
-                lyricsButton
-            }
-            airPlayButton
-        }
-        .padding(.horizontal, 5)
-    }
-
     private var queueButton: some View {
         Button(action: {
             onShowQueue()
@@ -196,15 +217,10 @@ struct CollapsiblePlayerControls: View {
             Image(systemName: "list.bullet")
                 .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .title2 : .title)
                 .foregroundColor(.primary)
-                .frame(maxWidth: .infinity, minHeight: 30)
-                .padding(.vertical, 16)
+                .frame(width: 56, height: 56)
+                .contentShape(Rectangle())
         }
-        .frame(maxWidth: .infinity)
-        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
+        .buttonStyle(PlainButtonStyle())
     }
 
     private var airPlayButton: some View {
@@ -214,15 +230,10 @@ struct CollapsiblePlayerControls: View {
             Image(systemName: "airplayaudio")
                 .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .title2 : .title)
                 .foregroundColor(.primary)
-                .frame(maxWidth: .infinity, minHeight: 25)
-                .padding(.vertical, 16)
+                .frame(width: 56, height: 56)
+                .contentShape(Rectangle())
         }
-        .frame(maxWidth: .infinity)
-        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
+        .buttonStyle(PlainButtonStyle())
     }
 
     private var lyricsButton: some View {
@@ -240,15 +251,10 @@ struct CollapsiblePlayerControls: View {
                         .offset(x: 15, y: -10)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 30)
-            .padding(.vertical, 16)
+            .frame(width: 56, height: 56)
+            .contentShape(Rectangle())
         }
-        .frame(maxWidth: .infinity)
-        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
+        .buttonStyle(PlainButtonStyle())
     }
 
     private var sleepTimerButton: some View {
@@ -277,16 +283,10 @@ struct CollapsiblePlayerControls: View {
             Image(systemName: sleepTimerEndDate == nil ? "timer" : "timer.circle.fill")
                 .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .title2 : .title)
                 .foregroundColor(sleepTimerEndDate == nil ? .primary : accentColor)
-                .frame(maxWidth: .infinity, minHeight: 30)
-                .padding(.vertical, 16)
+                .frame(width: 56, height: 56)
+                .contentShape(Rectangle())
         }
         .menuOrder(.fixed)
-        .frame(maxWidth: .infinity)
         .accessibilityLabel(Localized.sleepTimer)
-        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
     }
 }

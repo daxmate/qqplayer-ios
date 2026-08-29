@@ -235,14 +235,20 @@ struct PlayerView: View {
     }
 
     private var contentView: some View {
-        VStack(spacing: UIScreen.main.scale < UIScreen.main.nativeScale ? 16 : 20) {
+        VStack(spacing: 0) {
             if let currentTrack = playerEngine.currentTrack {
                 VStack(spacing: UIScreen.main.scale < UIScreen.main.nativeScale ? 20 : 25) {
                     artworkSection
                     titleAndArtistSection(track: currentTrack)
                 }
 
+                // 封面区与控制区之间用弹性 Spacer 撑开：封面贴顶、控制区贴底、歌词居中
+                Spacer(minLength: UIScreen.main.scale < UIScreen.main.nativeScale ? 16 : 20)
+
                 lyricMiniSection
+
+                Spacer(minLength: UIScreen.main.scale < UIScreen.main.nativeScale ? 16 : 20)
+
                 CollapsiblePlayerControls(
                     duration: playerEngine.duration,
                     accentColor: settings.backgroundColorChoice.color,
@@ -277,7 +283,9 @@ struct PlayerView: View {
                     }
                 )
             } else {
+                Spacer()
                 emptyStateView
+                Spacer()
             }
         }
     }
