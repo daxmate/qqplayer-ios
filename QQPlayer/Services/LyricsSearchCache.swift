@@ -5,7 +5,7 @@
 //  歌词搜索候选缓存：按搜索词缓存双源搜索结果（网易云 + lrclib），
 //  命中未过期缓存时直接返回，避免重复请求网络；TTL 过期自动清理。
 //
-//  存储：Documents/lyrics-cache/<sha256>.json，每个搜索词一个文件，
+//  存储：Documents/lyrics-cache/search/<sha256>.json，每个搜索词一个文件，
 //  原子写入；目录可注入（测试用），与 LyricsManager.manualLyricsDirectoryOverride 同款模式。
 //
 
@@ -32,7 +32,7 @@ struct LyricsSearchCache: Sendable {
         }
         return FileManager.default
             .urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("lyrics-cache", isDirectory: true)
+            .appendingPathComponent("lyrics-cache/search", isDirectory: true)
     }
 
     /// 读取缓存：命中且未过期返回候选；过期/损坏删除并返回 nil（下次搜索重新走网络）

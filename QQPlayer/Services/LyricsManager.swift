@@ -957,7 +957,7 @@ actor LyricsManager {
         guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
             return nil
         }
-        let cacheDir = documentsURL.appendingPathComponent("lyrics-cache", isDirectory: true)
+        let cacheDir = documentsURL.appendingPathComponent("lyrics-cache/tracks", isDirectory: true)
 
         // Create directory if it doesn't exist
         if !fileManager.fileExists(atPath: cacheDir.path) {
