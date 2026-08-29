@@ -7,6 +7,7 @@
 //  - 网易云：eapi 搜索候选（前 5 个）逐个拉取歌词全文 + 中文翻译
 //  - lrclib：/api/search 结果直接携带 syncedLyrics（无翻译）
 //  两个源并发搜索，netease 在前、lrclib 在后（桌面版同顺序）。
+//  搜索结果按搜索词缓存（LyricsSearchCache，7 天 TTL），命中直接返回。
 //
 
 import Foundation
@@ -61,14 +62,25 @@ struct LyricsSearchProvider: Sendable {
     private let netease = NeteaseLyricsProvider.shared
     private let lrclibBaseURL = "https://lrclib.net/api"
 
-    /// 双源并发搜索：netease 在前、lrclib 在后；全部失败返回 []
+    /// 双源并发搜索：netease 在前、lrclib 在后；全部失败返回 []。
+    /// 缓存优先：相同搜索词命中未过期缓存时直接返回，不重复请求网络（见 LyricsSearchCache）。
     func search(title: String, artist: String) async -> [LyricsSearchCandidate] {
         let query = "\(title) \(artist)".trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty else { return [] }
 
+        if let cached = LyricsSearchCache.shared.load(title: title, artist: artist) {
+            return cached
+        }
+
         async let neteaseCandidates = searchNetease(query: query)
         async let lrclibCandidates = searchLRCLib(title: title, artist: artist)
-        return await neteaseCandidates + lrclibCandidates
+        let results = await neteaseCandidates + lrclibCandidates
+
+        // 非空结果才写缓存：避免把"没搜到"缓存住，搜索词修正后仍能重试
+        if !results.isEmpty {
+            LyricsSearchCache.shared.save(results, title: title, artist: artist)
+        }
+        return results
     }
 
     // MARK: - 网易云
