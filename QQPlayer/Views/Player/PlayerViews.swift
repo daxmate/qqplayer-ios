@@ -91,7 +91,6 @@ struct PlayerView: View {
     @StateObject private var playerEngine = PlayerEngine.shared
     @StateObject private var artworkManager = ArtworkManager.shared
     @StateObject private var cloudDownloadManager = CloudDownloadManager.shared
-    @ObservedObject private var karaoke = KaraokeController.shared
     @EnvironmentObject private var appCoordinator: AppCoordinator
     @State private var currentArtwork: UIImage?
     @State private var nextArtwork: UIImage?
@@ -252,15 +251,6 @@ struct PlayerView: View {
                 Spacer(minLength: UIScreen.main.scale < UIScreen.main.nativeScale ? 16 : 20)
 
                 lyricMiniSection
-
-                // 跟唱模式：小歌词下方显示控制条（非跟唱隐藏；与全屏歌词页共用 KaraokeControlBar）
-                Group {
-                    if karaoke.isKaraokeOn {
-                        KaraokeControlBar(accentColor: settings.backgroundColorChoice.color)
-                            .padding(.top, UIScreen.main.scale < UIScreen.main.nativeScale ? 8 : 10)
-                    }
-                }
-                .animation(.easeInOut(duration: 0.2), value: karaoke.isKaraokeOn)
 
                 Spacer(minLength: UIScreen.main.scale < UIScreen.main.nativeScale ? 16 : 20)
 
@@ -747,12 +737,19 @@ struct PlayerView: View {
                     }
                 }
         )
-        // 双击：跟唱模式开关。与单击（进全屏歌词页）共存：双击优先，单击等双击窗口判定失败后触发
-        // （~0.3s 延迟可接受）；与左/右滑 DragGesture 也不冲突（双击无位移，拖动判失败后滑动手势接管）。
+        // 双击：进全屏歌词页并开启跟唱（跟唱只发生在全屏歌词页，小窗口空间小不做控制条）。
+        // 与单击（仅进全屏歌词页）共存：双击优先，单击等双击窗口判定失败后触发（~0.3s 延迟可接受）；
+        // 与左/右滑 DragGesture 也不冲突（双击无位移，拖动判失败后滑动手势接管）。
         .highPriorityGesture(
             TapGesture(count: 2)
                 .onEnded {
-                    KaraokeController.shared.toggleKaraokeMode()
+                    KaraokeController.shared.setKaraokeOn(true)
+                    withAnimation(.easeOut(duration: 0.26)) {
+                        showLyricsSheet = true
+                    }
+                    if currentLyrics == nil && !isLoadingLyrics {
+                        loadLyrics()
+                    }
                 }
         )
         .accessibilityAddTraits(.isButton)
