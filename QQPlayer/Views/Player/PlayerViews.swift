@@ -168,8 +168,9 @@ struct PlayerView: View {
         }
         // 封面下拉跟手：播放页整体下移，松手达阈值关闭
         .offset(y: pullOffset)
-        .animation(.easeInOut(duration: 0.26), value: showLyricsSheet)
-        // Cap Dynamic Type so large accessibility sizes don't overflow the player layout
+        // 不用 .animation(value:) 修饰符：会泄漏隐式动画到 pullOffset 手势跟手更新（iOS 17+
+        // 事务变更后 withTransaction(.continuous) 不再可靠禁用），导致下拉抖动；
+        // 歌词页/搜索页的过渡动画改在赋值处显式 withAnimation（与歌词页右滑同款实现）
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
@@ -364,24 +365,16 @@ struct PlayerView: View {
                 }
 
                 if gestureAxis == .horizontal {
-                    // 横向：切歌跟手
+                    // 横向：切歌跟手（直接赋值，无隐式动画——与歌词页右滑 dragX 同款）
                     let canNavigate = playerEngine.playbackQueue.count > 1
                     let proposedOffset = canNavigate
                         ? value.translation.width
                         : value.translation.width * 0.16
                     let limit = pageDistance
-                    var transaction = Transaction()
-                    transaction.isContinuous = true
-                    withTransaction(transaction) {
-                        dragOffset = max(-limit, min(limit, proposedOffset))
-                    }
+                    dragOffset = max(-limit, min(limit, proposedOffset))
                 } else if value.translation.height > 0 {
-                    // 纵向下拉：关闭播放页（跟手位移，限幅）
-                    var transaction = Transaction()
-                    transaction.isContinuous = true
-                    withTransaction(transaction) {
-                        pullOffset = min(value.translation.height, pullMaxOffset)
-                    }
+                    // 纵向下拉：关闭播放页（跟手位移，限幅；直接赋值保证每帧即时跟手）
+                    pullOffset = min(value.translation.height, pullMaxOffset)
                 }
             }
             .onEnded { value in
@@ -635,7 +628,9 @@ struct PlayerView: View {
         // 点击进全屏歌词页（普通视图 + onTapGesture：与 DragGesture 仲裁标准，
         // 不用 Button——Button 手势优先级高，快速右滑会误触发 tap 直接进歌词页）
         .onTapGesture {
-            showLyricsSheet = true
+            withAnimation(.easeOut(duration: 0.26)) {
+                showLyricsSheet = true
+            }
             if currentLyrics == nil && !isLoadingLyrics {
                 loadLyrics()
             }
@@ -648,7 +643,9 @@ struct PlayerView: View {
                         translation: value.translation.width,
                         predictedTranslation: value.predictedEndTranslation.width
                     ) {
-                        showLyricsSheet = true
+                        withAnimation(.easeOut(duration: 0.26)) {
+                            showLyricsSheet = true
+                        }
                         if currentLyrics == nil && !isLoadingLyrics {
                             loadLyrics()
                         }
@@ -656,13 +653,17 @@ struct PlayerView: View {
                         translation: value.translation.width,
                         predictedTranslation: value.predictedEndTranslation.width
                     ) {
-                        showLyricsSearch = true
+                        withAnimation(.easeOut(duration: 0.26)) {
+                            showLyricsSearch = true
+                        }
                     }
                 }
         )
         .accessibilityAddTraits(.isButton)
         .accessibilityAction {
-            showLyricsSheet = true
+            withAnimation(.easeOut(duration: 0.26)) {
+                showLyricsSheet = true
+            }
             if currentLyrics == nil && !isLoadingLyrics {
                 loadLyrics()
             }
@@ -831,7 +832,9 @@ struct PlayerView: View {
 
     private var lyricsButton: some View {
         Button(action: {
-            showLyricsSheet = true
+            withAnimation(.easeOut(duration: 0.26)) {
+                showLyricsSheet = true
+            }
             if currentLyrics == nil && !isLoadingLyrics {
                 loadLyrics()
             }
