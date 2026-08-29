@@ -96,10 +96,15 @@ struct PlayerView: View {
     @State private var nextArtwork: UIImage?
     @State private var previousArtwork: UIImage?
     @State private var dragOffset: CGFloat = 0
-    @State private var pullOffset: CGFloat = 0 // 封面下拉跟手位移（关闭播放页）
     /// 封面拖动手势的方向锁定（nil = 未定）：首次判定后锁定，防下拉过程中手指微斜
     /// 导致横/纵分支来回切换（abs(width) vs abs(height) 瞬时翻转）→ 视图抖动
     @State private var gestureAxis: Axis?
+    /// 下拉移动的宿主 UIView（fullScreenCover 的 hosting view）：
+    /// 纵向跟手直接驱动 UIKit transform，完全绕过 SwiftUI 状态重算/布局（Apple Music 同款底层），
+    /// 避免 PlayerView 大视图树在拖动手势中每帧重算导致的掉帧抖动
+    @State private var pullHostView: UIView?
+    /// 下拉最后应用的位移（死区用）：UIKit 驱动下触摸噪声同样会导致 transform 微变
+    @State private var lastPullY: CGFloat = 0
     @State private var isAnimating = false
     @State private var allTracks: [Track] = []
     @State private var isFavorite = false
@@ -117,6 +122,15 @@ struct PlayerView: View {
     var body: some View {
         ZStack {
             ScreenSpecificBackgroundView(screen: .player)
+            // 解析下拉移动的宿主 UIView（fullScreenCover 的 hosting view）：
+            // 透明背景层，通过 responder 链向上找 UIViewController.view
+            // （Task 延迟赋值：避免在视图更新期间修改 @State）
+            HostingViewAccessor { view in
+                Task { @MainActor in
+                    self.pullHostView = view
+                }
+            }
+            .frame(width: 0, height: 0)
             mainContent
 
             // 全屏歌词页：满屏覆盖（右滑入/右滑出），与播放页同一 ZStack，随下拉一起跟手
@@ -166,9 +180,8 @@ struct PlayerView: View {
                 .zIndex(10)
             }
         }
-        // 封面下拉跟手：播放页整体下移，松手达阈值关闭
-        .offset(y: pullOffset)
-        // 不用 .animation(value:) 修饰符：会泄漏隐式动画到 pullOffset 手势跟手更新（iOS 17+
+        // 封面下拉跟手：播放页整体下移（UIKit transform 驱动，见 artworkDragGesture）
+        // 不用 .animation(value:) 修饰符：会泄漏隐式动画到手势跟手更新（iOS 17+
         // 事务变更后 withTransaction(.continuous) 不再可靠禁用），导致下拉抖动；
         // 歌词页/搜索页的过渡动画改在赋值处显式 withAnimation（与歌词页右滑同款实现）
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
@@ -271,19 +284,21 @@ struct PlayerView: View {
                         .offset(x: dragOffset - pageDistance)
                         .scaleEffect(0.96 + (0.04 * max(0, signedProgress)))
                         .opacity(Double(0.72 + (0.28 * max(0, signedProgress))))
-                        .shadow(color: .black.opacity(0.16), radius: 8, x: 0, y: 5)
+                        // EXPERIMENT: shadow disabled
+                        // .shadow(color: .black.opacity(0.16), radius: 8, x: 0, y: 5)
                         .zIndex(0)
                 }
 
                 currentArtworkView(size: artworkSize)
                     .offset(x: dragOffset)
                     .scaleEffect(1 - (0.025 * swipeProgress))
-                    .shadow(
-                        color: .black.opacity(0.2 - (0.06 * Double(swipeProgress))),
-                        radius: 10 - (2 * swipeProgress),
-                        x: 0,
-                        y: 6 - (2 * swipeProgress)
-                    )
+                    // EXPERIMENT: shadow disabled
+                    // .shadow(
+                    //     color: .black.opacity(0.2 - (0.06 * Double(swipeProgress))),
+                    //     radius: 10 - (2 * swipeProgress),
+                    //     x: 0,
+                    //     y: 6 - (2 * swipeProgress)
+                    // )
                     .zIndex(1)
                     .onTapGesture {
                         NotificationCenter.default.post(name: NSNotification.Name("MinimizePlayer"), object: nil)
@@ -294,7 +309,8 @@ struct PlayerView: View {
                         .offset(x: dragOffset + pageDistance)
                         .scaleEffect(0.96 + (0.04 * max(0, -signedProgress)))
                         .opacity(Double(0.72 + (0.28 * max(0, -signedProgress))))
-                        .shadow(color: .black.opacity(0.16), radius: 8, x: 0, y: 5)
+                        // EXPERIMENT: shadow disabled
+                        // .shadow(color: .black.opacity(0.16), radius: 8, x: 0, y: 5)
                         .zIndex(0)
                 }
             }
@@ -351,10 +367,6 @@ struct PlayerView: View {
 
     // 封面下拉关闭播放页：跟手限幅（阈值/快速回甩判定在 PlayerDismissGesture）
     private let pullMaxOffset: CGFloat = 160
-    /// 跟手更新死区（pt）：手指按住不动时触摸事件仍有 ±1-2pt 噪声，
-    /// 直接赋值会让视图在 1-2pt 内抖动；差值小于死区不更新，噪声被吞掉。
-    /// 正常拖动每帧位移远大于死区，跟手无感。
-    private let pullDeadZone: CGFloat = 2
 
     private func artworkDragGesture(gestureWidth: CGFloat, pageDistance: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 8)
@@ -377,12 +389,13 @@ struct PlayerView: View {
                     let limit = pageDistance
                     dragOffset = max(-limit, min(limit, proposedOffset))
                 } else if value.translation.height > 0 {
-                    // 纵向下拉：关闭播放页（跟手位移，限幅）
-                    // 死区：触摸噪声（停住时 ±1-2pt 波动）不更新，防视图抖动
+                    // 纵向下拉：直接驱动宿主 UIView 的 transform（UIKit 层，GPU 渲染，
+                    // 不触发 SwiftUI 状态重算/布局——避免大视图树每帧重算掉帧抖动）。
+                    // 死区过滤触摸噪声（±1-2pt）：差值小于死区不更新。
                     let target = min(value.translation.height, pullMaxOffset)
-                    if abs(target - pullOffset) >= pullDeadZone {
-                        pullOffset = target
-                    }
+                    guard abs(target - lastPullY) >= 1 else { return }
+                    lastPullY = target
+                    pullHostView?.transform = CGAffineTransform(translationX: 0, y: target)
                 }
             }
             .onEnded { value in
@@ -422,19 +435,45 @@ struct PlayerView: View {
                         completeArtworkSwipe(.next, pageDistance: pageDistance)
                     }
                 } else {
-                    // 纵向结束（无论最终位移方向）：达阈值/快速回甩 → 关闭；否则回弹。
-                    // 注意用 else 而非 height > 0：下拉后又拉回原位也需回弹，否则视图卡在半路
-                    if PlayerDismissGesture.shouldDismissPlayer(
-                        pullOffset: pullOffset,
+                    // 纵向结束（无论最终位移方向）：达阈值/快速回甩 → 下滑滑出后关闭；否则回弹。
+                    // 全部用 UIKit 动画驱动宿主 view（与跟手同一通道，动画衔接顺滑）
+                    let shouldDismiss = PlayerDismissGesture.shouldDismissPlayer(
+                        pullOffset: value.translation.height,
                         predictedHeight: value.predictedEndTranslation.height
-                    ) {
-                        NotificationCenter.default.post(name: NSNotification.Name("MinimizePlayer"), object: nil)
-                        pullOffset = 0
+                    )
+                    guard let hostView = pullHostView else { return }
+                    if shouldDismiss {
+                        // 跟手滑出屏幕后关闭（Apple Music 风格）
+                        UIView.animate(
+                            withDuration: 0.24,
+                            delay: 0,
+                            options: [.curveEaseIn],
+                            animations: {
+                                hostView.transform = CGAffineTransform(
+                                    translationX: 0,
+                                    y: UIScreen.main.bounds.height
+                                )
+                            },
+                            completion: { _ in
+                                hostView.transform = .identity
+                                NotificationCenter.default.post(
+                                    name: NSNotification.Name("MinimizePlayer"),
+                                    object: nil
+                                )
+                            }
+                        )
                     } else {
-                        withAnimation(.spring(response: 0.36, dampingFraction: 0.82)) {
-                            pullOffset = 0
+                        UIView.animate(
+                            withDuration: 0.35,
+                            delay: 0,
+                            usingSpringWithDamping: 0.82,
+                            initialSpringVelocity: 0.4,
+                            options: [.curveEaseOut]
+                        ) {
+                            hostView.transform = .identity
                         }
                     }
+                    lastPullY = 0
                 }
             }
     }
@@ -697,7 +736,7 @@ struct PlayerView: View {
         }
         .padding(.horizontal, min(21, UIScreen.main.bounds.width * 0.055))
         .padding(.vertical, 21)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 25))
+        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 25))
         .overlay(
             RoundedRectangle(cornerRadius: 25)
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
@@ -799,7 +838,7 @@ struct PlayerView: View {
                 .padding(.vertical, 16)
         }
         .frame(maxWidth: .infinity)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
         .overlay(
             RoundedRectangle(cornerRadius: 20)
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
@@ -817,7 +856,7 @@ struct PlayerView: View {
                 .padding(.vertical, 16)
         }
         .frame(maxWidth: .infinity)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
         .overlay(
             RoundedRectangle(cornerRadius: 20)
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
@@ -862,7 +901,7 @@ struct PlayerView: View {
             .padding(.vertical, 16)
         }
         .frame(maxWidth: .infinity)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
         .overlay(
             RoundedRectangle(cornerRadius: 20)
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
@@ -901,7 +940,7 @@ struct PlayerView: View {
         .menuOrder(.fixed)
         .frame(maxWidth: .infinity)
         .accessibilityLabel(Localized.sleepTimer)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
         .overlay(
             RoundedRectangle(cornerRadius: 20)
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
@@ -1570,7 +1609,7 @@ struct TrackRowView: View, @MainActor Equatable {
                         .font(.title2)
                         .foregroundColor(.red)
                         .frame(width: 44, height: 44)
-                        .background(.ultraThinMaterial, in: Circle())
+                        .background(Color.primary.opacity(0.08), in: Circle())
                         .overlay(Circle().stroke(.red.opacity(0.3), lineWidth: 1))
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -1759,6 +1798,40 @@ struct WaveformView: View {
 
         withAnimation(.easeInOut(duration: 0.3)) {
             waveHeights = newHeights
+        }
+    }
+}
+
+/// 通过 responder 链解析宿主 UIViewController.view（fullScreenCover 的 hosting view）。
+/// 封面下拉移动直接驱动该 view 的 UIKit transform——绕过 SwiftUI 状态重算/布局，
+/// 避免 PlayerView 大视图树在拖动手势中每帧重算导致的掉帧抖动。
+private struct HostingViewAccessor: UIViewRepresentable {
+    let onResolve: (UIView) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator {
+        var resolved = false
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        guard !context.coordinator.resolved else { return }
+        var responder: UIResponder? = uiView
+        while let r = responder {
+            if let vc = r as? UIViewController {
+                context.coordinator.resolved = true
+                onResolve(vc.view)
+                return
+            }
+            responder = r.next
         }
     }
 }
