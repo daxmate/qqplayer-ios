@@ -31,7 +31,7 @@ jobs:
       #   - build/DerivedData（编译产物，命中后 xcodebuild 增量秒级）
       # key 绑定 Package.resolved 内容，依赖不变即命中。
       - name: Cache SPM packages + DerivedData
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/Library/Caches/org.swift.swiftpm
