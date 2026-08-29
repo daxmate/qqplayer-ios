@@ -856,7 +856,7 @@ class DatabaseManager: @unchecked Sendable {
             if let existing = try Album
                 .filter(Column("title") == normalizedTitle && Column("artist_id") == artistId)
                 .fetchOne(db) {
-                return existing
+                return try self.albumWithYearFilled(existing, year: year, db: db)
             }
 
             // If no exact match, try case-insensitive and similar matches.
@@ -876,12 +876,12 @@ class DatabaseManager: @unchecked Sendable {
                 guard existing.artistId == artistId else { continue }
 
                 if existingNormalized.lowercased() == normalizedTitle.lowercased() {
-                    return existing
+                    return try self.albumWithYearFilled(existing, year: year, db: db)
                 }
 
                 // Check for very similar titles (minor differences)
                 if self.areSimilarTitles(existingNormalized, normalizedTitle) {
-                    return existing
+                    return try self.albumWithYearFilled(existing, year: year, db: db)
                 }
             }
 
@@ -900,7 +900,7 @@ class DatabaseManager: @unchecked Sendable {
                     let existingNormalized = self.normalizeAlbumTitle(existing.title)
                     if existingNormalized.lowercased() == normalizedTitle.lowercased() ||
                         self.areSimilarTitles(existingNormalized, normalizedTitle) {
-                        return existing
+                        return try self.albumWithYearFilled(existing, year: year, db: db)
                     }
                 }
             }
@@ -909,6 +909,17 @@ class DatabaseManager: @unchecked Sendable {
             let album = Album(artistId: artistId, title: normalizedTitle, year: year, albumArtist: albumArtist)
             return try album.insertAndFetch(db)!
         }
+    }
+
+    /// 存量专辑补 year：早前扫描（MP3 年份帧未解析）写下的 album.year 全为
+    /// NULL，重扫时匹配到 existing 直接返回不会更新。这里在 year 由 nil 变为
+    /// 有值时回填，修复后重扫一次即可恢复年代自动歌单。
+    private func albumWithYearFilled(_ existing: Album, year: Int?, db: Database) throws -> Album {
+        guard existing.year == nil, let year else { return existing }
+        var updated = existing
+        updated.year = year
+        try updated.update(db)
+        return updated
     }
 
     private func areSimilarTitles(_ title1: String, _ title2: String) -> Bool {

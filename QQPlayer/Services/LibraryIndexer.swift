@@ -1894,6 +1894,17 @@ class AudioMetadataParser {
                         if album == nil {
                             album = try? await metadata.load(.stringValue)
                         }
+                    case "id3/TYER", "id3/TDRC":
+                        // Year frame (TYER in ID3v2.3, TDRC in ID3v2.4).
+                        // AVAsset does NOT map these to commonKeyCreationDate,
+                        // so without this branch every MP3 year is lost and the
+                        // decade playlist buckets everything into "unknown".
+                        if year == nil {
+                            if let yearString = try? await metadata.load(.stringValue) {
+                                year = Int(String(yearString.prefix(4)))
+                                print("🎤 Found year from \(identifier.rawValue): \(yearString) → \(year ?? -1)")
+                            }
+                        }
                     default:
                         let identifierValue = identifier.rawValue.lowercased()
 
