@@ -90,6 +90,7 @@ class AppCoordinator: ObservableObject {
         // Check iCloud status
         let status = await checkiCloudStatus()
         iCloudStatus = status
+        writeICloudDiagnostic("final status = \(status)")
 
         // Notify CloudDownloadManager about status change
         NotificationCenter.default.post(name: NSNotification.Name("iCloudAuthStatusChanged"), object: nil)
@@ -198,6 +199,7 @@ class AppCoordinator: ObservableObject {
     nonisolated private func checkiCloudStatus() async -> iCloudStatus {
         // Check if user is signed into iCloud
         guard FileManager.default.ubiquityIdentityToken != nil else {
+            writeICloudDiagnostic("notSignedIn: ubiquityIdentityToken == nil")
             return .notSignedIn
         }
         
@@ -207,8 +209,10 @@ class AppCoordinator: ObservableObject {
         // value (it is always false here). The URL existing is sufficient proof
         // the container is usable.
         guard let containerURL = FileManager.default.url(forUbiquityContainerIdentifier: nil) else {
+            writeICloudDiagnostic("containerUnavailable: url(forUbiquityContainerIdentifier:) == nil")
             return .containerUnavailable
         }
+        writeICloudDiagnostic("containerURL = \(containerURL.path)")
         
         print("NSUbiquitousContainers:",
               Bundle.main.object(forInfoDictionaryKey: "NSUbiquitousContainers") ?? "nil")
@@ -221,12 +225,35 @@ class AppCoordinator: ObservableObject {
                 try FileManager.default.createDirectory(at: appFolderURL, 
                                                      withIntermediateDirectories: true, 
                                                      attributes: nil)
+                writeICloudDiagnostic("created app folder: \(appFolderURL.path)")
+            } else {
+                writeICloudDiagnostic("app folder already exists: \(appFolderURL.path)")
             }
             
             print("iCloud container set up at: \(appFolderURL)")
             return .available
         } catch {
+            writeICloudDiagnostic("createDirectory error: \(error)")
             return .error(error)
+        }
+    }
+    
+    /// Writes iCloud diagnostics to Documents/iCloudDiagnostics.txt so we can
+    /// see on-device what checkiCloudStatus actually resolved to.
+    nonisolated private func writeICloudDiagnostic(_ message: String) {
+        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("iCloudDiagnostics.txt")
+        let line = "[\(Date())] \(message)\n"
+        do {
+            if let handle = try? FileHandle(forWritingTo: url) {
+                defer { try? handle.close() }
+                handle.seekToEndOfFile()
+                try handle.write(contentsOf: Data(line.utf8))
+            } else {
+                try line.write(to: url, atomically: true, encoding: .utf8)
+            }
+        } catch {
+            print("⚠️ Failed to write iCloud diagnostic: \(error)")
         }
     }
     
