@@ -315,9 +315,8 @@ struct PlayerView: View {
         }
     }
 
-    // 封面下拉关闭播放页：跟手限幅 / 关闭阈值
+    // 封面下拉关闭播放页：跟手限幅（阈值/快速回甩判定在 PlayerDismissGesture）
     private let pullMaxOffset: CGFloat = 160
-    private let pullCloseThreshold: CGFloat = 100
 
     private func artworkDragGesture(gestureWidth: CGFloat, pageDistance: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 8)
@@ -379,8 +378,10 @@ struct PlayerView: View {
                     }
                 } else if value.translation.height > 0 {
                     // 纵向结束：达阈值/快速回甩 → 关闭；否则回弹
-                    let fastFlick = pullOffset >= 40 && value.predictedEndTranslation.height > 300
-                    if pullOffset >= pullCloseThreshold || fastFlick {
+                    if PlayerDismissGesture.shouldDismissPlayer(
+                        pullOffset: pullOffset,
+                        predictedHeight: value.predictedEndTranslation.height
+                    ) {
                         NotificationCenter.default.post(name: NSNotification.Name("MinimizePlayer"), object: nil)
                         pullOffset = 0
                     } else {
@@ -1012,14 +1013,7 @@ private struct LyricMiniSection: View {
 
     /// 当前句 index（syncedLyrics 中）；还没到第一句时返回 0
     private var activeIndex: Int? {
-        guard let lines = lyrics?.syncedLyrics, !lines.isEmpty else { return nil }
-        let time = progress.playbackTime
-        var idx: Int?
-        for (i, line) in lines.enumerated() {
-            guard let ts = line.timestamp else { continue }
-            if time >= ts { idx = i } else { break }
-        }
-        return idx ?? 0
+        LyricTiming.activeLineIndex(time: progress.playbackTime, in: lyrics?.syncedLyrics ?? []) ?? 0
     }
 
     private func line(_ index: Int, in lines: [LyricsLine]) -> LyricsLine? {

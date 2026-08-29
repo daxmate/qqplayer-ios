@@ -18,97 +18,19 @@ struct LyricsView: View {
 
     var body: some View {
         ZStack {
-            // Multi-layer gradient background
-            ZStack {
-                // Base dark background
-                Color.black
-
-                // Top radial glow
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            gradient: Gradient(colors: [
-                                settings.backgroundColorChoice.color.opacity(0.25),
-                                settings.backgroundColorChoice.color.opacity(0.12),
-                                Color.clear,
-                            ]),
-                            center: .top,
-                            startRadius: 0,
-                            endRadius: 350
-                        )
-                    )
-                    .frame(height: 600)
-                    .blur(radius: 50)
-                    .offset(y: -200)
-
-                // Center diagonal gradient
-                LinearGradient(
-                    gradient: Gradient(stops: [
-                        .init(color: Color.clear, location: 0.0),
-                        .init(color: settings.backgroundColorChoice.color.opacity(0.08), location: 0.3),
-                        .init(color: settings.backgroundColorChoice.color.opacity(0.12), location: 0.5),
-                        .init(color: settings.backgroundColorChoice.color.opacity(0.08), location: 0.7),
-                        .init(color: Color.clear, location: 1.0),
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-
-                // Bottom radial glow
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            gradient: Gradient(colors: [
-                                settings.backgroundColorChoice.color.opacity(0.2),
-                                settings.backgroundColorChoice.color.opacity(0.1),
-                                Color.clear,
-                            ]),
-                            center: .bottom,
-                            startRadius: 0,
-                            endRadius: 300
-                        )
-                    )
-                    .frame(height: 500)
-                    .blur(radius: 60)
-                    .offset(y: 200)
-
-                // Vertical accent gradient
-                LinearGradient(
-                    gradient: Gradient(stops: [
-                        .init(color: settings.backgroundColorChoice.color.opacity(0.06), location: 0.0),
-                        .init(color: Color.clear, location: 0.2),
-                        .init(color: Color.clear, location: 0.8),
-                        .init(color: settings.backgroundColorChoice.color.opacity(0.08), location: 1.0),
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
-            .ignoresSafeArea()
+            // 背景与播放页一致（主题背景纹理）
+            ScreenSpecificBackgroundView(screen: .player)
+                .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Glass header with blur
+                // Glass header with blur（仅标题；回退按钮已移除——右滑手势可关闭）
                 HStack(spacing: 16) {
                     Text("Lyrics")
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
 
                     Spacer()
-
-                    Button {
-                        onClose()
-                    } label: {
-                        ZStack {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 36, height: 36)
-
-                            Image(systemName: "xmark")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.white.opacity(0.8))
-                        }
-                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 20)
@@ -125,9 +47,9 @@ struct LyricsView: View {
                                 .fill(
                                     LinearGradient(
                                         gradient: Gradient(colors: [
-                                            Color.white.opacity(0.1),
+                                            Color.primary.opacity(0.12),
                                             Color.clear,
-                                            Color.white.opacity(0.1),
+                                            Color.primary.opacity(0.12),
                                         ]),
                                         startPoint: .leading,
                                         endPoint: .trailing
@@ -167,9 +89,10 @@ struct LyricsView: View {
                     dragX = value.translation.width
                 }
                 .onEnded { value in
-                    let shouldClose = value.translation.width > 120 ||
-                        (value.translation.width > 40 && value.predictedEndTranslation.width > 260)
-                    if shouldClose {
+                    if PlayerDismissGesture.shouldDismissLyrics(
+                        translation: value.translation.width,
+                        predictedTranslation: value.predictedEndTranslation.width
+                    ) {
                         // 由外层 transition（move trailing）负责滑出动画，从当前位置滑出
                         onClose()
                     } else {
@@ -212,13 +135,13 @@ struct LyricsView: View {
                     }
                     .disabled(true)  // Disable user scrolling - auto-scroll only
 
-                    // Fade gradients at top and bottom
+                    // Fade gradients at top and bottom（用主题背景色，与播放页背景同源）
                     VStack(spacing: 0) {
                         LinearGradient(
                             gradient: Gradient(colors: [
-                                Color.black.opacity(0.95),
-                                Color.black.opacity(0.7),
-                                Color.black.opacity(0.3),
+                                settings.backgroundColorChoice.color.opacity(0.95),
+                                settings.backgroundColorChoice.color.opacity(0.7),
+                                settings.backgroundColorChoice.color.opacity(0.3),
                                 Color.clear,
                             ]),
                             startPoint: .top,
@@ -231,9 +154,9 @@ struct LyricsView: View {
                         LinearGradient(
                             gradient: Gradient(colors: [
                                 Color.clear,
-                                Color.black.opacity(0.3),
-                                Color.black.opacity(0.7),
-                                Color.black.opacity(0.95),
+                                settings.backgroundColorChoice.color.opacity(0.3),
+                                settings.backgroundColorChoice.color.opacity(0.7),
+                                settings.backgroundColorChoice.color.opacity(0.95),
                             ]),
                             startPoint: .top,
                             endPoint: .bottom
@@ -315,11 +238,11 @@ struct LyricsView: View {
         if isActive {
             return settings.backgroundColorChoice.color.opacity(0.95)
         } else if distance <= 1 {
-            return .white.opacity(0.6)
+            return .secondary.opacity(0.85)
         } else if distance <= 2 {
-            return .white.opacity(0.3)
+            return .secondary.opacity(0.5)
         } else {
-            return .white.opacity(0.12)
+            return .secondary.opacity(0.25)
         }
     }
 
@@ -335,13 +258,14 @@ struct LyricsView: View {
 
     private func lineColor(distance: Int, isActive: Bool) -> Color {
         if isActive {
-            return .white
+            // 当前句用设置中的主题色
+            return settings.backgroundColorChoice.color
         } else if distance <= 1 {
-            return .white.opacity(0.7)
+            return .primary.opacity(0.75)
         } else if distance <= 2 {
-            return .white.opacity(0.35)
+            return .primary.opacity(0.4)
         } else {
-            return .white.opacity(0.15)
+            return .primary.opacity(0.18)
         }
     }
 
@@ -370,7 +294,7 @@ struct LyricsView: View {
 
                 Text(text)
                     .font(.system(size: 17, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundColor(.primary.opacity(0.9))
                     .lineSpacing(10)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -441,7 +365,7 @@ struct LyricsView: View {
 
                     Image(systemName: "music.note")
                         .font(.system(size: 50, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                         .shadow(color: settings.backgroundColorChoice.color.opacity(0.6), radius: 15)
                 }
 
@@ -449,11 +373,11 @@ struct LyricsView: View {
                     Text("Instrumental")
                         .font(.title)
                         .fontWeight(.bold)
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
 
                     Text("This track has no lyrics")
                         .font(.callout)
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(.secondary)
                 }
             }
             .padding(44)
@@ -467,7 +391,7 @@ struct LyricsView: View {
                             LinearGradient(
                                 gradient: Gradient(colors: [
                                     settings.backgroundColorChoice.color.opacity(0.3),
-                                    Color.white.opacity(0.15),
+                                    Color.primary.opacity(0.15),
                                     settings.backgroundColorChoice.color.opacity(0.2),
                                 ]),
                                 startPoint: .topLeading,
@@ -550,7 +474,7 @@ struct LyricsView: View {
 
                     Image(systemName: "text.badge.xmark")
                         .font(.system(size: 50, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                         .shadow(color: settings.backgroundColorChoice.color.opacity(0.6), radius: 15)
                 }
 
@@ -558,11 +482,11 @@ struct LyricsView: View {
                     Text("No Lyrics Available")
                         .font(.title)
                         .fontWeight(.bold)
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
 
                     Text("Lyrics not found for this track")
                         .font(.callout)
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(.secondary)
                 }
             }
             .padding(44)
@@ -576,7 +500,7 @@ struct LyricsView: View {
                             LinearGradient(
                                 gradient: Gradient(colors: [
                                     settings.backgroundColorChoice.color.opacity(0.3),
-                                    Color.white.opacity(0.15),
+                                    Color.primary.opacity(0.15),
                                     settings.backgroundColorChoice.color.opacity(0.2),
                                 ]),
                                 startPoint: .topLeading,
@@ -658,7 +582,7 @@ struct LyricsView: View {
                         )
 
                     ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .progressViewStyle(CircularProgressViewStyle(tint: .primary))
                         .scaleEffect(1.5)
                 }
 
@@ -666,11 +590,11 @@ struct LyricsView: View {
                     Text("Loading Lyrics")
                         .font(.title)
                         .fontWeight(.bold)
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
 
                     Text("Fetching from metadata and online sources")
                         .font(.callout)
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                 }
             }
@@ -685,7 +609,7 @@ struct LyricsView: View {
                             LinearGradient(
                                 gradient: Gradient(colors: [
                                     settings.backgroundColorChoice.color.opacity(0.3),
-                                    Color.white.opacity(0.15),
+                                    Color.primary.opacity(0.15),
                                     settings.backgroundColorChoice.color.opacity(0.2),
                                 ]),
                                 startPoint: .topLeading,
@@ -718,20 +642,7 @@ struct LyricsView: View {
     // MARK: - Helper Methods
 
     private func isLineActive(_ line: LyricsLine, at index: Int, in lines: [LyricsLine]) -> Bool {
-        guard let currentTimestamp = line.timestamp else { return false }
-
-        // Check if this is the current line
-        if currentTime >= currentTimestamp {
-            // Check if there's a next line
-            if index + 1 < lines.count {
-                if let nextTimestamp = lines[index + 1].timestamp {
-                    return currentTime < nextTimestamp
-                }
-            }
-            return true // Last line
-        }
-
-        return false
+        LyricTiming.activeLineIndex(time: currentTime, in: lines) == index
     }
 
     private func updateActiveLineAndScroll(for lines: [LyricsLine], in proxy: ScrollViewProxy) {

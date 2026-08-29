@@ -48,7 +48,7 @@ struct NeteaseEAPITests {
         {"header":{"os":"pc","appver":"3.1.19.204510","requestId":"0","osver":"Microsoft-Windows-11-Home-China-build-22631-64bit","deviceId":"abcdef0123456789","MUSIC_U":""},"e_r":true,"id":123,"cp":false,"tv":0,"lv":0,"rv":0,"kv":0,"yv":0,"ytv":0,"yrv":0}
         """
         let enc = NeteaseEAPI.encrypt(uri: uri, payloadJSON: json)
-        let decrypted = try NeteaseEAPI.decrypt(Data(hexString: enc.lower())!)
+        let decrypted = try NeteaseEAPI.decrypt(Data(hexString: enc.lowercased())!)
         #expect(decrypted["id"] as? Int == 123)
         #expect((decrypted["header"] as? [String: Any])?["os"] as? String == "pc")
     }

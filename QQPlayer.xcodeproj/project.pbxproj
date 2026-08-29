@@ -21,7 +21,9 @@
 		50455E615D9FAE84C741EB6E /* FormatInfoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 071C4A9B25AFB9B772D8625E /* FormatInfoTests.swift */; };
 		5C3389AA47637899080AFA31 /* EQFrequencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95D963241E1B89FFA0906475 /* EQFrequencyTests.swift */; };
 		C21A43E3C4B1AEB96EDDE12E /* ModelCodableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6713EFB0F4A28ACE3266FB2 /* ModelCodableTests.swift */; };
+		E3D3FAA3E201F1DE4FE3B65D /* NeteaseLyricsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19B7AAE18404DCD10ACFCD87 /* NeteaseLyricsTests.swift */; };
 		EE49A8EDD4423396C78DABE2 /* StableIdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6793C3A51095FE68378E031D /* StableIdTests.swift */; };
+		FDE46537E071CEBB0C1EE7EC /* PlayerGestureLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFEBABE2EEDADE3CF1549D8A /* PlayerGestureLogicTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -95,6 +97,8 @@
 		A19C99C3D410D8854B01C0CF /* IdentifiedRowTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = IdentifiedRowTests.swift; sourceTree = "<group>"; };
 		B708099358914775F10BAE5F /* QQPlayerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QQPlayerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C6713EFB0F4A28ACE3266FB2 /* ModelCodableTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ModelCodableTests.swift; sourceTree = "<group>"; };
+		EFEBABE2EEDADE3CF1549D8A /* PlayerGestureLogicTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlayerGestureLogicTests.swift; sourceTree = "<group>"; };
+		19B7AAE18404DCD10ACFCD87 /* NeteaseLyricsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NeteaseLyricsTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -278,6 +282,8 @@
 				95D963241E1B89FFA0906475 /* EQFrequencyTests.swift */,
 				071C4A9B25AFB9B772D8625E /* FormatInfoTests.swift */,
 				C6713EFB0F4A28ACE3266FB2 /* ModelCodableTests.swift */,
+				EFEBABE2EEDADE3CF1549D8A /* PlayerGestureLogicTests.swift */,
+				19B7AAE18404DCD10ACFCD87 /* NeteaseLyricsTests.swift */,
 			);
 			name = QQPlayerTests;
 			path = QQPlayerTests;
@@ -566,6 +572,8 @@
 				5C3389AA47637899080AFA31 /* EQFrequencyTests.swift in Sources */,
 				50455E615D9FAE84C741EB6E /* FormatInfoTests.swift in Sources */,
 				C21A43E3C4B1AEB96EDDE12E /* ModelCodableTests.swift in Sources */,
+				FDE46537E071CEBB0C1EE7EC /* PlayerGestureLogicTests.swift in Sources */,
+				E3D3FAA3E201F1DE4FE3B65D /* NeteaseLyricsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
