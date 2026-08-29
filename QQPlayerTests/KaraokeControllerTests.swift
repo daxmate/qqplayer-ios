@@ -281,6 +281,50 @@ struct KaraokeControllerTests {
         #expect(fake.rates == [1.0, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
     }
 
+    @Test("setSpeed：直接设档（点选菜单），非法档位忽略")
+    func setSpeedDirect() async {
+        let fake = await makeFake(expireJumpQuiet: false)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        fake.rates = []
+
+        kc.setSpeed(0.7)
+        kc.setSpeed(1.0)
+        kc.setSpeed(1.3) // 非法档位：忽略
+
+        #expect(kc.speed == 1.0)
+        #expect(fake.rates == [0.7, 1.0])
+    }
+
+    @Test("上一句/下一句：跳到目标句首播放，边界不动作")
+    func stepLine() async {
+        let fake = await makeFake(expireJumpQuiet: false)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5, 9))
+        kc.handlePlaybackTick(time: 6.0, duration: 12.0) // 缓存第 1 句（[5,9)）
+        fake.seeks = []
+
+        kc.stepLine(delta: 1, currentTime: 6.0) // 下一句 → 第 2 句首 9.0
+        await drainMainActor()
+        expectSingleSeek(fake, time: 9.0, play: true)
+
+        fake.seeks = []
+        kc.stepLine(delta: -1, currentTime: 9.0) // 上一句 → 第 1 句首 5.0（缓存行已更新为句 2）
+        await drainMainActor()
+        expectSingleSeek(fake, time: 5.0, play: true)
+
+        fake.seeks = []
+        kc.stepLine(delta: -1, currentTime: 5.0) // 再上一句 → 第 0 句首 0.0
+        await drainMainActor()
+        expectSingleSeek(fake, time: 0.0, play: true)
+
+        fake.seeks = []
+        kc.stepLine(delta: -1, currentTime: 0.0) // 第 0 句上越界：不动作
+        await drainMainActor()
+        #expect(fake.seeks.isEmpty)
+    }
+
     // MARK: - 模式开关 / 切歌
 
     @Test("退出跟唱：清 AB/单句循环，速度恢复 1.0 并应用到引擎")

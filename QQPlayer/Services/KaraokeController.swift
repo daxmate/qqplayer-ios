@@ -111,7 +111,13 @@ final class KaraokeController: ObservableObject {
     /// 循环切换档位（0.5 → 0.6 → … → 1.0 → 0.5）
     func cycleSpeed() {
         let i = Self.speedLevels.firstIndex(of: speed) ?? 0
-        speed = Self.speedLevels[(i + 1) % Self.speedLevels.count]
+        setSpeed(Self.speedLevels[(i + 1) % Self.speedLevels.count])
+    }
+
+    /// 直接设置速度档位（倍速点选菜单，用户 2026-08-29 拍板）
+    func setSpeed(_ level: Double) {
+        guard Self.speedLevels.contains(level) else { return }
+        speed = level
         applySpeedToEngine()
     }
 
@@ -158,6 +164,18 @@ final class KaraokeController: ObservableObject {
             return
         }
         jumpTo(line: index, play: true)
+    }
+
+    /// 上一句 / 下一句（跟唱控制条，用户 2026-08-29 拍板）：跳到当前行 ±1 句首播放。
+    /// 当前行取缓存行；无缓存时按播放时间定位。边界（首句上/末句下）不动作。
+    func stepLine(delta: Int, currentTime: TimeInterval) {
+        guard isKaraokeOn, !currentLines.isEmpty else { return }
+        let current = karaokeLine ?? LyricTiming.activeLineIndex(time: currentTime, in: currentLines)
+        guard let current else { return }
+        let target = current + delta
+        guard currentLines.indices.contains(target),
+              currentLines[target].timestamp != nil else { return }
+        jumpTo(line: target, play: true)
     }
 
     /// 等选终点：点击句设为 B（终点在起点前自动交换；点起点本身忽略）

@@ -15,6 +15,7 @@ import SwiftUI
 struct KaraokeControlBar: View {
     @ObservedObject private var karaoke = KaraokeController.shared
     @ObservedObject private var progress = PlayerEngine.shared.progress
+    @ObservedObject private var playerEngine = PlayerEngine.shared
     let accentColor: Color
 
     /// 当前句 index（长按 AB 取 A 点）；还没到第一句时为 nil
@@ -33,7 +34,7 @@ struct KaraokeControlBar: View {
     }
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             if isWaitingABEnd {
                 Text("点歌词设置 AB 终点")
                     .font(.caption2.weight(.medium))
@@ -41,6 +42,13 @@ struct KaraokeControlBar: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 5)
                     .background(Capsule().fill(.ultraThinMaterial))
+            }
+
+            // 播放控制三键：上一句 / 播放暂停 / 下一句（歌词行级，用户 2026-08-29 拍板）
+            HStack(spacing: 26) {
+                prevLineButton
+                playPauseButton
+                nextLineButton
             }
 
             HStack(spacing: 10) {
@@ -52,17 +60,71 @@ struct KaraokeControlBar: View {
         .padding(.vertical, 6)
     }
 
+    // MARK: - 播放控制（上一句 / 播放暂停 / 下一句）
+
+    private var prevLineButton: some View {
+        Button {
+            KaraokeController.shared.stepLine(delta: -1, currentTime: progress.playbackTime)
+        } label: {
+            Image(systemName: "chevron.up")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(.primary.opacity(0.85))
+                .frame(width: 42, height: 42)
+                .background(Circle().fill(.ultraThinMaterial))
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel("上一句")
+    }
+
+    private var playPauseButton: some View {
+        Button {
+            if playerEngine.isPlaying {
+                playerEngine.pause()
+            } else {
+                playerEngine.play()
+            }
+        } label: {
+            Image(systemName: playerEngine.isPlaying ? "pause.fill" : "play.fill")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundColor(accentColor)
+                .frame(width: 54, height: 54)
+                .background(Circle().fill(.ultraThinMaterial))
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel(playerEngine.isPlaying ? "暂停" : "播放")
+    }
+
+    private var nextLineButton: some View {
+        Button {
+            KaraokeController.shared.stepLine(delta: 1, currentTime: progress.playbackTime)
+        } label: {
+            Image(systemName: "chevron.down")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(.primary.opacity(0.85))
+                .frame(width: 42, height: 42)
+                .background(Circle().fill(.ultraThinMaterial))
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel("下一句")
+    }
+
     // MARK: - 倍速
 
+    /// 倍速：点击弹出速度菜单（除当前档位外的其他速度点选，用户 2026-08-29 拍板）
     private var speedButton: some View {
-        Button {
-            karaoke.cycleSpeed()
+        Menu {
+            ForEach(KaraokeController.speedLevels.filter { $0 != karaoke.speed }, id: \.self) { level in
+                Button {
+                    karaoke.setSpeed(level)
+                } label: {
+                    Text(String(format: "%.1fx", level))
+                }
+            }
         } label: {
             pill(isHighlighted: karaoke.speed != 1.0) {
                 Text(String(format: "%.1fx", karaoke.speed))
             }
         }
-        .buttonStyle(PlainButtonStyle())
         .accessibilityLabel("倍速 \(String(format: "%.1f", karaoke.speed))")
     }
 
