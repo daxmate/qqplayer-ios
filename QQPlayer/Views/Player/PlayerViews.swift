@@ -817,12 +817,17 @@ struct PlayerView: View {
     private func loadLyrics() {
         guard let currentTrack = playerEngine.currentTrack else { return }
 
+        // 捕获发起时的歌曲身份：切歌后旧请求完成必须丢弃（网易云歌词耗时 2-10s，
+        // 期间切歌会让旧结果覆盖新歌歌词，跟唱行号也随之错乱），与 loadCurrentArtwork 同款防护
+        let trackId = currentTrack.stableId
         isLoadingLyrics = true
 
         Task {
             let lyrics = await LyricsManager.shared.getLyrics(for: currentTrack)
 
             await MainActor.run {
+                // 切歌后当前歌曲已变，丢弃旧请求结果，不写任何状态（isLoadingLyrics 由新任务接管）
+                guard playerEngine.currentTrack?.stableId == trackId else { return }
                 currentLyrics = lyrics
                 // 跟唱模式歌词注入（LyricsView / 控制条共用 PlayerView 的 currentLyrics 数据源）
                 KaraokeController.shared.setLyrics(lyrics?.syncedLyrics ?? [])
