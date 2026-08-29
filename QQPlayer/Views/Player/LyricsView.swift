@@ -45,16 +45,6 @@ struct LyricsView: View {
                 }
             }
             .ignoresSafeArea() // 内容容器与背景同尺寸铺满全屏（顶部不再留 safe area 空白）
-            // 页面级双击：跟唱模式开关（对齐桌面双击歌词 toggle）。
-            // highPriorityGesture：双击优先于行单击识别——快速双击行 = 切换模式且不触发行跳转；
-            // 单击（等双击窗口判定失败后）落到行的单击 = 跳转。控制条是 ZStack 上层兄弟节点，
-            // 触摸不经过本容器，按钮单击不受影响。
-            .highPriorityGesture(
-                TapGesture(count: 2)
-                    .onEnded {
-                        KaraokeController.shared.toggleKaraokeMode()
-                    }
-            )
 
             // 跟唱模式：底部控制条（非跟唱隐藏）
             if karaoke.isKaraokeOn {
@@ -94,6 +84,15 @@ struct LyricsView: View {
                 }
         )
         .animation(.easeInOut(duration: 0.2), value: karaoke.isKaraokeOn)
+        // 页面级双击：跟唱模式开关（挂在最外层 ZStack，全屏任意位置双击都触发）。
+        // highPriorityGesture：优先于行单击识别——快速双击行 = 切换模式且不触发行跳转；
+        // 单击（等双击窗口判定失败后）落到行的单击 = 跳转。控制条 Button 的触摸不经过本容器，不受影响。
+        .highPriorityGesture(
+            TapGesture(count: 2)
+                .onEnded {
+                    KaraokeController.shared.toggleKaraokeMode()
+                }
+        )
     }
 
     // MARK: - Synced Lyrics
@@ -215,9 +214,11 @@ struct LyricsView: View {
             ),
             value: isActive
         )
-        // 跟唱模式：单击行 = 跳转 / 等选终点 = 设 B（决策在 KaraokeController.clickLine）
+        // 跟唱模式：单击行 = 跳转 / 等选终点 = 设 B（决策在 KaraokeController.clickLine）。
+        // 仅在跟唱模式挂载：非跟唱时行不响应点击，页面双击手势无竞争（双击更可靠）
         .contentShape(Rectangle())
         .onTapGesture {
+            guard karaoke.isKaraokeOn else { return }
             KaraokeController.shared.clickLine(index: index)
         }
         // 加分项：AB 激活时端点行加 accentColor 小圆点（桌面 AB 区间高亮的 iOS 简化）
@@ -673,6 +674,8 @@ struct LyricsView: View {
     }
 
     private func updateActiveLineAndScroll(for lines: [LyricsLine], in proxy: ScrollViewProxy) {
+        // AB 等选终点（b == nil）：关闭自动滚动，让用户手动滚动找 B 句（用户拍板 2026-08-29）
+        if karaoke.isKaraokeOn, let ab = karaoke.abLoop, ab.b == nil { return }
         for (index, line) in lines.enumerated() where isLineActive(line, at: index, in: lines) {
             withAnimation(
                 .interpolatingSpring(
