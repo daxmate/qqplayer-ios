@@ -114,3 +114,49 @@ struct PlayerDismissGestureTests {
         #expect(PlayerDismissGesture.shouldDismissPlayer(pullOffset: 0, predictedHeight: -100) == false)
     }
 }
+
+struct MiniLyricSwipeGestureTests {
+    // ---- 左滑打开全屏歌词页（阈值与历史硬编码 -60/-120 一致） ----
+
+    @Test("左滑位移超 60pt：打开歌词页")
+    func openLyricsSheetLargeSwipe() {
+        #expect(MiniLyricSwipeGesture.shouldOpenLyricsSheet(translation: -61, predictedTranslation: 0) == true)
+        #expect(MiniLyricSwipeGesture.shouldOpenLyricsSheet(translation: -300, predictedTranslation: -50) == true)
+    }
+
+    @Test("左滑快速回甩（预测 < -120pt）：打开歌词页")
+    func openLyricsSheetFlick() {
+        #expect(MiniLyricSwipeGesture.shouldOpenLyricsSheet(translation: -20, predictedTranslation: -121) == true)
+        #expect(MiniLyricSwipeGesture.shouldOpenLyricsSheet(translation: -59, predictedTranslation: -200) == true)
+    }
+
+    @Test("左滑未达阈值且非快速回甩：不打开")
+    func openLyricsSheetSmallSwipe() {
+        #expect(MiniLyricSwipeGesture.shouldOpenLyricsSheet(translation: -59, predictedTranslation: -100) == false)
+        #expect(MiniLyricSwipeGesture.shouldOpenLyricsSheet(translation: -30, predictedTranslation: -119) == false)
+        // 右滑（正位移）不触发
+        #expect(MiniLyricSwipeGesture.shouldOpenLyricsSheet(translation: 100, predictedTranslation: 200) == false)
+    }
+
+    // ---- 右滑打开歌词搜索页（与左滑阈值对称） ----
+
+    @Test("右滑位移超 60pt：打开搜索页")
+    func openLyricsSearchLargeSwipe() {
+        #expect(MiniLyricSwipeGesture.shouldOpenLyricsSearch(translation: 61, predictedTranslation: 0) == true)
+        #expect(MiniLyricSwipeGesture.shouldOpenLyricsSearch(translation: 300, predictedTranslation: 50) == true)
+    }
+
+    @Test("右滑快速回甩（预测 > 120pt）：打开搜索页")
+    func openLyricsSearchFlick() {
+        #expect(MiniLyricSwipeGesture.shouldOpenLyricsSearch(translation: 20, predictedTranslation: 121) == true)
+        #expect(MiniLyricSwipeGesture.shouldOpenLyricsSearch(translation: 59, predictedTranslation: 200) == true)
+    }
+
+    @Test("右滑未达阈值且非快速回甩：不打开")
+    func openLyricsSearchSmallSwipe() {
+        #expect(MiniLyricSwipeGesture.shouldOpenLyricsSearch(translation: 59, predictedTranslation: 100) == false)
+        #expect(MiniLyricSwipeGesture.shouldOpenLyricsSearch(translation: 30, predictedTranslation: 119) == false)
+        // 左滑（负位移）不触发
+        #expect(MiniLyricSwipeGesture.shouldOpenLyricsSearch(translation: -100, predictedTranslation: -200) == false)
+    }
+}

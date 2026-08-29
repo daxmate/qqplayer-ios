@@ -23,6 +23,7 @@
 		C21A43E3C4B1AEB96EDDE12E /* ModelCodableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6713EFB0F4A28ACE3266FB2 /* ModelCodableTests.swift */; };
 		E3D3FAA3E201F1DE4FE3B65D /* NeteaseLyricsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19B7AAE18404DCD10ACFCD87 /* NeteaseLyricsTests.swift */; };
 		EE49A8EDD4423396C78DABE2 /* StableIdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6793C3A51095FE68378E031D /* StableIdTests.swift */; };
+		F1BB63FBDDBA0BCECD86FF7F /* LyricsSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BACA99F9A82CD834AFABADD /* LyricsSearchTests.swift */; };
 		FDE46537E071CEBB0C1EE7EC /* PlayerGestureLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFEBABE2EEDADE3CF1549D8A /* PlayerGestureLogicTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -99,6 +100,7 @@
 		C6713EFB0F4A28ACE3266FB2 /* ModelCodableTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ModelCodableTests.swift; sourceTree = "<group>"; };
 		EFEBABE2EEDADE3CF1549D8A /* PlayerGestureLogicTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlayerGestureLogicTests.swift; sourceTree = "<group>"; };
 		19B7AAE18404DCD10ACFCD87 /* NeteaseLyricsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NeteaseLyricsTests.swift; sourceTree = "<group>"; };
+		7BACA99F9A82CD834AFABADD /* LyricsSearchTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LyricsSearchTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -284,6 +286,7 @@
 				C6713EFB0F4A28ACE3266FB2 /* ModelCodableTests.swift */,
 				EFEBABE2EEDADE3CF1549D8A /* PlayerGestureLogicTests.swift */,
 				19B7AAE18404DCD10ACFCD87 /* NeteaseLyricsTests.swift */,
+				7BACA99F9A82CD834AFABADD /* LyricsSearchTests.swift */,
 			);
 			name = QQPlayerTests;
 			path = QQPlayerTests;
@@ -574,6 +577,7 @@
 				C21A43E3C4B1AEB96EDDE12E /* ModelCodableTests.swift in Sources */,
 				FDE46537E071CEBB0C1EE7EC /* PlayerGestureLogicTests.swift in Sources */,
 				E3D3FAA3E201F1DE4FE3B65D /* NeteaseLyricsTests.swift in Sources */,
+				F1BB63FBDDBA0BCECD86FF7F /* LyricsSearchTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

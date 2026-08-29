@@ -33,20 +33,31 @@ actor LyricsManager {
     static let shared = LyricsManager()
 
     private var cache: [String: Lyrics] = [:]
+    /// 用户手动指定歌词（搜索页选择）：stableId → Lyrics；优先级高于自动链路
+    private var manualOverrides: [String: Lyrics] = [:]
     private let baseURL = "https://lrclib.net/api"
     private let fileManager = FileManager.default
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    /// 测试注入：手动歌词存储目录（nil = 默认 Documents/lyrics-manual）
+    nonisolated(unsafe) static var manualLyricsDirectoryOverride: URL?
 
     private init() {
         Task {
             await loadCacheFromDisk()
+            await loadManualOverridesFromDisk()
         }
     }
 
     // MARK: - Public API
 
     func getLyrics(for track: Track) async -> Lyrics? {
+        // 用户手动指定歌词优先（搜索页选择，持久化；不自动更新，尊重用户选择）
+        if let manual = manualOverrides[track.stableId] {
+            print("📝 Using manually specified lyrics for: \(track.title)")
+            return manual
+        }
+
         // Check memory cache first
         if let cached = cache[track.stableId] {
             print("📝 Using cached lyrics for: \(track.title)")
@@ -97,6 +108,102 @@ actor LyricsManager {
         }
 
         print("🗑️ Lyrics cache cleared")
+    }
+
+    // MARK: - 手动指定歌词（搜索页选择）
+
+    /// 当前歌曲是否已手动指定歌词（搜索页显示"恢复自动"入口）
+    func hasManualLyrics(for track: Track) -> Bool {
+        manualOverrides[track.stableId] != nil
+    }
+
+    /// 应用搜索候选为当前歌曲歌词（手动指定 + 持久化；getLyrics 优先返回）
+    @discardableResult
+    func apply(candidate: LyricsSearchCandidate, for track: Track) -> Lyrics? {
+        let lyrics: Lyrics
+        switch candidate.source {
+        case .netease:
+            lyrics = makeLyrics(fromLRC: candidate.text, tlyric: candidate.tlyric)
+        case .lrclib:
+            lyrics = parseLyrics(candidate.text, source: .lrclib)
+        }
+        setManualLyrics(lyrics, for: track)
+        return lyrics
+    }
+
+    /// 手动指定歌词（内存 + 磁盘持久化；同时写入内存缓存，getLyrics 直接命中）
+    func setManualLyrics(_ lyrics: Lyrics, for track: Track) {
+        manualOverrides[track.stableId] = lyrics
+        cache[track.stableId] = lyrics
+        Task {
+            await saveManualLyricsToDisk(lyrics: lyrics, trackId: track.stableId)
+        }
+        print("📝 Manual lyrics saved for: \(track.title) (\(lyrics.source.rawValue))")
+    }
+
+    /// 清除手动指定歌词，恢复自动获取
+    func clearManualLyrics(for track: Track) {
+        manualOverrides[track.stableId] = nil
+        cache[track.stableId] = nil
+        Task {
+            await removeManualLyricsFromDisk(trackId: track.stableId)
+        }
+        print("📝 Manual lyrics cleared for: \(track.title)")
+    }
+
+    // MARK: - 手动歌词磁盘存储（Documents/lyrics-manual/{stableId}.json，与自动缓存目录分离）
+
+    private func getManualLyricsDirectory() -> URL? {
+        if let override = Self.manualLyricsDirectoryOverride {
+            return override
+        }
+        guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let dir = documentsURL.appendingPathComponent("lyrics-manual", isDirectory: true)
+        if !fileManager.fileExists(atPath: dir.path) {
+            try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
+        return dir
+    }
+
+    private func getManualLyricsFileURL(trackId: String) -> URL? {
+        guard let dir = getManualLyricsDirectory() else { return nil }
+        return dir.appendingPathComponent("\(trackId).json")
+    }
+
+    private func saveManualLyricsToDisk(lyrics: Lyrics, trackId: String) async {
+        guard let fileURL = getManualLyricsFileURL(trackId: trackId) else {
+            print("❌ Failed to get manual lyrics file URL")
+            return
+        }
+        do {
+            let data = try encoder.encode(lyrics)
+            try data.write(to: fileURL, options: .atomic)
+        } catch {
+            print("❌ Failed to save manual lyrics to disk: \(error)")
+        }
+    }
+
+    private func removeManualLyricsFromDisk(trackId: String) async {
+        guard let fileURL = getManualLyricsFileURL(trackId: trackId) else { return }
+        try? fileManager.removeItem(at: fileURL)
+    }
+
+    private func loadManualOverridesFromDisk() async {
+        guard let dir = getManualLyricsDirectory() else { return }
+        guard let files = try? fileManager.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else {
+            return
+        }
+        for fileURL in files where fileURL.pathExtension == "json" {
+            let trackId = fileURL.deletingPathExtension().lastPathComponent
+            guard let data = try? Data(contentsOf: fileURL),
+                  let lyrics = try? decoder.decode(Lyrics.self, from: data) else {
+                continue
+            }
+            manualOverrides[trackId] = lyrics
+            cache[trackId] = lyrics
+        }
     }
 
     // MARK: - Embedded Lyrics

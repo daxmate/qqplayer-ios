@@ -39,3 +39,17 @@ enum PlayerDismissGesture {
         pullOffset >= 100 || (pullOffset >= 40 && predictedHeight > 300)
     }
 }
+
+/// 小歌词窗口的横向滑动手势判定（左滑开全屏歌词页 / 右滑开歌词搜索页）
+/// 阈值对称：位移 ±60pt，或快速回甩预测位移 ±120pt（与历史硬编码 -60/-120 一致）
+enum MiniLyricSwipeGesture {
+    /// 左滑打开全屏歌词页（从右侧滑入）
+    static func shouldOpenLyricsSheet(translation: CGFloat, predictedTranslation: CGFloat) -> Bool {
+        translation < -60 || predictedTranslation < -120
+    }
+
+    /// 右滑打开歌词搜索页（从左侧滑入）
+    static func shouldOpenLyricsSearch(translation: CGFloat, predictedTranslation: CGFloat) -> Bool {
+        translation > 60 || predictedTranslation > 120
+    }
+}

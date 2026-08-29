@@ -103,6 +103,7 @@ struct PlayerView: View {
     @State private var showPlaylistDialog = false
     @State private var showQueueSheet = false
     @State private var showLyricsSheet = false
+    @State private var showLyricsSearch = false
     @State private var currentLyrics: Lyrics?
     @State private var isLoadingLyrics = false
     @State private var settings = DeleteSettings.load()
@@ -129,6 +130,35 @@ struct PlayerView: View {
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing),
                     removal: .move(edge: .trailing)
+                ))
+                .zIndex(10)
+            }
+
+            // 歌词搜索页：小歌词窗口右滑从左侧滑入（与歌词页右侧滑入对称）
+            if showLyricsSearch, let currentTrack = playerEngine.currentTrack {
+                LyricsSearchView(
+                    track: currentTrack,
+                    accentColor: settings.backgroundColorChoice.color,
+                    onClose: {
+                        withAnimation(.easeOut(duration: 0.26)) {
+                            showLyricsSearch = false
+                        }
+                    },
+                    onApply: { lyrics in
+                        withAnimation(.easeOut(duration: 0.26)) {
+                            showLyricsSearch = false
+                        }
+                        if let lyrics {
+                            currentLyrics = lyrics
+                        } else {
+                            // 恢复自动：重新走自动链路加载
+                            loadLyrics()
+                        }
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .leading),
+                    removal: .move(edge: .leading)
                 ))
                 .zIndex(10)
             }
@@ -592,15 +622,23 @@ struct PlayerView: View {
             }
         )
         .padding(.horizontal, 8)
-        // 左滑 → 全屏歌词页（从右侧滑入）
+        // 小歌词窗口：点击/左滑进全屏歌词页，右滑开歌词搜索页（从左滑入）
         .gesture(
             DragGesture(minimumDistance: 12)
                 .onEnded { value in
-                    if value.translation.width < -60 || value.predictedEndTranslation.width < -120 {
+                    if MiniLyricSwipeGesture.shouldOpenLyricsSheet(
+                        translation: value.translation.width,
+                        predictedTranslation: value.predictedEndTranslation.width
+                    ) {
                         showLyricsSheet = true
                         if currentLyrics == nil && !isLoadingLyrics {
                             loadLyrics()
                         }
+                    } else if MiniLyricSwipeGesture.shouldOpenLyricsSearch(
+                        translation: value.translation.width,
+                        predictedTranslation: value.predictedEndTranslation.width
+                    ) {
+                        showLyricsSearch = true
                     }
                 }
         )
