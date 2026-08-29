@@ -32,6 +32,13 @@ class DatabaseManager: @unchecked Sendable {
         setupDatabaseWithRetry()
     }
 
+    /// Test seam: point the manager at an injected (in-memory) writer so
+    /// deleteTrack / upsert / migration paths are unit-testable without
+    /// touching the app-group database. Production always uses the private init.
+    init(dbWriter: DatabaseWriter) {
+        self.dbWriter = dbWriter
+    }
+
     private func setupDatabaseWithRetry() {
         var lastError: Error?
 
@@ -152,7 +159,9 @@ class DatabaseManager: @unchecked Sendable {
         }
     }
 
-    private func createTables() throws {
+    /// Creates the full production schema. Internal so tests can build an
+    /// in-memory database via the `init(dbWriter:)` seam.
+    func createTables() throws {
         try dbWriter.write { db in
             try db.execute(sql: """
                 CREATE TABLE IF NOT EXISTS artist (
@@ -465,6 +474,13 @@ class DatabaseManager: @unchecked Sendable {
                         try db.execute(sql: "DELETE FROM favorite WHERE track_stable_id = ?", arguments: [duplicate.stableId])
                         try db.execute(sql: "DELETE FROM playlist_item WHERE track_stable_id = ?", arguments: [duplicate.stableId])
                         try db.execute(sql: "DELETE FROM track_artist WHERE track_stable_id = ?", arguments: [duplicate.stableId])
+                        // Duplicate rows are the SAME physical file, so their play
+                        // history records real plays of the kept song - migrate it
+                        // to the kept stable ID instead of dropping it (P0-3)
+                        try db.execute(
+                            sql: "UPDATE play_history SET track_stable_id = ? WHERE track_stable_id = ?",
+                            arguments: [keep.stableId, duplicate.stableId]
+                        )
                         try Track.filter(Column("id") == duplicate.id).deleteAll(db)
                     }
 
@@ -507,6 +523,13 @@ class DatabaseManager: @unchecked Sendable {
                         arguments: [newStableId, track.stableId]
                     )
                     try db.execute(sql: "DELETE FROM track_artist WHERE track_stable_id = ?", arguments: [track.stableId])
+
+                    // Play history follows the song to its new path-based ID
+                    // instead of being orphaned (P0-3)
+                    try db.execute(
+                        sql: "UPDATE play_history SET track_stable_id = ? WHERE track_stable_id = ?",
+                        arguments: [newStableId, track.stableId]
+                    )
 
                     stableIdRemapping[track.stableId] = newStableId
                     updatedCount += 1
@@ -614,6 +637,11 @@ class DatabaseManager: @unchecked Sendable {
                         arguments: [trackToSave.stableId, duplicate.stableId]
                     )
                     try db.execute(sql: "DELETE FROM track_artist WHERE track_stable_id = ?", arguments: [duplicate.stableId])
+                    // Same path = same song: play history follows the saved row (P0-3)
+                    try db.execute(
+                        sql: "UPDATE play_history SET track_stable_id = ? WHERE track_stable_id = ?",
+                        arguments: [trackToSave.stableId, duplicate.stableId]
+                    )
                     // Delete the duplicate
                     try Track.filter(Column("id") == duplicate.id).deleteAll(db)
                     print("🗑️ Removed duplicate track with old stable_id: \(duplicate.stableId)")
@@ -642,6 +670,14 @@ class DatabaseManager: @unchecked Sendable {
         try db.execute(sql: "DELETE FROM favorite WHERE track_stable_id = ?", arguments: [oldStableId])
         try db.execute(sql: "DELETE FROM playlist_item WHERE track_stable_id = ?", arguments: [oldStableId])
         try db.execute(sql: "DELETE FROM track_artist WHERE track_stable_id = ?", arguments: [oldStableId])
+
+        // play_history has no UNIQUE constraint on track_stable_id, so the
+        // UPDATE migrates every row and no leftover DELETE is needed: history
+        // follows the song through the merge (P0-3)
+        try db.execute(
+            sql: "UPDATE play_history SET track_stable_id = ? WHERE track_stable_id = ?",
+            arguments: [newStableId, oldStableId]
+        )
     }
 
     private func normalizedDuplicateTitle(_ title: String) -> String {
@@ -1545,6 +1581,11 @@ class DatabaseManager: @unchecked Sendable {
             // so these do NOT cascade. Leaving them kept deleted tracks'
             // artists alive forever (issue #74)
             try db.execute(sql: "DELETE FROM track_artist WHERE track_stable_id = ?", arguments: [stableId])
+
+            // Remove play history for the deleted track - play_history has no
+            // FK to track, so rows for deleted tracks would otherwise pile up
+            // forever and resurrect on stable-ID reuse (P0-3)
+            try db.execute(sql: "DELETE FROM play_history WHERE track_stable_id = ?", arguments: [stableId])
 
             // Delete the track
             return try Track.filter(Column("stable_id") == stableId).deleteAll(db)
