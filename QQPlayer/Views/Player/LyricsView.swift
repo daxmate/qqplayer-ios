@@ -18,8 +18,12 @@ struct LyricsView: View {
 
     var body: some View {
         ZStack {
-            // 背景与播放页一致（主题背景纹理）
-            ScreenSpecificBackgroundView(screen: .player)
+            // 不透明底色：不透出下层播放页封面（否则歌词字被图片干扰）
+            Color(uiColor: .systemBackground)
+                .ignoresSafeArea()
+
+            // 媒体库同款背景光晕（跟随设置主题色变化）
+            ScreenSpecificBackgroundView(screen: .library)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
@@ -135,13 +139,13 @@ struct LyricsView: View {
                     }
                     .disabled(true)  // Disable user scrolling - auto-scroll only
 
-                    // Fade gradients at top and bottom（用主题背景色，与播放页背景同源）
+                    // Fade gradients at top and bottom（贴近系统底色，歌词边缘柔和融入背景）
                     VStack(spacing: 0) {
                         LinearGradient(
                             gradient: Gradient(colors: [
-                                settings.backgroundColorChoice.color.opacity(0.95),
-                                settings.backgroundColorChoice.color.opacity(0.7),
-                                settings.backgroundColorChoice.color.opacity(0.3),
+                                Color(uiColor: .systemBackground).opacity(0.95),
+                                Color(uiColor: .systemBackground).opacity(0.7),
+                                Color(uiColor: .systemBackground).opacity(0.3),
                                 Color.clear,
                             ]),
                             startPoint: .top,
@@ -154,9 +158,9 @@ struct LyricsView: View {
                         LinearGradient(
                             gradient: Gradient(colors: [
                                 Color.clear,
-                                settings.backgroundColorChoice.color.opacity(0.3),
-                                settings.backgroundColorChoice.color.opacity(0.7),
-                                settings.backgroundColorChoice.color.opacity(0.95),
+                                Color(uiColor: .systemBackground).opacity(0.3),
+                                Color(uiColor: .systemBackground).opacity(0.7),
+                                Color(uiColor: .systemBackground).opacity(0.95),
                             ]),
                             startPoint: .top,
                             endPoint: .bottom
