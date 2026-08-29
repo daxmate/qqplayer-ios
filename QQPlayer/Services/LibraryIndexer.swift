@@ -398,12 +398,23 @@ class LibraryIndexer: NSObject, ObservableObject {
     }
 
     private func processQueryResults() async {
+        // Capture the generation this run belongs to. stop() bumps it, so a
+        // scan superseded by switchToOfflineMode() (or another stop) must not
+        // touch shared state afterwards - in particular it must not flip
+        // isIndexing back to false and hide the offline scan.
+        let generation = indexingGeneration
+        guard generation == indexingGeneration else { return }
+
         metadataQuery.disableUpdates()
         defer { metadataQuery.enableUpdates() }
 
         let itemCount = metadataQuery.resultCount
 
         if itemCount == 0 {
+            // Only the current scan may start the fallback; a query stopped by
+            // switchToOfflineMode() must not run a full direct scan alongside
+            // the offline scan.
+            guard generation == indexingGeneration else { return }
             print("NSMetadataQuery found 0 results, falling back to direct file system scan")
             await fallbackToDirectScan()
             return
@@ -412,6 +423,9 @@ class LibraryIndexer: NSObject, ObservableObject {
         var processedCount = 0
 
         for i in 0 ..< itemCount {
+            // Bail out of a superseded scan instead of letting it run to
+            // completion: the new scan owns isIndexing from here on.
+            guard generation == indexingGeneration else { return }
             guard let item = metadataQuery.result(at: i) as? NSMetadataItem else { continue }
 
             await processMetadataItem(item)
@@ -427,7 +441,8 @@ class LibraryIndexer: NSObject, ObservableObject {
 
         // The query completed successfully, so it is safe to reconcile only
         // the iCloud root it actually scanned. Never infer deletion from a
-        // failed or unavailable root.
+        // failed or unavailable root. Only a current scan may finalize.
+        guard generation == indexingGeneration else { return }
         if AppCoordinator.shared.iCloudStatus == .available,
            let musicFolderURL = stateManager.getMusicFolderURL() {
             await FileCleanupManager.shared.reconcileMissingFiles(in: [musicFolderURL])
@@ -439,6 +454,11 @@ class LibraryIndexer: NSObject, ObservableObject {
     }
 
     private func fallbackToDirectScan() async {
+        // Same generation guard as processQueryResults(): if this scan was
+        // superseded while it was being dispatched, do nothing.
+        let generation = indexingGeneration
+        guard generation == indexingGeneration else { return }
+
         print("🔄 Starting fallback direct scan of both iCloud and local folders")
 
         var allMusicFiles: [URL] = []
@@ -481,6 +501,9 @@ class LibraryIndexer: NSObject, ObservableObject {
         print("📁 Total music files found (iCloud + local): \(totalFiles)")
 
         guard totalFiles > 0 else {
+            // Only a current scan may finalize; a superseded one must not
+            // touch isIndexing or schedule a library refresh.
+            guard generation == indexingGeneration else { return }
             // An empty, successfully enumerated root is meaningful: all of
             // its former tracks may have been deleted.
             await FileCleanupManager.shared.reconcileMissingFiles(in: successfullyScannedRoots)
@@ -490,7 +513,9 @@ class LibraryIndexer: NSObject, ObservableObject {
             return
         }
 
-        // Set initial queue
+        // Set initial queue. Guard again so a superseded scan does not
+        // overwrite the queue a newer scan is showing.
+        guard generation == indexingGeneration else { return }
         await MainActor.run {
             queuedFiles = allMusicFiles.map { $0.lastPathComponent }
             currentlyProcessing = ""
@@ -517,6 +542,11 @@ class LibraryIndexer: NSObject, ObservableObject {
             while await group.next() != nil {
                 completedCount += 1
 
+                // Stop feeding a superseded scan; remaining in-flight files
+                // drain harmlessly and the finalization guard below skips all
+                // state changes.
+                guard generation == indexingGeneration else { return }
+
                 // Throttle @Published updates: rebuilding the 2000-element
                 // queuedFiles array per file made SwiftUI re-diff the whole list
                 // for every import - a major cause of freezes on large libraries
@@ -540,6 +570,10 @@ class LibraryIndexer: NSObject, ObservableObject {
             queuedFiles = []
         }
 
+        // Only a current scan may finalize: a stale one must not set
+        // isIndexing = false over an offline scan nor reconcile files it no
+        // longer owns.
+        guard generation == indexingGeneration else { return }
         await FileCleanupManager.shared.reconcileMissingFiles(in: successfullyScannedRoots)
         postPendingLibraryRefresh()
 
