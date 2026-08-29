@@ -868,6 +868,15 @@ class PlayerEngine: NSObject, ObservableObject {
 
     // MARK: - Playback Control
 
+    /// 当前倍速（KaraokeController 驱动；接入 AVAudioUnitTimePitch 由跟唱任务实现）
+    private var currentPlaybackRate: Double = 1.0
+
+    /// 设置播放倍速（0.5-1.0 慢速档；跟唱模式专用）。
+    /// 主引擎路径：AVAudioUnitTimePitch.rate（变速不变调）；SFBAudioEngine 路径暂不支持。
+    func setPlaybackRate(_ rate: Double) {
+        currentPlaybackRate = rate
+    }
+
     @discardableResult
     func loadTrack(_ track: Track, preservePlaybackTime: Bool = false) async -> Bool {
         // A song chosen on the phone or CarPlay supersedes any delayed route
