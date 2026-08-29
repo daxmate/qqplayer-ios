@@ -27,43 +27,6 @@ struct LyricsView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Glass header with blur（仅标题；回退按钮已移除——右滑手势可关闭）
-                HStack(spacing: 16) {
-                    Text("Lyrics")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.primary)
-
-                    Spacer()
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 20)
-                .background(
-                    ZStack {
-                        // Glass effect
-                        Rectangle()
-                            .fill(.ultraThinMaterial)
-
-                        // Bottom border highlight
-                        VStack {
-                            Spacer()
-                            Rectangle()
-                                .fill(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [
-                                            Color.primary.opacity(0.12),
-                                            Color.clear,
-                                            Color.primary.opacity(0.12),
-                                        ]),
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .frame(height: 0.5)
-                        }
-                    }
-                )
-
                 if isLoading {
                     loadingView
                 } else if let lyrics = lyrics {
