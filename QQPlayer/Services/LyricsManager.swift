@@ -11,6 +11,8 @@ import Foundation
 struct LyricsLine: Equatable, Codable {
     let timestamp: TimeInterval?
     let text: String
+    /// 中文翻译（网易云 tlyric 按时间戳合并，桌面版 text = [原文, 罗马音, 翻译] 的 iOS 等价物）
+    var translation: String?
 }
 
 struct Lyrics: Codable {
@@ -21,6 +23,7 @@ struct Lyrics: Codable {
 
     enum LyricsSource: String, Codable {
         case embedded
+        case netease
         case lrclib
         case none
     }
@@ -63,6 +66,14 @@ actor LyricsManager {
             cache[track.stableId] = embedded
             await saveLyricsToDisk(lyrics: embedded, trackId: track.stableId)
             return embedded
+        }
+
+        // Fallback to netease (original + Chinese translation)
+        if let fetched = await fetchFromNetease(for: track) {
+            print("📝 Fetched lyrics from Netease for: \(track.title)")
+            cache[track.stableId] = fetched
+            await saveLyricsToDisk(lyrics: fetched, trackId: track.stableId)
+            return fetched
         }
 
         // Fallback to lrclib.net
@@ -539,6 +550,71 @@ actor LyricsManager {
             UInt32(data[offset + 3])
     }
 
+    // MARK: - Netease API
+
+    private func fetchFromNetease(for track: Track) async -> Lyrics? {
+        guard let artistName = try? getArtistName(for: track),
+              !track.title.isEmpty else {
+            print("⚠️ Missing metadata for Netease lookup")
+            return nil
+        }
+
+        let provider = NeteaseLyricsProvider.shared
+
+        do {
+            // 搜索候选，选最匹配的歌曲（桌面版逻辑：标题精确匹配 + 歌手包含；否则取第一个候选）
+            let query = "\(track.title) \(artistName)".trimmingCharacters(in: .whitespaces)
+            let candidates = try await provider.search(query: query, limit: 8)
+            guard !candidates.isEmpty else { return nil }
+
+            let best = candidates.first(where: { candidate in
+                candidate.title == track.title
+                    && (artistName.isEmpty || candidate.artist.contains(artistName))
+            }) ?? candidates[0]
+
+            guard let result = try await provider.getLyric(songID: best.id) else {
+                print("⚠️ Netease returned no lyrics for: \(track.title)")
+                return nil
+            }
+
+            return makeLyrics(fromLRC: result.lrc, tlyric: result.tlyric)
+        } catch {
+            print("❌ Failed to fetch from Netease: \(error)")
+            return nil
+        }
+    }
+
+    /// LRC 文本 + 可选翻译 → Lyrics；翻译按时间戳（容差 0.6s）合并进对应行
+    func makeLyrics(fromLRC lrcText: String, tlyric: String?) -> Lyrics {
+        let base = parseLyrics(lrcText, source: .netease)
+        guard var synced = base.syncedLyrics.isEmpty ? nil : base.syncedLyrics,
+              let tlyric, !tlyric.isEmpty else {
+            return base
+        }
+
+        let translationLines = parseSyncedLyrics(tlyric)
+        guard !translationLines.isEmpty else { return base }
+
+        for i in synced.indices {
+            guard let ts = synced[i].timestamp else { continue }
+            // 找时间戳最接近的翻译行（容差 0.6s，与桌面版 merge_translation 一致）
+            let match = translationLines.first { tLine in
+                guard let t = tLine.timestamp else { return false }
+                return abs(t - ts) <= 0.6
+            }
+            if let match {
+                synced[i].translation = match.text
+            }
+        }
+
+        return Lyrics(
+            plainLyrics: base.plainLyrics,
+            syncedLyrics: synced,
+            isInstrumental: base.isInstrumental,
+            source: .netease
+        )
+    }
+
     // MARK: - LRCLIB API
 
     private func fetchFromLRCLib(for track: Track) async -> Lyrics? {
@@ -723,7 +799,7 @@ actor LyricsManager {
         }
     }
 
-    private func parseSyncedLyrics(_ lrcText: String) -> [LyricsLine] {
+    func parseSyncedLyrics(_ lrcText: String) -> [LyricsLine] {
         var lines: [LyricsLine] = []
         let pattern = #"\[(\d{1,3}):(\d{2})(?:\.(\d{1,3}))?\]\s*(.*)"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else {

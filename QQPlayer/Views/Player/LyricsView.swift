@@ -178,7 +178,7 @@ struct LyricsView: View {
                                 let distance = distanceFromActive(index: index, lines: lines)
 
                                 lyricLineView(
-                                    text: line.text,
+                                    line: line,
                                     isActive: isActive,
                                     distance: distance,
                                     index: index
@@ -239,35 +239,68 @@ struct LyricsView: View {
         return 99
     }
 
-    private func lyricLineView(text: String, isActive: Bool, distance: Int, index: Int) -> some View {
-        Text(text)
-            .font(fontForLine(isActive: isActive, distance: distance))
-            .fontWeight(isActive ? .bold : .semibold)
-            .lineLimit(3)
-            .fixedSize(horizontal: false, vertical: true)
-            .foregroundColor(lineColor(distance: distance, isActive: isActive))
-            .multilineTextAlignment(.center)
-            .shadow(
-                color: isActive ? settings.backgroundColorChoice.color.opacity(0.5) : .clear,
-                radius: isActive ? 20 : 0,
-                x: 0,
-                y: 0
-            )
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 32)
-            .padding(.vertical, isActive ? 24 : 16)
-            .id(index)
-            .scaleEffect(isActive ? 1.02 : (distance <= 1 ? 0.97 : 0.94), anchor: .center)
-            .opacity(lineOpacity(distance: distance, isActive: isActive))
-            .animation(
-                .interpolatingSpring(
-                    mass: 0.5,
-                    stiffness: 200,
-                    damping: 20,
-                    initialVelocity: 0
-                ),
-                value: isActive
-            )
+    private func lyricLineView(line: LyricsLine, isActive: Bool, distance: Int, index: Int) -> some View {
+        VStack(spacing: 4) {
+            Text(line.text)
+                .font(fontForLine(isActive: isActive, distance: distance))
+                .fontWeight(isActive ? .bold : .semibold)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .foregroundColor(lineColor(distance: distance, isActive: isActive))
+                .multilineTextAlignment(.center)
+                .shadow(
+                    color: isActive ? settings.backgroundColorChoice.color.opacity(0.5) : .clear,
+                    radius: isActive ? 20 : 0,
+                    x: 0,
+                    y: 0
+                )
+
+            if let translation = line.translation, !translation.isEmpty {
+                Text(translation)
+                    .font(.system(size: translationFontSize(isActive: isActive, distance: distance), weight: .regular))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .foregroundColor(translationColor(distance: distance, isActive: isActive))
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 32)
+        .padding(.vertical, isActive ? 24 : 16)
+        .id(index)
+        .scaleEffect(isActive ? 1.02 : (distance <= 1 ? 0.97 : 0.94), anchor: .center)
+        .opacity(lineOpacity(distance: distance, isActive: isActive))
+        .animation(
+            .interpolatingSpring(
+                mass: 0.5,
+                stiffness: 200,
+                damping: 20,
+                initialVelocity: 0
+            ),
+            value: isActive
+        )
+    }
+
+    private func translationFontSize(isActive: Bool, distance: Int) -> CGFloat {
+        if isActive {
+            return 16
+        } else if distance <= 1 {
+            return 14
+        } else {
+            return 13
+        }
+    }
+
+    private func translationColor(distance: Int, isActive: Bool) -> Color {
+        if isActive {
+            return settings.backgroundColorChoice.color.opacity(0.95)
+        } else if distance <= 1 {
+            return .white.opacity(0.6)
+        } else if distance <= 2 {
+            return .white.opacity(0.3)
+        } else {
+            return .white.opacity(0.12)
+        }
     }
 
     private func fontForLine(isActive: Bool, distance: Int) -> Font {
