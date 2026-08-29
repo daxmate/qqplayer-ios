@@ -351,6 +351,10 @@ struct PlayerView: View {
 
     // 封面下拉关闭播放页：跟手限幅（阈值/快速回甩判定在 PlayerDismissGesture）
     private let pullMaxOffset: CGFloat = 160
+    /// 跟手更新死区（pt）：手指按住不动时触摸事件仍有 ±1-2pt 噪声，
+    /// 直接赋值会让视图在 1-2pt 内抖动；差值小于死区不更新，噪声被吞掉。
+    /// 正常拖动每帧位移远大于死区，跟手无感。
+    private let pullDeadZone: CGFloat = 2
 
     private func artworkDragGesture(gestureWidth: CGFloat, pageDistance: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 8)
@@ -373,8 +377,12 @@ struct PlayerView: View {
                     let limit = pageDistance
                     dragOffset = max(-limit, min(limit, proposedOffset))
                 } else if value.translation.height > 0 {
-                    // 纵向下拉：关闭播放页（跟手位移，限幅；直接赋值保证每帧即时跟手）
-                    pullOffset = min(value.translation.height, pullMaxOffset)
+                    // 纵向下拉：关闭播放页（跟手位移，限幅）
+                    // 死区：触摸噪声（停住时 ±1-2pt 波动）不更新，防视图抖动
+                    let target = min(value.translation.height, pullMaxOffset)
+                    if abs(target - pullOffset) >= pullDeadZone {
+                        pullOffset = target
+                    }
                 }
             }
             .onEnded { value in
