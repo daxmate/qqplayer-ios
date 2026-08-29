@@ -27,6 +27,8 @@
 		FDE46537E071CEBB0C1EE7EC /* PlayerGestureLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFEBABE2EEDADE3CF1549D8A /* PlayerGestureLogicTests.swift */; };
 		667F37CD3A564FC66FC620E4 /* PlaybackOrderModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE00850E1369590B0BB09C7 /* PlaybackOrderModeTests.swift */; };
 		8002132EC97144E5830D01AA /* ArtistNameNormalizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8CA665B2F1644A58CD4A39B /* ArtistNameNormalizerTests.swift */; };
+		664B6BEF05384F2098030629 /* SmartPlaylistDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51C1329002F4C3E963D14AC /* SmartPlaylistDataTests.swift */; };
+		16E1BCAA737144BAA7AB627F /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 23C312EB2E7806AB00342F7C /* GRDB */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -105,6 +107,7 @@
 		19B7AAE18404DCD10ACFCD87 /* NeteaseLyricsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NeteaseLyricsTests.swift; sourceTree = "<group>"; };
 		7BACA99F9A82CD834AFABADD /* LyricsSearchTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LyricsSearchTests.swift; sourceTree = "<group>"; };
 		C8CA665B2F1644A58CD4A39B /* ArtistNameNormalizerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ArtistNameNormalizerTests.swift; sourceTree = "<group>"; };
+		B51C1329002F4C3E963D14AC /* SmartPlaylistDataTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SmartPlaylistDataTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -234,6 +237,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				16E1BCAA737144BAA7AB627F /* GRDB in Frameworks */,
 				46624DEF47FDBF724404E5E0 /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -293,6 +297,7 @@
 				19B7AAE18404DCD10ACFCD87 /* NeteaseLyricsTests.swift */,
 				7BACA99F9A82CD834AFABADD /* LyricsSearchTests.swift */,
 				C8CA665B2F1644A58CD4A39B /* ArtistNameNormalizerTests.swift */,
+				B51C1329002F4C3E963D14AC /* SmartPlaylistDataTests.swift */,
 			);
 			name = QQPlayerTests;
 			path = QQPlayerTests;
@@ -433,6 +438,9 @@
 			);
 			dependencies = (
 				70929B396E4287988D89DDD4 /* PBXTargetDependency */,
+			);
+			packageProductDependencies = (
+				23C312EB2E7806AB00342F7C /* GRDB */,
 			);
 			name = QQPlayerTests;
 			productName = QQPlayerTests;
@@ -587,6 +595,7 @@
 				E3D3FAA3E201F1DE4FE3B65D /* NeteaseLyricsTests.swift in Sources */,
 				F1BB63FBDDBA0BCECD86FF7F /* LyricsSearchTests.swift in Sources */,
 				8002132EC97144E5830D01AA /* ArtistNameNormalizerTests.swift in Sources */,
+				664B6BEF05384F2098030629 /* SmartPlaylistDataTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

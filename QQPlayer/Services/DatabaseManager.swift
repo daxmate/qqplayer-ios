@@ -295,6 +295,18 @@ class DatabaseManager: @unchecked Sendable {
             try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_eq_band_preset ON eq_band(preset_id)")
             try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_eq_band_index ON eq_band(band_index)")
 
+            // Play history (automatic playlists data source: recent/top played)
+            try db.execute(sql: """
+                CREATE TABLE IF NOT EXISTS play_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    track_stable_id TEXT NOT NULL,
+                    played_at INTEGER NOT NULL,
+                    play_duration_ms INTEGER DEFAULT 0
+                )
+            """)
+            try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_play_history_track ON play_history(track_stable_id)")
+            try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_play_history_played_at ON play_history(played_at)")
+
             // Migration: Add last_played_at column if it doesn't exist
             do {
                 try db.execute(sql: """

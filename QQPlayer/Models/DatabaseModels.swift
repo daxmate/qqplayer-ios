@@ -124,6 +124,28 @@ struct Playlist: Codable, FetchableRecord, PersistableRecord {
     }
 }
 
+// MARK: - Play History
+
+/// One play session: a song started playing and was later switched away,
+/// stopped, or finished naturally. Pauses keep the same record open; only
+/// settling (track switch / stop / track end) closes it and stores the actual
+/// listened duration.
+struct PlayHistoryEntry: Codable, FetchableRecord, PersistableRecord {
+    var id: Int64?
+    var trackStableId: String
+    var playedAt: Int64
+    var playDurationMs: Int64
+
+    static let databaseTableName = "play_history"
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case trackStableId = "track_stable_id"
+        case playedAt = "played_at"
+        case playDurationMs = "play_duration_ms"
+    }
+}
+
 struct PlaylistItem: Codable, FetchableRecord, PersistableRecord {
     var playlistId: Int64
     var position: Int

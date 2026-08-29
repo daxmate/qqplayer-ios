@@ -904,6 +904,10 @@ class PlayerEngine: NSObject, ObservableObject {
         isLoadingTrack = true
         print("🔄 Starting load process for: \(track.title)")
 
+        // Play history: settle the outgoing session before the engine is torn
+        // down, while the live position is still readable.
+        PlayHistoryRecorder.shared.playbackEnded(track: currentTrack, at: nowPlayingElapsedTime())
+
         // Stop current playback and clean up
         await cleanupCurrentPlayback(resetTime: !preservePlaybackTime)
         guard isCurrentLoad(generation) else { return false }
@@ -1185,6 +1189,7 @@ class PlayerEngine: NSObject, ObservableObject {
                 playbackState = .playing
                 startPlaybackTimer()
                 print("✅ SFBAudioEngine resumed playback")
+                PlayHistoryRecorder.shared.playbackBegan(track: currentTrack, at: nowPlayingElapsedTime())
                 updateNowPlayingInfoEnhanced()
                 updateWidgetData()
                 return
@@ -1280,6 +1285,7 @@ class PlayerEngine: NSObject, ObservableObject {
             isPlaying = true
             playbackState = .playing
             startPlaybackTimer()
+            PlayHistoryRecorder.shared.playbackBegan(track: currentTrack, at: playbackTime)
 
             // End paused state monitoring and start regular playing monitoring
             stopSilentPlaybackForPause()
@@ -1360,6 +1366,7 @@ class PlayerEngine: NSObject, ObservableObject {
         isPlaying = true
         playbackState = .playing
         startPlaybackTimer()
+        PlayHistoryRecorder.shared.playbackBegan(track: currentTrack, at: playbackTime)
 
         // Update Now Playing info with enhanced approach
         updateNowPlayingInfoEnhanced()
@@ -1383,6 +1390,7 @@ class PlayerEngine: NSObject, ObservableObject {
             stopSilentPlaybackForPause()
             endBackgroundMonitoring()
             print("✅ SFBAudioEngine paused")
+            PlayHistoryRecorder.shared.playbackPaused(track: currentTrack, at: nowPlayingElapsedTime())
             updateNowPlayingInfoEnhanced()
             updateWidgetData()
             return
@@ -1406,6 +1414,7 @@ class PlayerEngine: NSObject, ObservableObject {
         isPlaying = false
         playbackState = .paused
         stopPlaybackTimer()
+        PlayHistoryRecorder.shared.playbackPaused(track: currentTrack, at: playbackTime)
 
         print("🔄 Paused audio engine - stored position: \(playbackTime)s")
 
@@ -1435,6 +1444,9 @@ class PlayerEngine: NSObject, ObservableObject {
     }
 
     func stop() {
+        // Play history: settle any open session (stop from background uses the
+        // live render position, which the foreground timer does not refresh).
+        PlayHistoryRecorder.shared.playbackEnded(track: currentTrack, at: isPlaying ? nowPlayingElapsedTime() : playbackTime)
         cancelEngineConfigurationRecovery()
         cancelPendingCompletions()
         clearPreloadedNext()
@@ -1781,6 +1793,8 @@ class PlayerEngine: NSObject, ObservableObject {
         }
 
         currentIndex = nextIndex
+        // Play history: settle the finished track before switching.
+        PlayHistoryRecorder.shared.playbackEnded(track: currentTrack, at: playbackTime)
         currentTrack = next
         audioFile = nextFile
         duration = Double(nextFile.length) / nextFile.processingFormat.sampleRate
@@ -1789,6 +1803,8 @@ class PlayerEngine: NSObject, ObservableObject {
         playbackTime = currentTimeForCurrentNativeFile()
         playbackState = .playing
         isPlaying = true
+        // Play history: the gapless next track starts a new session.
+        PlayHistoryRecorder.shared.playbackBegan(track: next, at: 0)
 
         nextAudioFile = nil
         nextTrack = nil
