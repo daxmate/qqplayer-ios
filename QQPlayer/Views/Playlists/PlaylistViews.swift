@@ -42,34 +42,30 @@ struct PlaylistsScreen: View {
     @State private var showAIPlaylistSheet = false
     @State private var showCreatePlaylist = false
     @State private var newPlaylistName = ""
+    @State private var smartCardInfos: [SmartPlaylistCardInfo] = []
 
     var body: some View {
         ZStack {
             ScreenSpecificBackgroundView(screen: .playlists)
 
             VStack {
-                if playlists.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "music.note.list")
-                            .font(.system(size: 40))
-                            .foregroundColor(.secondary)
+                ScrollView {
+                    LazyVGrid(columns: [
+                        GridItem(.flexible(), spacing: 8),
+                        GridItem(.flexible(), spacing: 8),
+                    ], spacing: 16) {
+                        // Pinned automatic playlists — always visible (even with
+                        // an empty library), never editable.
+                        ForEach(smartCardInfos, id: \.kind) { info in
+                            NavigationLink {
+                                SmartPlaylistDetailScreen(kind: info.kind)
+                            } label: {
+                                SmartPlaylistCardView(info: info)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
 
-                        Text(Localized.noPlaylistsYet)
-                            .font(.headline)
-
-                        Text(Localized.createPlaylistsInstruction)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ScrollView {
-                        LazyVGrid(columns: [
-                            GridItem(.flexible(), spacing: 8),
-                            GridItem(.flexible(), spacing: 8),
-                        ], spacing: 16) {
+                        if !playlists.isEmpty {
                             ForEach(playlists, id: \.id) { playlist in
                                 if isEditMode {
                                     PlaylistCardView(playlist: playlist, allTracks: getAllPlaylistTracks(playlist), isEditMode: true, onEdit: {
@@ -101,7 +97,28 @@ struct PlaylistsScreen: View {
                                 .buttonStyle(PlainButtonStyle())
                             }
                         }
-                        .padding(16)
+                    }
+                    .padding(16)
+                    .padding(.bottom, 100) // Add padding for mini player
+
+                    // Empty-library hint below the pinned smart cards.
+                    if playlists.isEmpty {
+                        VStack(spacing: 16) {
+                            Image(systemName: "music.note.list")
+                                .font(.system(size: 40))
+                                .foregroundColor(.secondary)
+
+                            Text(Localized.noPlaylistsYet)
+                                .font(.headline)
+
+                            Text(Localized.createPlaylistsInstruction)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 24)
                         .padding(.bottom, 100) // Add padding for mini player
                     }
                 }
@@ -227,6 +244,11 @@ struct PlaylistsScreen: View {
             playlists = try appCoordinator.databaseManager.getAllPlaylists()
         } catch {
             print("Failed to load playlists: \(error)")
+        }
+        // Pinned smart cards: keep showing entries even if the query fails
+        // (count 0 placeholder), so the grid always has the four fixed cards.
+        smartCardInfos = (try? SmartPlaylistStore.cardInfos()) ?? SmartPlaylistKind.allCases.map {
+            SmartPlaylistCardInfo(kind: $0, title: $0.rawValue, count: 0)
         }
     }
 

@@ -382,4 +382,31 @@ struct Localized {
     static let playOrderShuffle = "play_order_shuffle".localized
     static let playOrderRepeatAll = "play_order_repeat_all".localized
     static let playOrderRepeatOne = "play_order_repeat_one".localized
+
+    // MARK: - Smart playlists (自动歌单)
+    static let smartRecentAdded = "smart_recent_added".localized
+    static let smartRecentPlayed = "smart_recent_played".localized
+    static let smartTopPlayed = "smart_top_played".localized
+    static let smartDecades = "smart_decades".localized
+    static let smartEmptyRecentPlayed = "smart_empty_recent_played".localized
+    static let smartEmptyTopPlayed = "smart_empty_top_played".localized
+    static let smartEmptyDecade = "smart_empty_decade".localized
+    static let smartLoadFailed = "smart_load_failed".localized
+
+    static func smartPlaylistTitle(_ kind: SmartPlaylistKind) -> String {
+        switch kind {
+        case .recentAdded: return smartRecentAdded
+        case .recentPlayed: return smartRecentPlayed
+        case .topPlayed: return smartTopPlayed
+        case .decades: return smartDecades
+        }
+    }
+
+    static func smartSongsCount(_ count: Int) -> String {
+        "smart_songs_count".localized(with: count)
+    }
+
+    static func smartDecadeCount(_ count: Int) -> String {
+        "smart_decade_count".localized(with: count)
+    }
 }

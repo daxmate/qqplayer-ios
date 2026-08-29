@@ -26,6 +26,18 @@
 "your_music_will_appear_here" = "To add your music:\n\n1. Open the Files app (or tap 'Add Songs')\n2. Choose either:\n   • iCloud Drive → QQPlayer folder\n   • On My iPhone → QQPlayer\n3. Drag your music files into either location";
 "create_first_playlist" = "Create your first playlist to get started";
 
+/* Smart playlists (automatic playlists) */
+"smart_recent_added" = "Recently Added";
+"smart_recent_played" = "Recently Played";
+"smart_top_played" = "Top Played";
+"smart_decades" = "Decades";
+"smart_songs_count" = "%d songs";
+"smart_decade_count" = "%d decades";
+"smart_empty_recent_played" = "No plays yet. Play a few songs and they'll appear here.";
+"smart_empty_top_played" = "No plays yet. Play a few songs and they'll appear here.";
+"smart_empty_decade" = "No songs from this decade";
+"smart_load_failed" = "Couldn't load this playlist";
+
 /* General UI strings */
 "all_songs" = "All Songs";
 "liked_songs" = "Liked Songs";

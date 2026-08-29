@@ -51,6 +51,27 @@
 
 "create_first_playlist" = "建立你的第一個播放列表開始聽歌吧";
 
+/* 自動歌單 */
+"smart_recent_added" = "最近添加";
+
+"smart_recent_played" = "最近播放";
+
+"smart_top_played" = "常聽排行";
+
+"smart_decades" = "年代";
+
+"smart_songs_count" = "%d 首";
+
+"smart_decade_count" = "%d 個年代";
+
+"smart_empty_recent_played" = "還沒有播放記錄，播放幾首歌後這裡會出現";
+
+"smart_empty_top_played" = "還沒有播放記錄，播放幾首歌後這裡會出現";
+
+"smart_empty_decade" = "該年代暫無歌曲";
+
+"smart_load_failed" = "載入失敗，請重試";
+
 /* General UI strings */
 "all_songs" = "所有歌曲";
 

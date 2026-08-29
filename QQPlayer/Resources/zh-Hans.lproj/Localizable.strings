@@ -26,6 +26,18 @@
 "your_music_will_appear_here" = "如何添加你的无损音乐：\n\n1. 打开 iOS 自带的「文件」App（或点击下方“打开文件”按钮）\n2. 找到以下任意路径：\n   • iCloud 云盘 → QQPlayer 文件夹\n   • 我的 iPhone → QQPlayer\n3. 将你的音乐文件移动或拷贝到上述文件夹中即可";
 "create_first_playlist" = "创建你的第一个播放列表开始听歌吧";
 
+/* 自动歌单 */
+"smart_recent_added" = "最近添加";
+"smart_recent_played" = "最近播放";
+"smart_top_played" = "常听排行";
+"smart_decades" = "年代";
+"smart_songs_count" = "%d 首";
+"smart_decade_count" = "%d 个年代";
+"smart_empty_recent_played" = "还没有播放记录，播放几首歌后这里会出现";
+"smart_empty_top_played" = "还没有播放记录，播放几首歌后这里会出现";
+"smart_empty_decade" = "该年代暂无歌曲";
+"smart_load_failed" = "加载失败，请重试";
+
 /* General UI strings */
 "all_songs" = "所有歌曲";
 "liked_songs" = "我喜欢的音乐";
