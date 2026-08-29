@@ -44,6 +44,55 @@ class StateManager: @unchecked Sendable {
         _ = iCloudContainerURL
     }
 
+    /// One-time migration for paths renamed during the Cosmos → QQPlayer rebrand.
+    /// Older installs created files/folders under the Cosmos names; the new code
+    /// reads the QQPlayer names, so without this the old data would be orphaned
+    /// (and the old folder would linger in the Files app). Idempotent: safe to
+    /// call on every launch, each item migrates at most once.
+    func migrateLegacyPaths() {
+        let fm = FileManager.default
+        let documentsURL = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
+
+        let migrations: [(from: String, to: String)] = [
+            ("cosmos-playlists", "qqplayer-playlists"),
+            ("cosmos-favorites.json", "qqplayer-favorites.json"),
+            ("cosmos-player-state.json", "qqplayer-player-state.json"),
+        ]
+
+        for m in migrations {
+            let from = documentsURL.appendingPathComponent(m.from)
+            let to = documentsURL.appendingPathComponent(m.to)
+            guard fm.fileExists(atPath: from.path) else { continue }
+            if fm.fileExists(atPath: to.path) {
+                // New location already in use; the legacy copy is just residue.
+                try? fm.removeItem(at: from)
+                print("🧹 Removed legacy \(m.from) (new \(m.to) already exists)")
+            } else {
+                do {
+                    try fm.moveItem(at: from, to: to)
+                    print("✅ Migrated \(m.from) → \(m.to)")
+                } catch {
+                    print("⚠️ Failed to migrate \(m.from): \(error)")
+                }
+            }
+        }
+
+        // App Group container database (shared with Siri/Widget extensions)
+        if let containerURL = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios") {
+            let fromDB = containerURL.appendingPathComponent("cosmos_music.db")
+            let toDB = containerURL.appendingPathComponent("qqplayer.db")
+            if fm.fileExists(atPath: fromDB.path) {
+                if fm.fileExists(atPath: toDB.path) {
+                    try? fm.removeItem(at: fromDB)
+                    print("🧹 Removed legacy cosmos_music.db (qqplayer.db exists)")
+                } else {
+                    try? fm.moveItem(at: fromDB, to: toDB)
+                    print("✅ Migrated cosmos_music.db → qqplayer.db")
+                }
+            }
+        }
+    }
+
     private func getAppFolderURL() -> URL? {
         guard let containerURL = iCloudContainerURL else { return nil }
         return containerURL.appendingPathComponent("Documents", isDirectory: true)

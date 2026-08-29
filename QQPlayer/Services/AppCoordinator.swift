@@ -81,6 +81,10 @@ class AppCoordinator: ObservableObject {
         // anything asks for it. Everything downstream then hits the cache.
         await Task.detached(priority: .userInitiated) {
             StateManager.shared.prewarmiCloudContainer()
+            // Cosmos → QQPlayer rebrand: rename legacy data paths once so
+            // playlists/favorites/player-state created by older installs stay
+            // readable and don't linger under the old names in the Files app.
+            StateManager.shared.migrateLegacyPaths()
         }.value
 
         // Check iCloud status
