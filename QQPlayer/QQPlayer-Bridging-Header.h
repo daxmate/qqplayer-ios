@@ -1,6 +1,6 @@
 //
-//  Cosmos-Music-Player-Bridging-Header.h
-//  Cosmos Music Player
+//  QQPlayer-Bridging-Header.h
+//  QQPlayer
 //
 //  Objective-C to Swift bridging header
 //

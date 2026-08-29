@@ -1,6 +1,6 @@
 //
 //  BaseTestCase.swift
-//  CosmosSiriTests
+//  QQPlayerSiriTests
 //
 //  Shared XCUITest base exposing typed accessors for the app's intents,
 //  entities and enums via the AppIntentsTesting framework. Tests drive the

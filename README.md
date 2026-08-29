@@ -4,15 +4,11 @@
 
 ---
 
-# Cosmos Music Player 🎵
-
-[![Download on the App Store](https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg)](https://apps.apple.com/fr/app/cosmos-offline-music-player/id6751984723?l=en-GB)
-
-*Available now on the App Store*
+# QQPlayer 🎵
 
 ---
 
-Cosmos Music Player is a high-quality music player that supports both iCloud Drive synchronization and local storage, giving users flexibility in how they manage their music. The app is built and designed for the iOS and Apple ecosystem with full CarPlay integration.
+QQPlayer is a high-quality music player that supports both iCloud Drive synchronization and local storage, giving users flexibility in how they manage their music. The app is built and designed for the iOS and Apple ecosystem with full CarPlay integration.
 
 A premium audiophile music player for iOS supporting FLAC, WAV, M4A, MP3, Opus, OGG, DSD, and DSF formats with advanced features including Apple CarPlay, DSD playback (DoP & PCM conversion), dual storage options (iCloud/local), playlist management, artist information integration, graphic equalizer, and multi-language support.
 
@@ -60,16 +56,16 @@ A premium audiophile music player for iOS supporting FLAC, WAV, M4A, MP3, Opus, 
 #### Supported Siri Commands
 
 **English Commands:**
-- "Hey Siri, play my music on Cosmos"
-- "Hey Siri, play my favorites on Cosmos"
-- "Hey Siri, play [playlist name] on Cosmos"
-- "Hey Siri, play [song name] on Cosmos"
+- "Hey Siri, play my music on QQPlayer"
+- "Hey Siri, play my favorites on QQPlayer"
+- "Hey Siri, play [playlist name] on QQPlayer"
+- "Hey Siri, play [song name] on QQPlayer"
 
 **French Commands:**
-- "Dis Siri, joue ma musique sur Cosmos"
-- "Dis Siri, joue mes favoris sur Cosmos"
-- "Dis Siri, joue la playlist [nom] sur Cosmos"
-- "Dis Siri, joue [nom de chanson] sur Cosmos"
+- "Dis Siri, joue ma musique sur QQPlayer"
+- "Dis Siri, joue mes favoris sur QQPlayer"
+- "Dis Siri, joue la playlist [nom] sur QQPlayer"
+- "Dis Siri, joue [nom de chanson] sur QQPlayer"
 
 ### 🌍 Internationalization
 - **Multi-Language Support**: English and French translations
@@ -185,7 +181,7 @@ CREATE TABLE playlist_item (
 1. **Clone the Repository**
    ```bash
    git clone <repository-url>
-   cd Cosmos\ Music\ Player
+   cd QQPlayer\ Music\ Player
    ```
 
 2. **Configure Environment Variables**
@@ -212,11 +208,11 @@ CREATE TABLE playlist_item (
 
 4. **Configure iCloud**
    - Ensure your Apple Developer Account has iCloud capabilities
-   - The app uses container: `iCloud.dev.clq.Cosmos-Music-Player`
+   - The app uses container: `iCloud.com.daxmate.qqplayer.ios`
    - Update the bundle identifier in project settings if needed
 
 5. **Build and Run**
-   - Open `Cosmos Music Player.xcodeproj` in Xcode
+   - Open `QQPlayer.xcodeproj` in Xcode
    - Select your development team
    - Build and run on device (required for iCloud functionality)
 
@@ -224,8 +220,8 @@ CREATE TABLE playlist_item (
 
 1. **iCloud Sign-in** (Optional): Sign into iCloud only if you want cross-device sync
 2. **Add Music**: Choose your preferred storage method:
-   - **iCloud Drive**: Place music files in "iCloud Drive → Cosmos Music Player" folder
-   - **Local Storage**: Place music files in "On My iPhone → Cosmos Music Player" folder
+   - **iCloud Drive**: Place music files in "iCloud Drive → QQPlayer" folder
+   - **Local Storage**: Place music files in "On My iPhone → QQPlayer" folder
 3. **Library Sync**: The app will automatically detect and index your music from both locations
 4. **Enjoy**: Start creating playlists and exploring your music!
 
@@ -237,13 +233,13 @@ You have two storage options:
 
 #### Option 1: iCloud Drive (Syncs Across Devices)
 1. Open Files app on your iOS device
-2. Navigate to "iCloud Drive" → "Cosmos Music Player"
+2. Navigate to "iCloud Drive" → "QQPlayer"
 3. Add your FLAC, MP3, or WAV music files to this folder
 4. Files will sync to all your devices signed into the same iCloud account
 
 #### Option 2: Local Storage (This Device Only)
 1. Open Files app on your iOS device
-2. Navigate to "On My iPhone" → "Cosmos Music Player"
+2. Navigate to "On My iPhone" → "QQPlayer"
 3. Add your FLAC, MP3, or WAV music files to this folder
 4. Files remain on this device only (no iCloud required)
 
@@ -272,7 +268,7 @@ GraphicEQ format allows you to define frequency-specific gain adjustments for pr
 
 ### Using Siri Voice Control
 1. **Enable Siri**: Ensure Siri is enabled in your device settings
-2. **Grant Permissions**: Allow Siri access to Cosmos Music Player when prompted
+2. **Grant Permissions**: Allow Siri access to QQPlayer when prompted
 3. **Voice Commands**: Use any of the supported commands listed above
 4. **Language Support**: Works with both English and French Siri
 5. **Smart Matching**: Don't worry about exact pronunciation - the app uses fuzzy matching for names
@@ -299,7 +295,7 @@ The app automatically uses your device's language setting. Currently supported:
 ## File Structure 📂
 
 ```
-Cosmos Music Player/
+QQPlayer/
 ├── Services/           # Core business logic services
 │   ├── AppCoordinator.swift
 │   ├── PlayerEngine.swift
@@ -498,7 +494,7 @@ Thank you for contributing! 🚀
 
 **Music not appearing:**
 - For iCloud files: Check iCloud Drive is enabled and signed in
-- For local files: Ensure files are in the local "Cosmos Music Player" folder
+- For local files: Ensure files are in the local "QQPlayer" folder
 - Verify files are FLAC, MP3, or WAV format
 - Try manual sync from the app
 - Check both iCloud Drive and "On My iPhone" locations
@@ -521,8 +517,8 @@ Thank you for contributing! 🚀
 
 **Siri not working:**
 - Ensure Siri is enabled in Settings → Siri & Search
-- Grant Siri access to Cosmos Music Player when prompted
-- Try saying "Cosmos" or "Cosmos Musique" (French) to help Siri recognize the app
+- Grant Siri access to QQPlayer when prompted
+- Try saying "QQPlayer" or "QQPlayer Musique" (French) to help Siri recognize the app
 - Restart the app to refresh Siri vocabulary
 - Make sure you're connected to the internet for initial Siri setup
 
@@ -590,4 +586,4 @@ This project is licensed under GNU - see the LICENSE file for details.
 
 ---
 
-**Enjoy your high-quality music experience with Cosmos Music Player!** 🎵✨
+**Enjoy your high-quality music experience with QQPlayer!** 🎵✨

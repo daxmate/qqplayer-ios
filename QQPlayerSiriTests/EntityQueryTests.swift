@@ -1,6 +1,6 @@
 //
 //  EntityQueryTests.swift
-//  CosmosSiriTests
+//  QQPlayerSiriTests
 //
 //  Drives the entity string queries across the IPC boundary — the same path
 //  Siri uses to resolve "play <name>" against the library.

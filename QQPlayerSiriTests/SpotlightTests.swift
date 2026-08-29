@@ -1,6 +1,6 @@
 //
 //  SpotlightTests.swift
-//  CosmosSiriTests
+//  QQPlayerSiriTests
 //
 //  Verifies the Spotlight index lifecycle via the DEBUG-only clear and
 //  reindex intents: clear empties the named index, reindex repopulates it

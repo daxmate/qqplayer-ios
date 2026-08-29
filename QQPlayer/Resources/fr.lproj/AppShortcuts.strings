@@ -3,7 +3,7 @@
   QQPlayer
 
   Phrases d'invocation Siri pour les App Shortcuts déclarés dans
-  CosmosAppShortcuts.swift. Les clés reprennent exactement les phrases
+  QQPlayerAppShortcuts.swift. Les clés reprennent exactement les phrases
   anglaises, ${applicationName} est le nom de l'app.
 */
 

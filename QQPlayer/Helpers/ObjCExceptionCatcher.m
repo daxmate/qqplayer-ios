@@ -1,6 +1,6 @@
 //
 //  ObjCExceptionCatcher.m
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Catches Objective-C exceptions that Swift can't handle
 //

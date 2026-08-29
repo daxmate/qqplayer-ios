@@ -45,7 +45,7 @@
 			containerPortal = 2312D6042E6090E2007F756D /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 2312D60B2E6090E2007F756D;
-			remoteInfo = "Cosmos Music Player";
+			remoteInfo = "QQPlayer";
 		};
 /* End PBXContainerItemProxy section */
 
@@ -66,7 +66,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		2312D60C2E6090E2007F756D /* Cosmos Music Player.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cosmos Music Player.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		2312D60C2E6090E2007F756D /* QQPlayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "QQPlayer.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		239B247B2EE59BEC009F83F1 /* PlayerWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PlayerWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		239B247C2EE59BEC009F83F1 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		239B247E2EE59BEC009F83F1 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -74,18 +74,18 @@
 		23AF81352E71E15D0005527C /* Share.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Share.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		23C312DA2E78015500342F7C /* SiriIntentsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SiriIntentsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		23C312DC2E78015500342F7C /* Intents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Intents.framework; path = System/Library/Frameworks/Intents.framework; sourceTree = SDKROOT; };
-		7E57AB1E0000000000000003 /* CosmosSiriTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CosmosSiriTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7E57AB1E0000000000000003 /* QQPlayerSiriTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QQPlayerSiriTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		2312D6502E6090E2007F756D /* Exceptions for "Cosmos Music Player" folder in "Cosmos Music Player" target */ = {
+		2312D6502E6090E2007F756D /* Exceptions for "QQPlayer" folder in "QQPlayer" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = 2312D60B2E6090E2007F756D /* Cosmos Music Player */;
+			target = 2312D60B2E6090E2007F756D /* QQPlayer */;
 		};
-		239B24A22EE5F806009F83F1 /* Exceptions for "Cosmos Music Player" folder in "PlayerWidgetExtension" target */ = {
+		239B24A22EE5F806009F83F1 /* Exceptions for "QQPlayer" folder in "PlayerWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Models/WidgetData.swift,
@@ -116,13 +116,13 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		2312D60E2E6090E2007F756D /* Cosmos Music Player */ = {
+		2312D60E2E6090E2007F756D /* QQPlayer */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				2312D6502E6090E2007F756D /* Exceptions for "Cosmos Music Player" folder in "Cosmos Music Player" target */,
-				239B24A22EE5F806009F83F1 /* Exceptions for "Cosmos Music Player" folder in "PlayerWidgetExtension" target */,
+				2312D6502E6090E2007F756D /* Exceptions for "QQPlayer" folder in "QQPlayer" target */,
+				239B24A22EE5F806009F83F1 /* Exceptions for "QQPlayer" folder in "PlayerWidgetExtension" target */,
 			);
-			path = "Cosmos Music Player";
+			path = "QQPlayer";
 			sourceTree = "<group>";
 		};
 		239B24802EE59BEC009F83F1 /* PlayerWidget */ = {
@@ -149,9 +149,9 @@
 			path = SiriIntentsExtension;
 			sourceTree = "<group>";
 		};
-		7E57AB1E0000000000000001 /* CosmosSiriTests */ = {
+		7E57AB1E0000000000000001 /* QQPlayerSiriTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = CosmosSiriTests;
+			path = QQPlayerSiriTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -205,11 +205,11 @@
 			isa = PBXGroup;
 			children = (
 				239B249A2EE5A20E009F83F1 /* PlayerWidgetExtension.entitlements */,
-				2312D60E2E6090E2007F756D /* Cosmos Music Player */,
+				2312D60E2E6090E2007F756D /* QQPlayer */,
 				23AF81362E71E15D0005527C /* Share */,
 				23C312DE2E78015500342F7C /* SiriIntentsExtension */,
 				239B24802EE59BEC009F83F1 /* PlayerWidget */,
-				7E57AB1E0000000000000001 /* CosmosSiriTests */,
+				7E57AB1E0000000000000001 /* QQPlayerSiriTests */,
 				23C312DB2E78015500342F7C /* Frameworks */,
 				2312D60D2E6090E2007F756D /* Products */,
 			);
@@ -218,11 +218,11 @@
 		2312D60D2E6090E2007F756D /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				2312D60C2E6090E2007F756D /* Cosmos Music Player.app */,
+				2312D60C2E6090E2007F756D /* QQPlayer.app */,
 				23AF81352E71E15D0005527C /* Share.appex */,
 				23C312DA2E78015500342F7C /* SiriIntentsExtension.appex */,
 				239B247B2EE59BEC009F83F1 /* PlayerWidgetExtension.appex */,
-				7E57AB1E0000000000000003 /* CosmosSiriTests.xctest */,
+				7E57AB1E0000000000000003 /* QQPlayerSiriTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -240,9 +240,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		2312D60B2E6090E2007F756D /* Cosmos Music Player */ = {
+		2312D60B2E6090E2007F756D /* QQPlayer */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 2312D6172E6090E3007F756D /* Build configuration list for PBXNativeTarget "Cosmos Music Player" */;
+			buildConfigurationList = 2312D6172E6090E3007F756D /* Build configuration list for PBXNativeTarget "QQPlayer" */;
 			buildPhases = (
 				2312D6082E6090E2007F756D /* Sources */,
 				2312D6092E6090E2007F756D /* Frameworks */,
@@ -257,15 +257,15 @@
 				239B248F2EE59BED009F83F1 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				2312D60E2E6090E2007F756D /* Cosmos Music Player */,
+				2312D60E2E6090E2007F756D /* QQPlayer */,
 			);
-			name = "Cosmos Music Player";
+			name = "QQPlayer";
 			packageProductDependencies = (
 				2312D6192E6090E4007F756D /* GRDB */,
 				230D66362E894889007C642A /* SFBAudioEngine */,
 			);
-			productName = "Cosmos Music Player";
-			productReference = 2312D60C2E6090E2007F756D /* Cosmos Music Player.app */;
+			productName = "QQPlayer";
+			productReference = 2312D60C2E6090E2007F756D /* QQPlayer.app */;
 			productType = "com.apple.product-type.application";
 		};
 		239B247A2EE59BEC009F83F1 /* PlayerWidgetExtension */ = {
@@ -335,9 +335,9 @@
 			productReference = 23C312DA2E78015500342F7C /* SiriIntentsExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
-		7E57AB1E0000000000000002 /* CosmosSiriTests */ = {
+		7E57AB1E0000000000000002 /* QQPlayerSiriTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 7E57AB1E0000000000000007 /* Build configuration list for PBXNativeTarget "CosmosSiriTests" */;
+			buildConfigurationList = 7E57AB1E0000000000000007 /* Build configuration list for PBXNativeTarget "QQPlayerSiriTests" */;
 			buildPhases = (
 				7E57AB1E0000000000000004 /* Sources */,
 				7E57AB1E0000000000000005 /* Frameworks */,
@@ -349,13 +349,13 @@
 				7E57AB1E000000000000000B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				7E57AB1E0000000000000001 /* CosmosSiriTests */,
+				7E57AB1E0000000000000001 /* QQPlayerSiriTests */,
 			);
-			name = CosmosSiriTests;
+			name = QQPlayerSiriTests;
 			packageProductDependencies = (
 			);
-			productName = CosmosSiriTests;
-			productReference = 7E57AB1E0000000000000003 /* CosmosSiriTests.xctest */;
+			productName = QQPlayerSiriTests;
+			productReference = 7E57AB1E0000000000000003 /* QQPlayerSiriTests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -386,7 +386,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 2312D6072E6090E2007F756D /* Build configuration list for PBXProject "Cosmos Music Player" */;
+			buildConfigurationList = 2312D6072E6090E2007F756D /* Build configuration list for PBXProject "QQPlayer" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -407,11 +407,11 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				2312D60B2E6090E2007F756D /* Cosmos Music Player */,
+				2312D60B2E6090E2007F756D /* QQPlayer */,
 				23AF81342E71E15D0005527C /* Share */,
 				23C312D92E78015500342F7C /* SiriIntentsExtension */,
 				239B247A2EE59BEC009F83F1 /* PlayerWidgetExtension */,
-				7E57AB1E0000000000000002 /* CosmosSiriTests */,
+				7E57AB1E0000000000000002 /* QQPlayerSiriTests */,
 			);
 		};
 /* End PBXProject section */
@@ -510,7 +510,7 @@
 		};
 		7E57AB1E000000000000000B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 2312D60B2E6090E2007F756D /* Cosmos Music Player */;
+			target = 2312D60B2E6090E2007F756D /* QQPlayer */;
 			targetProxy = 7E57AB1E000000000000000A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -646,13 +646,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "Cosmos Music Player/Cosmos Music Player.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "QQPlayer/QQPlayer.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 57;
 				DEVELOPMENT_TEAM = B6FA37AYT5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Cosmos Music Player/Info.plist";
+				INFOPLIST_FILE = "QQPlayer/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = QQPlayer;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -666,7 +666,7 @@
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Cosmos Music Player/Cosmos-Music-Player-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "QQPlayer/QQPlayer-Bridging-Header.h";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -677,13 +677,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "Cosmos Music Player/Cosmos Music Player.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "QQPlayer/QQPlayer.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 57;
 				DEVELOPMENT_TEAM = B6FA37AYT5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Cosmos Music Player/Info.plist";
+				INFOPLIST_FILE = "QQPlayer/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = QQPlayer;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -697,7 +697,7 @@
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Cosmos Music Player/Cosmos-Music-Player-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "QQPlayer/QQPlayer-Bridging-Header.h";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -880,13 +880,13 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.daxmate.qqplayer.ios.CosmosSiriTests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.daxmate.qqplayer.ios.QQPlayerSiriTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Cosmos Music Player";
+				TEST_TARGET_NAME = "QQPlayer";
 			};
 			name = Debug;
 		};
@@ -899,20 +899,20 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.daxmate.qqplayer.ios.CosmosSiriTests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.daxmate.qqplayer.ios.QQPlayerSiriTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Cosmos Music Player";
+				TEST_TARGET_NAME = "QQPlayer";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		2312D6072E6090E2007F756D /* Build configuration list for PBXProject "Cosmos Music Player" */ = {
+		2312D6072E6090E2007F756D /* Build configuration list for PBXProject "QQPlayer" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				2312D6152E6090E3007F756D /* Debug */,
@@ -921,7 +921,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		2312D6172E6090E3007F756D /* Build configuration list for PBXNativeTarget "Cosmos Music Player" */ = {
+		2312D6172E6090E3007F756D /* Build configuration list for PBXNativeTarget "QQPlayer" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				2312D6182E6090E3007F756D /* Debug */,
@@ -957,7 +957,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		7E57AB1E0000000000000007 /* Build configuration list for PBXNativeTarget "CosmosSiriTests" */ = {
+		7E57AB1E0000000000000007 /* Build configuration list for PBXNativeTarget "QQPlayerSiriTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				7E57AB1E0000000000000008 /* Debug */,

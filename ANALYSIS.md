@@ -1,4 +1,4 @@
-# Cosmos Music Player 架构分析报告
+# QQPlayer 架构分析报告
 
 > 只读分析（2026-08-29），基于当前仓库状态（git log 仅 1 个 commit: 1.2.4）。
 > 统计口径：77 个 Swift 文件，约 34,199 行（含 Widget/Share/Siri 扩展与测试）。
@@ -12,12 +12,12 @@
 | 项 | 值 |
 |---|---|
 | Swift 版本 | 主 App **Swift 6.0**（严格并发），Widget/Share/Siri 扩展 Swift 5.0；工程级默认 5.0 |
-| iOS 最低部署 | **18.5**（全部 target）；CosmosSiriTests 测试 target 为 **27.0**（用 iOS 27 的 AppIntentsTesting/MediaIntents） |
+| iOS 最低部署 | **18.5**（全部 target）；QQPlayerSiriTests 测试 target 为 **27.0**（用 iOS 27 的 AppIntentsTesting/MediaIntents） |
 | 构建方式 | **xcodeproj 直接构建**，无 project.yml/Package.swift；Xcode 16 的 folder-synchronized groups（文件自动纳入 target） |
 | SPM 依赖 | ① **GRDB.swift**（upToNextMajorVersion，SQLite ORM）② **SFBAudioEngine 0.13.0**（exactVersion，sbooth，FLAC/Opus/Vorbis/DSD 解码 + 元数据读写） |
 | 系统框架 | AVFoundation/AVFAudio、SwiftUI、UIKit、Intents/AppIntents、CarPlay（CPTemplate）、WidgetKit、UniformTypeIdentifiers、CryptoKit、ImageIO |
-| Target 清单 | Cosmos Music Player（主 App）、PlayerWidgetExtension、Share（SLComposeServiceViewController）、SiriIntentsExtension（legacy SiriKit）、CosmosSiriTests（XCUITest bundle） |
-| Bundle ID | dev.clq.Cosmos-Music-Player |
+| Target 清单 | QQPlayer（主 App）、PlayerWidgetExtension、Share（SLComposeServiceViewController）、SiriIntentsExtension（legacy SiriKit）、QQPlayerSiriTests（XCUITest bundle） |
+| Bundle ID | com.daxmate.qqplayer.ios |
 | 密钥 | .env 模板（Spotify client id/secret、Discogs consumer key/secret），EnvironmentLoader 注入 |
 
 ---
@@ -30,7 +30,7 @@
 - **数据流**：
   1. `AppCoordinator.initialize()`（App 入口 `.task`）→ iCloud 状态检查 → `LibraryIndexer.start()` 扫描 → GRDB 落库 → `@Published tracks` → 各 Screen 刷新；
   2. 播放：`PlayerView`/`MiniPlayerView` 持 `@StateObject playerEngine`，`PlayerEngine.progress`（独立 ObservableObject）以 **10Hz Timer** 驱动进度条/歌词，避免整个播放页高频重建；
-  3. 跨组件通信用 **NotificationCenter**：`LibraryNeedsRefresh`、`MinimizePlayer`、`BackgroundColorChanged`、`cosmosSettingsDidChange`（刻意不用 UserDefaults.didChange 避免整库重绘）、`iCloudAuthStatusChanged`、`NavigateToPlaylist`。
+  3. 跨组件通信用 **NotificationCenter**：`LibraryNeedsRefresh`、`MinimizePlayer`、`BackgroundColorChanged`、`qqplayerSettingsDidChange`（刻意不用 UserDefaults.didChange 避免整库重绘）、`iCloudAuthStatusChanged`、`NavigateToPlaylist`。
 - **状态持久化**：设置 `DeleteSettings`（UserDefaults JSON，带 Codable 默认值容错）；曲库 GRDB SQLite；收藏/播放列表/播放器状态双写 iCloud（JSON 文件）与本地 Documents；播放器状态 `PlayerState`（含当前曲、队列、进度、循环/随机开关，列表截断 100 首）。
 - **并发**：主 App Swift 6 严格并发，Service 大量 `@MainActor`，耗时 IO 用 `Task.detached`/nonisolated 方法；DB 读写 `DatabaseManager.read/write` 同步封装。
 - **坑点意识强**：代码里有大量针对真实场景的注释（CarPlay 下勿重配 audio session、后台 10Hz timer 触发 watchdog、旧版 silent-pause 循环的废除说明等），工程质量高于一般开源播放器。
@@ -146,7 +146,7 @@
 
 ## 9. 测试
 
-- **只有 1 个测试 target：CosmosSiriTests**（XCUITest bundle，deployment iOS 27，用 `AppIntentsTesting` 框架跨 IPC 驱动真实 App 的 App Intents）。
+- **只有 1 个测试 target：QQPlayerSiriTests**（XCUITest bundle，deployment iOS 27，用 `AppIntentsTesting` 框架跨 IPC 驱动真实 App 的 App Intents）。
 - **13 个用例**：
   - `EntityQueryTests`（5）：Song/Album/Artist/Playlist 字符串查询、Spotlight 标识符回环；
   - `IntentExecutionTests`（7）：ResumePlayback、FavoriteCurrentSong、PlaySong、PlaySong+插队、Like/Unset 往返、AddToPlaylist、GenerateMix（空库/无播放列表自动 XCTSkip）；

@@ -2,7 +2,7 @@
 
 ## 项目来源声明
 
-**QQPlayer (iOS)** 是基于 **Cosmos Music Player** 的衍生作品（fork），遵循 **GNU General Public License v3.0**。
+**QQPlayer (iOS)** 是基于 **QQPlayer** 的衍生作品（fork），遵循 **GNU General Public License v3.0**。
 
 - **原作者**: Raphael Boullay Le Fur（GitHub: [clquwu](https://github.com/clquwu)）
 - **原项目**: [Cosmos Music Player](https://github.com/clquwu/Cosmos-Music-Player)
@@ -10,7 +10,7 @@
 
 ## 修改说明
 
-在 Cosmos Music Player v1.2.4 基础上进行了以下修改与扩展：
+在 QQPlayer v1.2.4 基础上进行了以下修改与扩展：
 
 1. **品牌化**：应用名称改为 QQPlayer，bundle identifier 改为 `com.daxmate.qqplayer.ios`，替换应用图标
 2. **签名**：使用 QQPlayer 开发者的 Apple Developer 签名（team B6FA37AYT5）

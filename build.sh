@@ -7,8 +7,8 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 DERIVED="build/DerivedData"
-SCHEME="Cosmos Music Player"   # scheme 名（工程名沿用 Cosmos，显示名已是 QQPlayer）
-APP_NAME="Cosmos Music Player" # 可执行/产物名（未改 PRODUCT_NAME，安装后显示 QQPlayer）
+SCHEME="QQPlayer"   # scheme 名
+APP_NAME="QQPlayer" # 可执行/产物名
 
 # 探测已连接真机（devicectl JSON 输出 → python 提取 connected 设备，避免 awk $() 歧义）
 detect_udid() {
@@ -32,7 +32,7 @@ sys.exit(1)
 
 build_sim() {
   echo "=== 模拟器构建 ==="
-  xcodebuild -project "Cosmos Music Player.xcodeproj" -scheme "${SCHEME}" \
+  xcodebuild -project "QQPlayer.xcodeproj" -scheme "${SCHEME}" \
     -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
     -derivedDataPath "${DERIVED}" build
 }
@@ -45,7 +45,7 @@ build_install() {
     exit 1
   fi
   echo "=== 真机构建（UDID=${UDID}） ==="
-  xcodebuild -project "Cosmos Music Player.xcodeproj" -scheme "${SCHEME}" \
+  xcodebuild -project "QQPlayer.xcodeproj" -scheme "${SCHEME}" \
     -destination "id=${UDID}" -derivedDataPath "${DERIVED}" \
     -allowProvisioningUpdates build
   local APP

@@ -1,5 +1,5 @@
 //
-//  CosmosAppShortcuts.swift
+//  QQPlayerAppShortcuts.swift
 //  QQPlayer
 //
 //  Phrases the system pre-registers with Siri so they work without any

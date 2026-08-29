@@ -1,6 +1,6 @@
 //
 //  IntentExecutionTests.swift
-//  CosmosSiriTests
+//  QQPlayerSiriTests
 //
 //  Drives the audio schema intents end-to-end across the IPC boundary —
 //  the same execution path Siri uses.
