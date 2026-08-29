@@ -885,8 +885,14 @@ class PlayerEngine: NSObject, ObservableObject {
         hasSetupAudioEngine = false
         lastSampleRate = 0
         hasSetupAudioSession = false
-        hasSetupRemoteCommands = false
-        hasSetupAudioSessionNotifications = false
+        // 不复位 hasSetupRemoteCommands / hasSetupAudioSessionNotifications（P1-B）：
+        // media services reset 只重建 mediaserverd 的音频对象；MPRemoteCommandCenter 的
+        // command target 与 NotificationCenter 的 block observer 均为进程内注册，reset 后
+        // 依然有效。若复位这两个标志，下次 play()/loadTrack() 会再次 setup：
+        // ① MPRemoteCommandCenter.addTarget 是追加不覆盖 → 控制中心命令双触发（按暂停没反应）；
+        // ② setupAudioSessionNotifications 追加第二套 observer → 中断 .ended 被处理两次
+        //    （第二次强制 paused 把恢复的播放停住）；③ notificationObservers 数组无界增长。
+        // 保持标志为 true = 各注册恰好一次，永不重复。
         print("✅ Audio engine recreated successfully with EQ")
     }
 
@@ -1235,8 +1241,18 @@ class PlayerEngine: NSObject, ObservableObject {
                 updateWidgetData()
                 return
             } catch {
-                print("❌ Failed to play with SFBAudioEngine: \(error)")
-                return
+                // P1-B 降级（2026-08-29）：CarPlay 切换时 SFBAudioEngineManager.updateCarPlayStatus()
+                // 会 stop() + audioPlayer = nil，但此处 usingSFBEngine 未复位 → 之后每次 play 都抛
+                // "AudioPlayer not initialized" 被静默吞掉：界面显示在播、实际无声，只能重选曲目恢复。
+                // 失败时复位标志并落入下方 native 路径（不 return）：audioFile 为 nil 时自动走
+                // loadTrack 重载；audioFile 是上一首 native 曲目残留时置 nil 强制重载，
+                // 避免用错误文件出声。
+                print("❌ Failed to play with SFBAudioEngine: \(error) — falling back to native engine")
+                usingSFBEngine = false
+                isPlaying = false
+                playbackState = .paused
+                audioFile = nil
+                stopPlaybackTimer()
             }
         }
 
@@ -1426,19 +1442,26 @@ class PlayerEngine: NSObject, ObservableObject {
 
         // Delegate to SFBAudioEngine if it's handling this track
         if usingSFBEngine {
-            sfbAudioManager.pause()
-            isPlaying = false
-            playbackState = .paused
-            stopPlaybackTimer()
-            // Let the app suspend while paused - see the note in the native
-            // pause path below.
-            stopSilentPlaybackForPause()
-            endBackgroundMonitoring()
-            print("✅ SFBAudioEngine paused")
-            PlayHistoryRecorder.shared.playbackPaused(track: currentTrack, at: nowPlayingElapsedTime())
-            updateNowPlayingInfoEnhanced()
-            updateWidgetData()
-            return
+            // P1-B 降级：CarPlay 切换后 SFBAudioEngineManager 的 audioPlayer 已被置 nil，
+            // 下面 pause() 是空操作，且 usingSFBEngine 会一直残留导致 play()/seek() 哑播。
+            // 检测到 CarPlay 环境即复位标志并落入 native 暂停路径（与 play()/seek() 一致）。
+            if !sfbAudioManager.isCarPlayEnvironment {
+                sfbAudioManager.pause()
+                isPlaying = false
+                playbackState = .paused
+                stopPlaybackTimer()
+                // Let the app suspend while paused - see the note in the native
+                // pause path below.
+                stopSilentPlaybackForPause()
+                endBackgroundMonitoring()
+                print("✅ SFBAudioEngine paused")
+                PlayHistoryRecorder.shared.playbackPaused(track: currentTrack, at: nowPlayingElapsedTime())
+                updateNowPlayingInfoEnhanced()
+                updateWidgetData()
+                return
+            }
+            print("⚠️ SFBAudioEngine player unavailable in CarPlay — falling back to native pause")
+            usingSFBEngine = false
         }
 
         // Capture current playback position before pausing
@@ -1582,8 +1605,13 @@ class PlayerEngine: NSObject, ObservableObject {
                 updateNowPlayingInfoEnhanced()
                 return
             } catch {
-                print("❌ Failed to seek with SFBAudioEngine: \(error)")
-                return
+                // P1-B 降级：与 play() 一致——SFB 不可用时复位 usingSFBEngine 落入 native 路径。
+                // audioFile 置 nil（可能是上一首 native 曲目残留，避免在错误文件上 seek）；
+                // 目标位置写入 playbackTime，后续 play() 重载时会以该位置恢复。
+                print("❌ Failed to seek with SFBAudioEngine: \(error) — falling back to native engine")
+                usingSFBEngine = false
+                audioFile = nil
+                playbackTime = time
             }
         }
 
