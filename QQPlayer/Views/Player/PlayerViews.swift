@@ -243,8 +243,39 @@ struct PlayerView: View {
                 }
 
                 lyricMiniSection
-                progressBarSection
-                controlsSection
+                CollapsiblePlayerControls(
+                    duration: playerEngine.duration,
+                    accentColor: settings.backgroundColorChoice.color,
+                    onSeek: { newTime in
+                        Task {
+                            await playerEngine.seek(to: newTime)
+                        }
+                    },
+                    showSleepTimerButton: settings.showSleepTimerButton,
+                    showLyricsButton: settings.showLyricsButton,
+                    isLoadingLyrics: isLoadingLyrics,
+                    sleepTimerEndDate: sleepTimerEndDate,
+                    onStartSleepTimer: { minutes in
+                        startSleepTimer(minutes: minutes)
+                    },
+                    onCancelSleepTimer: {
+                        cancelSleepTimer()
+                    },
+                    onShowQueue: {
+                        showQueueSheet = true
+                    },
+                    onShowLyrics: {
+                        withAnimation(.easeOut(duration: 0.26)) {
+                            showLyricsSheet = true
+                        }
+                        if currentLyrics == nil && !isLoadingLyrics {
+                            loadLyrics()
+                        }
+                    },
+                    onShowAirPlay: {
+                        showAirPlayPicker()
+                    }
+                )
             } else {
                 emptyStateView
             }
@@ -648,20 +679,6 @@ struct PlayerView: View {
         }
     }
 
-    // MARK: - Progress Bar Section
-
-    private var progressBarSection: some View {
-        PlayerProgressSection(
-            duration: playerEngine.duration,
-            accentColor: settings.backgroundColorChoice.color,
-            onSeek: { newTime in
-                Task {
-                    await playerEngine.seek(to: newTime)
-                }
-            }
-        )
-    }
-
     // MARK: - Mini Lyrics Section
 
     // 封面下方的小歌词窗口：三行（上一句/当前句/下一句），当前句放大 + 主题色
@@ -718,152 +735,6 @@ struct PlayerView: View {
         }
     }
 
-    // MARK: - Controls Section
-
-    private var controlsSection: some View {
-        VStack(spacing: UIScreen.main.scale < UIScreen.main.nativeScale ? 20 : 25) {
-            playbackControlsView
-            additionalControlsView
-        }
-    }
-
-    private var playbackControlsView: some View {
-        HStack(spacing: min(35, UIScreen.main.bounds.width * 0.08)) {
-            shuffleButton
-            previousButton
-            playPauseButton
-            nextButton
-            loopButton
-        }
-        .padding(.horizontal, min(21, UIScreen.main.bounds.width * 0.055))
-        .padding(.vertical, 21)
-        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 25))
-        .overlay(
-            RoundedRectangle(cornerRadius: 25)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
-    }
-
-    private var shuffleButton: some View {
-        Button(action: {
-            playerEngine.toggleShuffle()
-        }) {
-            Image(systemName: playerEngine.isShuffled ? "shuffle.circle.fill" : "shuffle.circle")
-                .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .title2 : .title)
-                .foregroundColor(playerEngine.isShuffled ? .accentColor : .primary)
-        }
-    }
-
-    private var previousButton: some View {
-        Button(action: {
-            Task {
-                await playerEngine.previousTrack()
-            }
-        }) {
-            Image(systemName: "backward.fill")
-                .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .title2 : .title)
-        }
-    }
-
-    private var playPauseButton: some View {
-        Button(action: {
-            if playerEngine.isPlaying {
-                playerEngine.pause()
-            } else {
-                playerEngine.play()
-            }
-        }) {
-            Image(systemName: playerEngine.isPlaying ? "pause.fill" : "play.fill")
-                .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .title : .largeTitle)
-        }
-    }
-
-    private var nextButton: some View {
-        Button(action: {
-            Task {
-                await playerEngine.nextTrack()
-            }
-        }) {
-            Image(systemName: "forward.fill")
-                .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .title2 : .title)
-        }
-    }
-
-    private var loopButton: some View {
-        Button(action: {
-            playerEngine.cycleLoopMode()
-        }) {
-            Group {
-                if playerEngine.isLoopingSong {
-                    Image(systemName: "repeat.1.circle.fill")
-                        .foregroundColor(settings.backgroundColorChoice.color)
-                } else if playerEngine.isRepeating {
-                    Image(systemName: "repeat.circle.fill")
-                        .foregroundColor(settings.backgroundColorChoice.color)
-                } else {
-                    Image(systemName: "repeat.circle")
-                        .foregroundColor(.primary)
-                }
-            }
-            .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .title2 : .title)
-        }
-    }
-
-    private var additionalControlsView: some View {
-        // Both optional controls can be shown at once. The two settings toggles
-        // are independent, but this row used to have a single shared middle
-        // slot in which the sleep timer took priority - enabling it silently
-        // hid the lyrics button. Each button fills the row evenly, so the
-        // layout absorbs two, three or four of them.
-        HStack(spacing: 12) {
-            queueButton
-            if settings.showSleepTimerButton {
-                sleepTimerButton
-            }
-            if settings.showLyricsButton {
-                lyricsButton
-            }
-            airPlayButton
-        }
-        .padding(.horizontal, 5)
-    }
-
-    private var queueButton: some View {
-        Button(action: {
-            showQueueSheet = true
-        }) {
-            Image(systemName: "list.bullet")
-                .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .title2 : .title)
-                .foregroundColor(.primary)
-                .frame(maxWidth: .infinity, minHeight: 30)
-                .padding(.vertical, 16)
-        }
-        .frame(maxWidth: .infinity)
-        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
-    }
-
-    private var airPlayButton: some View {
-        Button(action: {
-            showAirPlayPicker()
-        }) {
-            Image(systemName: "airplayaudio")
-                .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .title2 : .title)
-                .foregroundColor(.primary)
-                .frame(maxWidth: .infinity, minHeight: 25)
-                .padding(.vertical, 16)
-        }
-        .frame(maxWidth: .infinity)
-        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
-    }
-
     private var emptyStateView: some View {
         VStack {
             Image(systemName: "music.note")
@@ -877,76 +748,6 @@ struct PlayerView: View {
     }
 
     // MARK: - Helper Functions
-
-    private var lyricsButton: some View {
-        Button(action: {
-            withAnimation(.easeOut(duration: 0.26)) {
-                showLyricsSheet = true
-            }
-            if currentLyrics == nil && !isLoadingLyrics {
-                loadLyrics()
-            }
-        }) {
-            ZStack {
-                Image(systemName: "quote.bubble")
-                    .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .title2 : .title)
-                    .foregroundColor(.primary)
-
-                if isLoadingLyrics {
-                    ProgressView()
-                        .scaleEffect(0.7)
-                        .offset(x: 15, y: -10)
-                }
-            }
-            .frame(maxWidth: .infinity, minHeight: 30)
-            .padding(.vertical, 16)
-        }
-        .frame(maxWidth: .infinity)
-        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
-    }
-
-    private var sleepTimerButton: some View {
-        Menu {
-            Button(Localized.sleepTimer15Minutes) {
-                startSleepTimer(minutes: 15)
-            }
-            Button(Localized.sleepTimer30Minutes) {
-                startSleepTimer(minutes: 30)
-            }
-            Button(Localized.sleepTimer45Minutes) {
-                startSleepTimer(minutes: 45)
-            }
-            Button(Localized.sleepTimer60Minutes) {
-                startSleepTimer(minutes: 60)
-            }
-
-            if sleepTimerEndDate != nil {
-                Divider()
-
-                Button(Localized.cancelSleepTimer, role: .destructive) {
-                    cancelSleepTimer()
-                }
-            }
-        } label: {
-            Image(systemName: sleepTimerEndDate == nil ? "timer" : "timer.circle.fill")
-                .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .title2 : .title)
-                .foregroundColor(sleepTimerEndDate == nil ? .primary : settings.backgroundColorChoice.color)
-                .frame(maxWidth: .infinity, minHeight: 30)
-                .padding(.vertical, 16)
-        }
-        .menuOrder(.fixed)
-        .frame(maxWidth: .infinity)
-        .accessibilityLabel(Localized.sleepTimer)
-        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
-    }
 
     private func startSleepTimer(minutes: Int) {
         sleepTimerTask?.cancel()
@@ -1181,7 +982,7 @@ private struct LyricMiniSection: View {
 
 /// Owns the fast-changing progress observation so the complete PlayerView
 /// (artwork, sheets and controls) is not recomputed four times per second.
-private struct PlayerProgressSection: View {
+struct PlayerProgressSection: View {
     @ObservedObject private var progress = PlayerEngine.shared.progress
     let duration: TimeInterval
     let accentColor: Color

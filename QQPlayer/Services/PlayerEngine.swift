@@ -12,6 +12,14 @@ import SFBAudioEngine
 import UIKit
 import WidgetKit
 
+/// 播放顺序四态：顺序播放 → 随机播放 → 循环列表 → 单曲循环 → 顺序播放
+enum PlaybackOrderMode: Int, CaseIterable {
+    case sequential = 0
+    case shuffle = 1
+    case repeatAll = 2
+    case repeatOne = 3
+}
+
 /// Holds the fast-changing playback position so that only views showing the
 /// progress bar/time labels re-render at the 10Hz timer rate. Observing
 /// PlayerEngine itself must not subscribe views to these updates.
@@ -2050,6 +2058,55 @@ class PlayerEngine: NSObject, ObservableObject {
     func insertNext(_ track: Track) {
         let insertIndex = currentIndex + 1
         playbackQueue.insert(track, at: min(insertIndex, playbackQueue.count))
+    }
+
+    // MARK: - Playback Order Mode
+
+    func cyclePlaybackOrderMode() {
+        let nextRaw = (playbackOrderMode.rawValue + 1) % PlaybackOrderMode.allCases.count
+        applyPlaybackOrderMode(PlaybackOrderMode(rawValue: nextRaw) ?? .sequential)
+    }
+
+    func applyPlaybackOrderMode(_ mode: PlaybackOrderMode) {
+        // 这两个 @Published 无副作用，先直接置位
+        isRepeating = false
+        isLoopingSong = false
+
+        switch mode {
+        case .sequential:
+            // 关随机 → 恢复原队列
+            if isShuffled {
+                toggleShuffle()
+            }
+        case .shuffle:
+            // 开随机 → 保存原队列 + 重排
+            if !isShuffled {
+                toggleShuffle()
+            }
+        case .repeatAll:
+            if isShuffled {
+                toggleShuffle()
+            }
+            isRepeating = true
+        case .repeatOne:
+            if isShuffled {
+                toggleShuffle()
+            }
+            isLoopingSong = true
+        }
+    }
+
+    var playbackOrderMode: PlaybackOrderMode {
+        if isShuffled {
+            return .shuffle
+        }
+        if isLoopingSong {
+            return .repeatOne
+        }
+        if isRepeating {
+            return .repeatAll
+        }
+        return .sequential
     }
 
     func cycleLoopMode() {

@@ -376,4 +376,10 @@ struct Localized {
     static func deleteFilesConfirmationMessage(_ count: Int) -> String {
         return "delete_files_confirmation_message".localized(with: count)
     }
+
+    // MARK: - Playback order
+    static let playOrderSequential = "play_order_sequential".localized
+    static let playOrderShuffle = "play_order_shuffle".localized
+    static let playOrderRepeatAll = "play_order_repeat_all".localized
+    static let playOrderRepeatOne = "play_order_repeat_one".localized
 }

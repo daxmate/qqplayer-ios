@@ -301,6 +301,12 @@
 "ai_playlist_created_title" = "播放列表已创建";
 "ai_playlist_created_message" = "已创建“%@”，包含 %d 首歌曲。";
 
+/* 播放顺序 */
+"play_order_sequential" = "顺序播放";
+"play_order_shuffle" = "随机播放";
+"play_order_repeat_all" = "循环列表";
+"play_order_repeat_one" = "单曲循环";
+
 /* Folder playlists */
 "auto_folder_playlists" = "根据文件夹自动创建播放列表";
 "auto_folder_playlists_description" = "启用后，将为每个音乐文件夹自动创建播放列表，并与其内容保持同步。";

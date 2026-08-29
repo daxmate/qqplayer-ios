@@ -386,3 +386,9 @@
 
 "ai_playlist_created_title" = "Playlist Created";
 "ai_playlist_created_message" = "“%@” was created with %d songs.";
+
+/* Playback order */
+"play_order_sequential" = "Sequential";
+"play_order_shuffle" = "Shuffle";
+"play_order_repeat_all" = "Repeat All";
+"play_order_repeat_one" = "Repeat One";
