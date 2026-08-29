@@ -32,6 +32,7 @@
 		A1D0117D952345D1B1D9D76F /* SmartPlaylistUILogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2AE1DBB52BD462D8FAA704D /* SmartPlaylistUILogicTests.swift */; };
 		CA3755439F62402997608072 /* LyricsSearchCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478898B985884E89AA416C7F /* LyricsSearchCacheTests.swift */; };
 		43259368C3DB42DCB3BAA37A /* KaraokeControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21702C2548494B02886D5344 /* KaraokeControllerTests.swift */; };
+		0159E05215D84BF0B2369962 /* AppearanceResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 749D379E8DB64607834CA1E0 /* AppearanceResolverTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -114,6 +115,7 @@
 		B2AE1DBB52BD462D8FAA704D /* SmartPlaylistUILogicTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SmartPlaylistUILogicTests.swift; sourceTree = "<group>"; };
 		478898B985884E89AA416C7F /* LyricsSearchCacheTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LyricsSearchCacheTests.swift; sourceTree = "<group>"; };
 		21702C2548494B02886D5344 /* KaraokeControllerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KaraokeControllerTests.swift; sourceTree = "<group>"; };
+		749D379E8DB64607834CA1E0 /* AppearanceResolverTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppearanceResolverTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -307,6 +309,7 @@
 				B2AE1DBB52BD462D8FAA704D /* SmartPlaylistUILogicTests.swift */,
 				478898B985884E89AA416C7F /* LyricsSearchCacheTests.swift */,
 				21702C2548494B02886D5344 /* KaraokeControllerTests.swift */,
+				749D379E8DB64607834CA1E0 /* AppearanceResolverTests.swift */,
 			);
 			name = QQPlayerTests;
 			path = QQPlayerTests;
@@ -608,6 +611,7 @@
 				A1D0117D952345D1B1D9D76F /* SmartPlaylistUILogicTests.swift in Sources */,
 				CA3755439F62402997608072 /* LyricsSearchCacheTests.swift in Sources */,
 				43259368C3DB42DCB3BAA37A /* KaraokeControllerTests.swift in Sources */,
+				0159E05215D84BF0B2369962 /* AppearanceResolverTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

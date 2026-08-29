@@ -15,8 +15,10 @@ struct ContentView: View {
     var body: some View {
         mainContent
             .background(.clear)
-            .preferredColorScheme(settings.forceDarkMode ? .dark : nil)
             .accentColor(settings.backgroundColorChoice.color)
+            .onAppear {
+                AppearanceResolver.apply(forceDark: settings.forceDarkMode)
+            }
             .modifier(LifecycleModifier(
                 appCoordinator: appCoordinator,
                 libraryIndexer: libraryIndexer,
@@ -55,6 +57,7 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
             settings = DeleteSettings.load()
+            AppearanceResolver.apply(forceDark: settings.forceDarkMode)
         }
     }
 

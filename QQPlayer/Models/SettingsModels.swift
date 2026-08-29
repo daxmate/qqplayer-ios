@@ -10,6 +10,28 @@ extension Notification.Name {
     static let qqplayerSettingsDidChange = Notification.Name("QQPlayerSettingsDidChange")
 }
 
+/// 全局外观决策（forceDarkMode → UIUserInterfaceStyle）。
+///
+/// 不用 SwiftUI 的 `.preferredColorScheme(forceDark ? .dark : nil)`：从显式
+/// `.dark` 切回 `nil` 时系统不会重新解析，界面会卡在深色（已实测复现）。
+/// 改用 UIKit 层 `window.overrideUserInterfaceStyle`：`.unspecified` 明确
+/// 恢复跟随系统，SwiftUI 的 `@Environment(\.colorScheme)` 会自动跟随，
+/// sheet/弹窗/系统控件全部统一生效。
+enum AppearanceResolver {
+    static func interfaceStyle(forceDark: Bool) -> UIUserInterfaceStyle {
+        forceDark ? .dark : .unspecified
+    }
+
+    @MainActor
+    static func apply(forceDark: Bool) {
+        let style = interfaceStyle(forceDark: forceDark)
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .forEach { $0.overrideUserInterfaceStyle = style }
+    }
+}
+
 enum BackgroundColor: String, CaseIterable, Codable {
     case violet = "b11491"
     case red = "e74c3c"
