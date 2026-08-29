@@ -1,6 +1,6 @@
 //
 //  StateManager.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Manages JSON state files for favorites and playlists in iCloud Drive
 //
@@ -88,7 +88,7 @@ class StateManager: @unchecked Sendable {
     
     private func saveToLocalDocuments(_ favoritesState: FavoritesState) throws {
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let localFavoritesURL = documentsURL.appendingPathComponent("cosmos-favorites.json")
+        let localFavoritesURL = documentsURL.appendingPathComponent("qqplayer-favorites.json")
         try saveJSONAtomically(favoritesState, to: localFavoritesURL)
         print("📱 Favorites saved locally to: \(localFavoritesURL.path)")
     }
@@ -98,7 +98,7 @@ class StateManager: @unchecked Sendable {
         
         // Try loading from local Documents first (survives app reinstall)
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let localFavoritesURL = documentsURL.appendingPathComponent("cosmos-favorites.json")
+        let localFavoritesURL = documentsURL.appendingPathComponent("qqplayer-favorites.json")
         
         print("📂 StateManager: Checking local file at: \(localFavoritesURL.path)")
         
@@ -227,7 +227,7 @@ class StateManager: @unchecked Sendable {
     
     private func savePlaylistToLocalDocuments(_ playlist: PlaylistState) throws {
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let localPlaylistsFolder = documentsURL.appendingPathComponent("cosmos-playlists", isDirectory: true)
+        let localPlaylistsFolder = documentsURL.appendingPathComponent("qqplayer-playlists", isDirectory: true)
         
         if !FileManager.default.fileExists(atPath: localPlaylistsFolder.path) {
             try FileManager.default.createDirectory(at: localPlaylistsFolder, 
@@ -272,7 +272,7 @@ class StateManager: @unchecked Sendable {
 
     private func loadPlaylistFromLocalDocuments(slug: String) throws -> PlaylistState? {
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let localPlaylistsFolder = documentsURL.appendingPathComponent("cosmos-playlists", isDirectory: true)
+        let localPlaylistsFolder = documentsURL.appendingPathComponent("qqplayer-playlists", isDirectory: true)
         let localPlaylistURL = localPlaylistsFolder.appendingPathComponent("playlist-\(slug).json")
 
         guard FileManager.default.fileExists(atPath: localPlaylistURL.path) else {
@@ -382,7 +382,7 @@ class StateManager: @unchecked Sendable {
     
     private func deletePlaylistFromLocalDocuments(slug: String) throws {
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let localPlaylistsFolder = documentsURL.appendingPathComponent("cosmos-playlists", isDirectory: true)
+        let localPlaylistsFolder = documentsURL.appendingPathComponent("qqplayer-playlists", isDirectory: true)
         let localPlaylistURL = localPlaylistsFolder.appendingPathComponent("playlist-\(slug).json")
         
         if FileManager.default.fileExists(atPath: localPlaylistURL.path) {
@@ -473,7 +473,7 @@ extension StateManager {
     
     private func savePlayerStateToLocalDocuments(_ playerState: PlayerState) throws {
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let localPlayerStateURL = documentsURL.appendingPathComponent("cosmos-player-state.json")
+        let localPlayerStateURL = documentsURL.appendingPathComponent("qqplayer-player-state.json")
         try saveJSONAtomically(playerState, to: localPlayerStateURL)
         print("📱 Player state saved locally to: \(localPlayerStateURL.path)")
     }
@@ -483,7 +483,7 @@ extension StateManager {
         
         // Try loading from local Documents first (survives app reinstall)
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let localPlayerStateURL = documentsURL.appendingPathComponent("cosmos-player-state.json")
+        let localPlayerStateURL = documentsURL.appendingPathComponent("qqplayer-player-state.json")
         
         print("📂 StateManager: Checking local player state at: \(localPlayerStateURL.path)")
         

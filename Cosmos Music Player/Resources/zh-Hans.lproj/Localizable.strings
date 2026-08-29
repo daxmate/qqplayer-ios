@@ -23,7 +23,7 @@
 "songs_count_plural" = "%d 首歌曲";
 "created_date" = "创建于 %@";
 "no_songs_found" = "未找到歌曲";
-"your_music_will_appear_here" = "如何添加你的无损音乐：\n\n1. 打开 iOS 自带的「文件」App（或点击下方“打开文件”按钮）\n2. 找到以下任意路径：\n   • iCloud 云盘 → Cosmos Music Player 文件夹\n   • 我的 iPhone → Cosmos Music Player\n3. 将你的音乐文件移动或拷贝到上述文件夹中即可";
+"your_music_will_appear_here" = "如何添加你的无损音乐：\n\n1. 打开 iOS 自带的「文件」App（或点击下方“打开文件”按钮）\n2. 找到以下任意路径：\n   • iCloud 云盘 → QQPlayer 文件夹\n   • 我的 iPhone → QQPlayer\n3. 将你的音乐文件移动或拷贝到上述文件夹中即可";
 "create_first_playlist" = "创建你的第一个播放列表开始听歌吧";
 
 /* General UI strings */
@@ -91,7 +91,7 @@
 "force_dark_mode" = "强制深色模式";
 "version" = "版本";
 "app_name" = "应用名称";
-"cosmos_music_player" = "Cosmos Music Player";
+"qqplayer" = "QQPlayer";
 "github_repository" = "GitHub 开源仓库";
 "use_simple_icons" = "在媒体库界面中移除图标的彩色背景，使用极简风格。";
 "override_system_appearance" = "无视 iOS 系统外观设置，强制让应用保持深色模式。";
@@ -123,7 +123,7 @@
 "icloud_connection_required" = "需要连接 iCloud";
 
 /* Tutorial/Onboarding */
-"welcome_to_cosmos" = "欢迎使用 Cosmos";
+"welcome_to_qqplayer" = "欢迎使用 QQPlayer";
 "sign_in_to_apple_id" = "登录 Apple ID";
 "sign_in_message" = "为了在多台设备间同步你的无损音乐和收藏夹，请确保已登录 Apple ID。";
 "if_signed_in_continue" = "如果你已登录，请点击继续";
@@ -134,7 +134,7 @@
 "how_to_add_music" = "你可以将音乐文件放入 iCloud 云盘 (多端同步)，或者仅存入本机 (纯本地播放)：";
 "open_files_app" = "打开「文件」App";
 "navigate_to_icloud_drive" = "进入「iCloud 云盘」";
-"find_cosmos_player_folder" = "找到「Cosmos Music Player」文件夹";
+"find_qqplayer_folder" = "找到「QQPlayer」文件夹";
 "add_your_music_instruction" = "导入你的音乐";
 
 /* Tutorial Status Messages */
@@ -148,7 +148,7 @@
 /* Tutorial Instructions */
 "find_open_files_app" = "在手机桌面上找到并打开蓝色的「文件」App";
 "tap_icloud_drive_sidebar" = "在浏览页面选择「iCloud 云盘」或「我的 iPhone」";
-"look_for_cosmos_folder" = "找到名为「Cosmos Music Player」的文件夹并点开";
+"look_for_qqplayer_folder" = "找到名为「QQPlayer」的文件夹并点开";
 "copy_music_files" = "将你的 DSD、FLAC、WAV 等无损文件拷贝进这个文件夹";
 
 /* Library Processing */
@@ -318,14 +318,14 @@
 "Resumes playing your music where you left off." = "从上次停止的位置继续播放音乐。";
 "Audio" = "音频";
 "Play Music" = "播放音乐";
-"Plays a song, album, artist or playlist from your Cosmos library." = "播放 Cosmos 音乐库中的歌曲、专辑、艺术家或播放列表。";
+"Plays a song, album, artist or playlist from your QQPlayer library." = "播放 QQPlayer 音乐库中的歌曲、专辑、艺术家或播放列表。";
 "Playback" = "播放";
 "Add to Playlist" = "添加到播放列表";
 "Generate Mix" = "生成合集";
-"Builds a mix from your Cosmos library matching a mood or description and starts playing it." = "根据心情或描述，从 Cosmos 音乐库生成合集并开始播放。";
+"Builds a mix from your QQPlayer library matching a mood or description and starts playing it." = "根据心情或描述，从 QQPlayer 音乐库生成合集并开始播放。";
 "Toggle Favorite" = "切换收藏";
 "Favorite Current Song" = "收藏当前歌曲";
-"Adds the currently playing Cosmos song to Liked Songs." = "将 Cosmos 中正在播放的歌曲添加到“我喜欢的音乐”。";
+"Adds the currently playing QQPlayer song to Liked Songs." = "将 QQPlayer 中正在播放的歌曲添加到“我喜欢的音乐”。";
 "Add to Queue" = "添加到播放队列";
 "Play Playlist" = "播放播放列表";
 "Save Mix as Playlist" = "将合集保存为播放列表";
@@ -343,7 +343,7 @@
 /* Dialogs */
 "%@ is already in your Liked Songs." = "%@ 已在“我喜欢的音乐”中。";
 "Added %@ to your Liked Songs." = "已将 %@ 添加到“我喜欢的音乐”。";
-"There isn't a song playing in Cosmos right now." = "Cosmos 当前没有正在播放的歌曲。";
+"There isn't a song playing in QQPlayer right now." = "QQPlayer 当前没有正在播放的歌曲。";
 "Added %@ to your favorites." = "已将 %@ 添加到收藏。";
 "Removed %@ from your favorites." = "已将 %@ 从收藏中移除。";
 "Added %@ to %@." = "已将 %1$@ 添加到 %2$@。";
@@ -352,7 +352,7 @@
 "Now playing" = "正在播放";
 
 /* Errors */
-"There's no music in your Cosmos library yet." = "Cosmos 音乐库中还没有音乐。";
+"There's no music in your QQPlayer library yet." = "QQPlayer 音乐库中还没有音乐。";
 "No matching music was found in your library." = "在你的音乐库中未找到匹配的音乐。";
 "You can only take that action on individual songs." = "该操作仅适用于单首歌曲。";
 "That song is already in this playlist." = "该歌曲已在此播放列表中。";

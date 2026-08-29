@@ -1,6 +1,6 @@
 //
 //  PlaylistEntity.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Assistant-schema playlist entity backed by the GRDB Playlist model.
 //

@@ -1,6 +1,6 @@
 //
 //  HybridMusicAPI.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Hybrid music API service that tries Spotify first, then falls back to Discogs
 //

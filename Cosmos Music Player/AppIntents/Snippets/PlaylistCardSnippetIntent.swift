@@ -1,6 +1,6 @@
 //
 //  PlaylistCardSnippetIntent.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Interactive playlist card shown as a Siri/Shortcuts result: title,
 //  track count and duration, plus a play button.

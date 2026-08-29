@@ -262,7 +262,7 @@ class ShareViewController: SLComposeServiceViewController {
             return
         }
 
-        guard let sharedContainer = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.dev.clq.Cosmos-Music-Player") else {
+        guard let sharedContainer = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios") else {
             print("❌ Failed to get shared container URL")
             return
         }
@@ -319,7 +319,7 @@ class ShareViewController: SLComposeServiceViewController {
     }
     
     private func openMainApp() {
-        guard let url = URL(string: "cosmos-music://refresh") else {
+        guard let url = URL(string: "qqplayer://refresh") else {
             print("❌ Failed to create URL for main app")
             return
         }

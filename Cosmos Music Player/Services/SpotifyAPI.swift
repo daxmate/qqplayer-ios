@@ -1,6 +1,6 @@
 //
 //  SpotifyAPI.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Spotify API service for fetching artist information
 //

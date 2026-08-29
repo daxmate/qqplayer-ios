@@ -3,11 +3,11 @@ import SwiftUI
 import UIKit
 
 extension Notification.Name {
-    /// Posted only when Cosmos UI settings change. Playback persistence also
+    /// Posted only when QQPlayer UI settings change. Playback persistence also
     /// writes to UserDefaults, so views must not observe the broad
     /// UserDefaults.didChangeNotification or every state save rebuilds the
     /// library hierarchy while audio is playing.
-    static let cosmosSettingsDidChange = Notification.Name("CosmosSettingsDidChange")
+    static let qqplayerSettingsDidChange = Notification.Name("QQPlayerSettingsDidChange")
 }
 
 enum BackgroundColor: String, CaseIterable, Codable {
@@ -158,7 +158,7 @@ struct DeleteSettings: Codable {
         if let data = try? JSONEncoder().encode(self) {
             UserDefaults.standard.set(data, forKey: "DeleteSettings")
             let notify = {
-                NotificationCenter.default.post(name: .cosmosSettingsDidChange, object: nil)
+                NotificationCenter.default.post(name: .qqplayerSettingsDidChange, object: nil)
             }
             if Thread.isMainThread {
                 notify()

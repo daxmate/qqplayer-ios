@@ -1,6 +1,6 @@
 //
 //  LyricsView.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Lyrics display with synchronized scrolling
 //

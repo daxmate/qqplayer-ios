@@ -84,7 +84,7 @@ struct ArtistsScreen: View {
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LibraryNeedsRefresh"))) { _ in
                 loadArtists()
             }
-            .onReceive(NotificationCenter.default.publisher(for: .cosmosSettingsDidChange)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
                 settings = DeleteSettings.load()
             }
         }
@@ -214,7 +214,7 @@ struct ArtistDetailScreen: View {
             selectedTracks: $selectedTracks
         )
         .onAppear { loadArtistData() }
-        .onReceive(NotificationCenter.default.publisher(for: .cosmosSettingsDidChange)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
             settings = DeleteSettings.load()
         }
     }

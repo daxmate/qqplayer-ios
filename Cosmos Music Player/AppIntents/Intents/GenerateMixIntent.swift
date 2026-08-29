@@ -1,6 +1,6 @@
 //
 //  GenerateMixIntent.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  "Make me a chill evening mix" — on-device Foundation Models pick songs
 //  from the library, playback starts immediately, and the result snippet
@@ -19,12 +19,12 @@ struct GenerateMixIntent: AudioPlaybackIntent {
     )
     static let description = IntentDescription(
         LocalizedStringResource(
-            "Builds a mix from your Cosmos library matching a mood or description and starts playing it.",
+            "Builds a mix from your QQPlayer library matching a mood or description and starts playing it.",
             comment: "Description of the Generate Mix intent shown in the Shortcuts gallery."
         ),
         categoryName: LocalizedStringResource(
             "Playback",
-            comment: "Shortcuts gallery category name for Cosmos playback intents."
+            comment: "Shortcuts gallery category name for QQPlayer playback intents."
         )
     )
 

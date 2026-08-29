@@ -1,6 +1,6 @@
 //
 //  CosmosAppShortcuts.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Phrases the system pre-registers with Siri so they work without any
 //  Shortcuts app setup. Localized phrases (FR) land in the Phase 5 pass.
@@ -9,7 +9,7 @@
 import AppIntents
 
 @available(iOS 26.0, *)
-struct CosmosAppShortcuts: AppShortcutsProvider {
+struct QQPlayerAppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: ResumePlaybackIntent(),

@@ -1,6 +1,6 @@
 //
 //  StateModels.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  JSON state models for favorites and playlists sync
 //

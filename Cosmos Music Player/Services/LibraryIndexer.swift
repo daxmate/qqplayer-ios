@@ -1,6 +1,6 @@
 //
 //  LibraryIndexer.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Indexes audio files (FLAC, MP3, WAV, AAC, Opus, Vorbis, DSD) in iCloud Drive using NSMetadataQuery
 //
@@ -1040,7 +1040,7 @@ class LibraryIndexer: NSObject, ObservableObject {
     func copyFilesFromSharedContainer() async {
         print("📁 Checking shared container for new music files...")
 
-        guard let sharedContainer = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.dev.clq.Cosmos-Music-Player") else {
+        guard let sharedContainer = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios") else {
             print("❌ Failed to get shared container URL")
             return
         }

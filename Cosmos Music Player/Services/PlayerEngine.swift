@@ -1,5 +1,5 @@
 //  PlayerEngine.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Audio playback engine using AVAudioEngine for high-resolution FLAC playback
 //
@@ -3032,7 +3032,7 @@ class PlayerEngine: NSObject, ObservableObject {
             "lastSavedAt": Date()
         ]
 
-        UserDefaults.standard.set(playerState, forKey: "CosmosPlayerState")
+        UserDefaults.standard.set(playerState, forKey: "QQPlayerState")
         UserDefaults.standard.synchronize()
         print("✅ Player state saved to UserDefaults (offline, per-device)")
     }
@@ -3074,7 +3074,7 @@ class PlayerEngine: NSObject, ObservableObject {
     }
 
     func restoreUIStateOnly() async {
-        guard let playerStateDict = UserDefaults.standard.dictionary(forKey: "CosmosPlayerState") else {
+        guard let playerStateDict = UserDefaults.standard.dictionary(forKey: "QQPlayerState") else {
             print("📭 No saved player state found in UserDefaults")
             return
         }
@@ -3180,7 +3180,7 @@ class PlayerEngine: NSObject, ObservableObject {
     }
 
     func restorePlayerState() async {
-        guard let playerStateDict = UserDefaults.standard.dictionary(forKey: "CosmosPlayerState") else {
+        guard let playerStateDict = UserDefaults.standard.dictionary(forKey: "QQPlayerState") else {
             print("📭 No saved player state found in UserDefaults")
             return
         }

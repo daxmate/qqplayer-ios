@@ -46,7 +46,7 @@ struct AlbumsScreen: View {
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("LibraryNeedsRefresh"))) { _ in
             loadAlbums()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .cosmosSettingsDidChange)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
             settings = DeleteSettings.load()
         }
     }

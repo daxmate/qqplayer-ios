@@ -1,6 +1,6 @@
 //
 //  DiscogsAPI.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Discogs API service for fetching artist information
 //
@@ -200,7 +200,7 @@ class DiscogsAPIService: ObservableObject, @unchecked Sendable {
         
         var request = URLRequest(url: url)
         request.setValue("Discogs key=\(consumerKey), secret=\(consumerSecret)", forHTTPHeaderField: "Authorization")
-        request.setValue("CosmosPlayer/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("QQPlayer/1.0", forHTTPHeaderField: "User-Agent")
         
         print("🌐 Discogs: Making request to: \(urlString)")
         
@@ -249,7 +249,7 @@ class DiscogsAPIService: ObservableObject, @unchecked Sendable {
         
         var request = URLRequest(url: url)
         request.setValue("Discogs key=\(consumerKey), secret=\(consumerSecret)", forHTTPHeaderField: "Authorization")
-        request.setValue("CosmosPlayer/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("QQPlayer/1.0", forHTTPHeaderField: "User-Agent")
         
         print("🌐 Discogs: Fetching artist details from: \(resourceUrl)")
         

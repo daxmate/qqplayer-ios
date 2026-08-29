@@ -1,6 +1,6 @@
 //
 //  AudioEntity.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Union value so a single PlayAudioIntent handles "Play <song>",
 //  "Play the album <title>", "Play some <artist>" and "Play my <playlist>".

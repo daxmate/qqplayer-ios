@@ -1,6 +1,6 @@
 //
 //  PlaybackAttributes.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Modifiers the system passes to PlayAudioIntent so a person can say
 //  "Play X shuffled" or "Play X on repeat".

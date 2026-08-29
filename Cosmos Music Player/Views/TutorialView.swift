@@ -1,6 +1,6 @@
 //
 //  TutorialView.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Tutorial flow for first-time users
 //
@@ -47,7 +47,7 @@ struct TutorialView: View {
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut, value: viewModel.currentStep)
             }
-            .navigationTitle(Localized.welcomeToCosmos)
+            .navigationTitle(Localized.welcomeToQQPlayer)
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden()
         }
@@ -346,8 +346,8 @@ struct MusicFilesStepView: View {
                     
                     InstructionRow(
                         step: "3",
-                        title: Localized.findCosmosPlayerFolder,
-                        description: Localized.lookForCosmosFolder
+                        title: Localized.findQQPlayerFolder,
+                        description: Localized.lookForQQPlayerFolder
                     )
                     
                     InstructionRow(

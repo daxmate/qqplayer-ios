@@ -1,6 +1,6 @@
 //
 //  SnippetActionIntents.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Hidden intents backing the buttons inside interactive result snippets.
 //  Tapping a button performs one of these; the system then re-runs the

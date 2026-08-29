@@ -1,6 +1,6 @@
 //
 //  LocalizationHelper.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Localization helper for easy access to localized strings
 //
@@ -117,7 +117,7 @@ struct Localized {
     static let forceDarkMode = "force_dark_mode".localized
     static let version = "version".localized
     static let appName = "app_name".localized
-    static let cosmosMusicPlayer = "cosmos_music_player".localized
+    static let qqplayerName = "qqplayer".localized
     static let githubRepository = "github_repository".localized
     static let useSimpleIcons = "use_simple_icons".localized
     static let overrideSystemAppearance = "override_system_appearance".localized
@@ -155,7 +155,7 @@ struct Localized {
     static let icloudConnectionRequired = "icloud_connection_required".localized
     
     // MARK: - Tutorial/Onboarding
-    static let welcomeToCosmos = "welcome_to_cosmos".localized
+    static let welcomeToQQPlayer = "welcome_to_qqplayer".localized
     static let signInToAppleId = "sign_in_to_apple_id".localized
     static let signInMessage = "sign_in_message".localized
     static let ifSignedInContinue = "if_signed_in_continue".localized
@@ -166,7 +166,7 @@ struct Localized {
     static let howToAddMusic = "how_to_add_music".localized
     static let openFilesApp = "open_files_app".localized
     static let navigateToIcloudDrive = "navigate_to_icloud_drive".localized
-    static let findCosmosPlayerFolder = "find_cosmos_player_folder".localized
+    static let findQQPlayerFolder = "find_qqplayer_folder".localized
     static let addYourMusicInstruction = "add_your_music_instruction".localized
     
     // MARK: - Tutorial Status Messages
@@ -180,7 +180,7 @@ struct Localized {
     // MARK: - Tutorial Instructions
     static let findOpenFilesApp = "find_open_files_app".localized
     static let tapIcloudDriveSidebar = "tap_icloud_drive_sidebar".localized
-    static let lookForCosmosFolder = "look_for_cosmos_folder".localized
+    static let lookForQQPlayerFolder = "look_for_qqplayer_folder".localized
     static let copyMusicFiles = "copy_music_files".localized
     
     // MARK: - Library Processing

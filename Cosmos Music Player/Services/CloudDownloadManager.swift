@@ -1,6 +1,6 @@
 //
 //  CloudDownloadManager.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Manages downloading and monitoring iCloud Drive files
 //

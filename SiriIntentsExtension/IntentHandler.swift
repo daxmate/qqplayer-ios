@@ -86,7 +86,7 @@ extension String {
         }
 
         let ignoredWords: Set<String> = [
-            "a", "an", "the", "song", "music", "track", "play", "please", "by", "from", "in", "on", "cosmos",
+            "a", "an", "the", "song", "music", "track", "play", "please", "by", "from", "in", "on", "qqplayer",
             "le", "la", "les", "un", "une", "chanson", "musique", "titre", "joue", "de", "du", "des", "dans", "sur"
         ]
         let queryTokens = query.split(separator: " ").map(String.init).filter { !ignoredWords.contains($0) }
@@ -115,7 +115,7 @@ struct RankedSimpleTrack: Sendable {
 enum SiriDiag {
     static func log(_ message: String) {
         guard let container = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "group.dev.clq.Cosmos-Music-Player"
+            forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios"
         ) else { return }
         let dir = container.appendingPathComponent("Library", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -143,12 +143,12 @@ class ExtensionDatabaseAccess {
     }
 
     private func setupDatabase() {
-        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.dev.clq.Cosmos-Music-Player") else {
+        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios") else {
             print("❌ Unable to get app group container")
             return
         }
 
-        let databaseURL = containerURL.appendingPathComponent("cosmos_music.db")
+        let databaseURL = containerURL.appendingPathComponent("qqplayer.db")
 
         do {
             dbQueue = try DatabaseQueue(path: databaseURL.path)
@@ -378,7 +378,7 @@ private enum SiriLanguageModelSongMatcher {
         }.joined(separator: "\n")
 
         let prompt = """
-        A person asked Siri to play a song from their private Cosmos library.
+        A person asked Siri to play a song from their private QQPlayer library.
         Spoken words can be misspelled or transcribed phonetically. Select the
         one catalog entry that most likely means the requested song. Consider
         title, artist, album, soundtrack/franchise names, abbreviations and
@@ -447,11 +447,11 @@ class IntentHandler: INExtension, INPlayMediaIntentHandling, INAddMediaIntentHan
             if mediaItems.isEmpty {
                 // A successful sentinel lets handling return a normal Siri
                 // failure response. Returning .unsupported makes Siri offer
-                // to "continue in Cosmos", even though opening the app cannot
+                // to "continue in QQPlayer", even though opening the app cannot
                 // repair a genuinely missing library item.
                 let missing = INMediaItem(
-                    identifier: "cosmos_not_found",
-                    title: "I couldn't find that song in Cosmos",
+                    identifier: "qqplayer_not_found",
+                    title: "I couldn't find that song in QQPlayer",
                     type: .song,
                     artwork: nil,
                     artist: nil
@@ -502,7 +502,7 @@ class IntentHandler: INExtension, INPlayMediaIntentHandling, INAddMediaIntentHan
 
     func handle(intent: INPlayMediaIntent, completion: @escaping (INPlayMediaIntentResponse) -> Void) {
         SiriDiag.log("EXT handle -> handleInApp items=\(intent.mediaItems?.compactMap { $0.identifier }.joined(separator: ",") ?? "none")")
-        if intent.mediaItems?.contains(where: { $0.identifier == "cosmos_not_found" }) == true {
+        if intent.mediaItems?.contains(where: { $0.identifier == "qqplayer_not_found" }) == true {
             completion(INPlayMediaIntentResponse(code: .failure, userActivity: nil))
             return
         }
@@ -821,7 +821,7 @@ class IntentHandler: INExtension, INPlayMediaIntentHandling, INAddMediaIntentHan
                 }
                 // Do not manufacture a successful item for a failed lookup.
                 // That forces Siri to launch the app and say "continue in
-                // Cosmos" even though there is no matching library content.
+                // QQPlayer" even though there is no matching library content.
                 return []
             }
             print("❌ Unsupported media type with no name: \(mediaSearch.mediaType)")
@@ -835,7 +835,7 @@ class IntentHandler: INExtension, INPlayMediaIntentHandling, INAddMediaIntentHan
     }
 
     private func createUserActivity(from intent: INPlayMediaIntent) -> NSUserActivity {
-        let activity = NSUserActivity(activityType: "com.cosmos.music.play")
+        let activity = NSUserActivity(activityType: "com.daxmate.qqplayer.play")
 
         if let mediaSearch = intent.mediaSearch {
             var userInfo: [String: Any] = [:]

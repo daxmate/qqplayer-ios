@@ -1,6 +1,6 @@
 //
 //  EQManager.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Graphic equalizer management service
 //

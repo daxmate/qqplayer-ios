@@ -1,6 +1,6 @@
 //
 //  SFBAudioEngineManager.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Manages SFBAudioEngine playback for Opus, Vorbis, and DSD formats
 //

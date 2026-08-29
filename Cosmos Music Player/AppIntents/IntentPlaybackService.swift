@@ -1,6 +1,6 @@
 //
 //  IntentPlaybackService.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Single playback/library surface for App Intents. Wraps PlayerEngine,
 //  AppCoordinator and DatabaseManager so intents never touch them directly.

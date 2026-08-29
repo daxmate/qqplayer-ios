@@ -1,6 +1,6 @@
 //
 //  AppIntentsDependencies.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Registers the services App Intents resolve via @Dependency. Must run at
 //  process launch — intents can execute without the UI ever appearing.

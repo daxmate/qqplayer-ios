@@ -23,7 +23,7 @@
 "songs_count_plural" = "%d musiques";
 "created_date" = "Créée le %@";
 "no_songs_found" = "Aucune musique trouvée";
-"your_music_will_appear_here" = "Pour ajouter vos musiques :\n\n1. Ouvrez l'app Fichiers (ou appuyez sur 'Ouvrir Fichiers')\n2. Choisissez soit :\n   • iCloud Drive → dossier Cosmos Music Player\n   • Sur mon iPhone → Cosmos Music Player\n3. Glissez vos musiques dans l'un des deux emplacements";
+"your_music_will_appear_here" = "Pour ajouter vos musiques :\n\n1. Ouvrez l'app Fichiers (ou appuyez sur 'Ouvrir Fichiers')\n2. Choisissez soit :\n   • iCloud Drive → dossier QQPlayer\n   • Sur mon iPhone → QQPlayer\n3. Glissez vos musiques dans l'un des deux emplacements";
 "create_first_playlist" = "Créez votre première playlist pour commencer";
 
 /* General UI strings */
@@ -42,7 +42,7 @@
 "its_enabled" = "Activer";
 
 /* Library and Navigation */
-"library" = "Cosmos";
+"library" = "Bibliothèque";
 "artists" = "Artistes";
 "albums" = "Albums";
 "search" = "Rechercher";
@@ -91,7 +91,7 @@
 "force_dark_mode" = "Mode sombre forcé";
 "version" = "Version";
 "app_name" = "Nom de l'app";
-"cosmos_music_player" = "Cosmos Music Player";
+"qqplayer" = "QQPlayer";
 "github_repository" = "Dépôt GitHub";
 "use_simple_icons" = "Utilisez des icônes simples sans arrière-plans colorés dans les sections de la bibliothèque.";
 "override_system_appearance" = "Remplacer l'apparence du système et forcer l'application à utiliser le mode sombre.";
@@ -129,7 +129,7 @@
 "icloud_connection_required" = "Connexion iCloud requise";
 
 /* Tutorial/Onboarding */
-"welcome_to_cosmos" = "Bienvenue dans Cosmos";
+"welcome_to_qqplayer" = "Bienvenue dans QQPlayer";
 "sign_in_to_apple_id" = "Se connecter à l'identifiant Apple";
 "sign_in_message" = "Pour synchroniser votre musique et vos favoris sur tous vos appareils, assurez-vous d'être connecté à votre identifiant Apple.";
 "if_signed_in_continue" = "Si vous êtes connecté, vous pouvez continuer";
@@ -140,7 +140,7 @@
 "how_to_add_music" = "Vous pouvez ajouter vos musiques soit dans iCloud (synchronisé sur vos appareils) ou localement :";
 "open_files_app" = "Ouvrir l'app Fichiers";
 "navigate_to_icloud_drive" = "Naviguer vers iCloud Drive";
-"find_cosmos_player_folder" = "Trouver le dossier Cosmos Player";
+"find_qqplayer_folder" = "Trouver le dossier QQPlayer";
 "add_your_music_instruction" = "Ajoutez votre musique";
 
 /* Tutorial Status Messages */
@@ -154,7 +154,7 @@
 /* Tutorial Instructions */
 "find_open_files_app" = "Trouvez et ouvrez l'app Fichiers";
 "tap_icloud_drive_sidebar" = "Choisissez 'iCloud Drive' ou 'Sur mon iPhone' dans la barre latérale";
-"look_for_cosmos_folder" = "Trouvez le dossier 'Cosmos Music Player' et ouvrez-le";
+"look_for_qqplayer_folder" = "Trouvez le dossier 'QQPlayer' et ouvrez-le";
 "copy_music_files" = "Copiez vos fichiers FLAC ou MP3 dans ce dossier";
 
 /* Library Processing */
@@ -305,17 +305,17 @@
 "Resumes playing your music where you left off." = "Reprend la lecture de votre musique là où vous vous étiez arrêté.";
 "Audio" = "Audio";
 "Play Music" = "Lire de la musique";
-"Plays a song, album, artist or playlist from your Cosmos library." = "Lit un titre, un album, un artiste ou une playlist de votre bibliothèque Cosmos.";
+"Plays a song, album, artist or playlist from your QQPlayer library." = "Lit un titre, un album, un artiste ou une playlist de votre bibliothèque QQPlayer.";
 "Playback" = "Lecture";
 "Add to Playlist" = "Ajouter à une playlist";
 "Generate Mix" = "Générer un mix";
-"Builds a mix from your Cosmos library matching a mood or description and starts playing it." = "Crée un mix à partir de votre bibliothèque Cosmos selon une ambiance ou une description, puis lance la lecture.";
+"Builds a mix from your QQPlayer library matching a mood or description and starts playing it." = "Crée un mix à partir de votre bibliothèque QQPlayer selon une ambiance ou une description, puis lance la lecture.";
 "Toggle Favorite" = "Basculer le favori";
 "Favorite Current Song" = "Ajouter le morceau en cours aux favoris";
-"Adds the currently playing Cosmos song to Liked Songs." = "Ajoute le morceau en cours de lecture dans Cosmos aux favoris.";
+"Adds the currently playing QQPlayer song to Liked Songs." = "Ajoute le morceau en cours de lecture dans QQPlayer aux favoris.";
 "%@ is already in your Liked Songs." = "%@ est déjà dans vos favoris.";
 "Added %@ to your Liked Songs." = "%@ a été ajouté à vos favoris.";
-"There isn't a song playing in Cosmos right now." = "Aucun morceau n'est en cours de lecture dans Cosmos.";
+"There isn't a song playing in QQPlayer right now." = "Aucun morceau n'est en cours de lecture dans QQPlayer.";
 "Add to Queue" = "Ajouter à la file d'attente";
 "Play Playlist" = "Lire la playlist";
 "Save Mix as Playlist" = "Enregistrer le mix comme playlist";
@@ -339,7 +339,7 @@
 "Now playing" = "En cours de lecture";
 
 /* Erreurs */
-"There's no music in your Cosmos library yet." = "Il n'y a pas encore de musique dans votre bibliothèque Cosmos.";
+"There's no music in your QQPlayer library yet." = "Il n'y a pas encore de musique dans votre bibliothèque QQPlayer.";
 "No matching music was found in your library." = "Aucune musique correspondante n'a été trouvée dans votre bibliothèque.";
 "You can only take that action on individual songs." = "Cette action n'est possible que sur des titres individuels.";
 "That song is already in this playlist." = "Ce titre est déjà dans cette playlist.";

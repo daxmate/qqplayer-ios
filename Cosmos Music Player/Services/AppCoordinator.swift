@@ -1,6 +1,6 @@
 //
 //  AppCoordinator.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Main app coordinator that manages all services
 //
@@ -217,7 +217,7 @@ class AppCoordinator: ObservableObject {
         
         // Try to create the app folder
         do {
-            let appFolderURL = containerURL.appendingPathComponent("Cosmos Player", isDirectory: true)
+            let appFolderURL = containerURL.appendingPathComponent("QQPlayer Player", isDirectory: true)
             
             if !FileManager.default.fileExists(atPath: appFolderURL.path) {
                 try FileManager.default.createDirectory(at: appFolderURL, 
@@ -444,11 +444,11 @@ class AppCoordinator: ObservableObject {
                 print("🏗️ iCloud folder created/verified at: \(folderURL)")
                 
                 // Create test files to trigger iCloud Drive visibility (as per research)
-                let tempFile = folderURL.appendingPathComponent(".cosmos-placeholder")
+                let tempFile = folderURL.appendingPathComponent(".qqplayer-placeholder")
                 let testFile = folderURL.appendingPathComponent("Welcome.txt")
                 
-                let tempContent = "Cosmos Music Player folder - you can delete this file"
-                let welcomeContent = "Welcome to Cosmos Music Player!\n\nYou can add your FLAC music files directly to this folder in the Files app.\n\nThe app will automatically detect and index any music files you add here.\n\nEnjoy your music!"
+                let tempContent = "QQPlayer folder - you can delete this file"
+                let welcomeContent = "Welcome to QQPlayer!\n\nYou can add your FLAC music files directly to this folder in the Files app.\n\nThe app will automatically detect and index any music files you add here.\n\nEnjoy your music!"
                 
                 try tempContent.write(to: tempFile, atomically: true, encoding: .utf8)
                 try welcomeContent.write(to: testFile, atomically: true, encoding: .utf8)
@@ -848,7 +848,7 @@ class AppCoordinator: ObservableObject {
                     // which also covered the perfectly ordinary case of the user
                     // deleting every track in a playlist. The cloud copy was then
                     // pinned forever, still listing the deleted tracks, and was
-                    // re-mirrored into Documents/cosmos-playlists on each launch -
+                    // re-mirrored into Documents/qqplayer-playlists on each launch -
                     // so the entries appeared to come back from the dead.
                     // Scoping it to "the whole library is missing" keeps the
                     // corruption protection while letting a genuinely emptied
@@ -883,7 +883,7 @@ class AppCoordinator: ObservableObject {
 
     private func updateWidgetPlaylists(playlists: [Playlist]) async {
         guard let containerURL = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "group.dev.clq.Cosmos-Music-Player"
+            forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios"
         ) else {
             print("⚠️ Widget: Failed to get shared container URL")
             return
@@ -1073,7 +1073,7 @@ class AppCoordinator: ObservableObject {
         print("🎤 Handling Siri playback intent for: \(identifier)")
         SiriDiag.log("APP handleSiriPlaybackIntent identifier=\(identifier) title=\(mediaItem.title ?? "nil")")
 
-        guard identifier != "cosmos_not_found" else {
+        guard identifier != "qqplayer_not_found" else {
             completion(INPlayMediaIntentResponse(code: .failure, userActivity: nil))
             return
         }

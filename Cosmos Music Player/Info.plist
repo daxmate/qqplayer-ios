@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Cosmos</string>
+	<string>QQPlayer</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -24,21 +24,15 @@
 	<array>
 		<dict>
 			<key>INAlternativeAppName</key>
-			<string>Cosmos Music Player</string>
+			<string>QQPlayer</string>
 			<key>INAlternativeAppNamePronunciationHint</key>
-			<string>cosmos music player</string>
+			<string>qq player</string>
 		</dict>
 		<dict>
 			<key>INAlternativeAppName</key>
-			<string>Cosmos</string>
+			<string>QQ Player</string>
 			<key>INAlternativeAppNamePronunciationHint</key>
-			<string>cosmos</string>
-		</dict>
-		<dict>
-			<key>INAlternativeAppName</key>
-			<string>Cosmos Musique</string>
-			<key>INAlternativeAppNamePronunciationHint</key>
-			<string>cosmos musique</string>
+			<string>qq player</string>
 		</dict>
 	</array>
 	<key>LSRequiresIPhoneOS</key>
@@ -47,12 +41,12 @@
 	<true/>
 	<key>NSUbiquitousContainers</key>
 	<dict>
-		<key>iCloud.dev.clq.Cosmos-Music-Player</key>
+		<key>iCloud.com.daxmate.qqplayer.ios</key>
 		<dict>
 			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
 			<true/>
 			<key>NSUbiquitousContainerName</key>
-			<string>Cosmos Music Player</string>
+			<string>QQPlayer</string>
 			<key>NSUbiquitousContainerSupportedFolderLevels</key>
 			<string>Any</string>
 		</dict>
@@ -107,10 +101,10 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>dev.clq.cosmos-music-player</string>
+			<string>com.daxmate.qqplayer.ios</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>cosmos-music</string>
+				<string>qqplayer</string>
 			</array>
 		</dict>
 	</array>

@@ -1,6 +1,6 @@
 //
 //  PlayAudioIntent.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  The .audio.playAudio schema intent — Siri fills `audioEntity` from
 //  Spotlight-indexed entities, the entity string queries, or
@@ -22,12 +22,12 @@ struct PlayAudioIntent: AudioPlaybackIntent {
     )
     static let description = IntentDescription(
         LocalizedStringResource(
-            "Plays a song, album, artist or playlist from your Cosmos library.",
+            "Plays a song, album, artist or playlist from your QQPlayer library.",
             comment: "Description of the Play Music intent shown in the Shortcuts gallery."
         ),
         categoryName: LocalizedStringResource(
             "Playback",
-            comment: "Shortcuts gallery category name for Cosmos playback intents."
+            comment: "Shortcuts gallery category name for QQPlayer playback intents."
         )
     )
 
@@ -110,7 +110,7 @@ extension AudioIntentError: CustomLocalizedStringResourceConvertible {
         switch self {
         case .noAudioEntity:
             LocalizedStringResource(
-                "I couldn't find that song in your Cosmos library.",
+                "I couldn't find that song in your QQPlayer library.",
                 comment: "Spoken when Siri couldn't resolve any matching audio for a play request."
             )
         case .unsupportedTarget:
@@ -135,7 +135,7 @@ extension AudioIntentError: CustomLocalizedStringResourceConvertible {
 @available(iOS 27.0, *)
 extension Logger {
     static let appIntents = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "CosmosMusicPlayer",
+        subsystem: Bundle.main.bundleIdentifier ?? "QQPlayer",
         category: "AppIntents"
     )
 }

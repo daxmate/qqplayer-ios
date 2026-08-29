@@ -220,13 +220,13 @@ struct SettingsView: View {
                     HStack {
                         Text(Localized.appName)
                         Spacer()
-                        Text(Localized.cosmosMusicPlayer)
+                        Text(Localized.qqplayerName)
                             .foregroundColor(.secondary)
                     }
                     
                     Button(action: {
                         print("🔗 GitHub repository button tapped")
-                        if let url = URL(string: "https://github.com/clquwu/Cosmos-Music-Player") {
+                        if let url = URL(string: "https://github.com/daxmate/qqplayer-ios") {
                             print("🔗 Opening URL: \(url)")
                             UIApplication.shared.open(url)
                         } else {

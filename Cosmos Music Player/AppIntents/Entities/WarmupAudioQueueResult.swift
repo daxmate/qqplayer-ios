@@ -1,6 +1,6 @@
 //
 //  WarmupAudioQueueResult.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Marker entity for the audio-domain warmup contract; PlayAudioIntent
 //  carries it as an optional parameter. No payload.

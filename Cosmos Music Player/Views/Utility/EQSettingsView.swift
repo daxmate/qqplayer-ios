@@ -1,6 +1,6 @@
 //
 //  EQSettingsView.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Graphic equalizer settings and management UI
 //

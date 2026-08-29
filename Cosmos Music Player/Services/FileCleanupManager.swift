@@ -1,6 +1,6 @@
 //
 //  FileCleanupManager.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Manages cleanup of iCloud files that were deleted from iCloud Drive
 //

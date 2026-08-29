@@ -1,6 +1,6 @@
 //
 //  SFBTrack.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Audio track model for SFBAudioEngine integration
 //

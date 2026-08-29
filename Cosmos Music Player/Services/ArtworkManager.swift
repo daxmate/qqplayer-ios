@@ -1,6 +1,6 @@
 //
 //  ArtworkManager.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Manages album artwork extraction and caching
 //

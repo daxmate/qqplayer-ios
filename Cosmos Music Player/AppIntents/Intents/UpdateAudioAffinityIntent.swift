@@ -1,9 +1,9 @@
 //
 //  UpdateAudioAffinityIntent.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  "Like this song" / "Unlike that" via the .audio.updateAudioAffinity
-//  schema. Cosmos only has favorites: like adds one, dislike and unset
+//  schema. QQPlayer only has favorites: like adds one, dislike and unset
 //  both remove it.
 //
 

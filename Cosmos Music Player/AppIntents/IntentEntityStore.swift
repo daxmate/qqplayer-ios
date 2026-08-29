@@ -1,6 +1,6 @@
 //
 //  IntentEntityStore.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Builds App Entities from the GRDB models for entity queries and the
 //  Spotlight index. Read-only; all data comes from DatabaseManager.

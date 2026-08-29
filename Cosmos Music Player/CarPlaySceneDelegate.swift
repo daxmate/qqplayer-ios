@@ -475,7 +475,7 @@ private func loadCustomPlaylistCover(for playlist: Playlist) -> UIImage? {
     }
 
     guard let containerURL = FileManager.default.containerURL(
-        forSecurityApplicationGroupIdentifier: "group.dev.clq.Cosmos-Music-Player"
+        forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios"
     ) else {
         return nil
     }

@@ -1,6 +1,6 @@
 //
 //  PlaybackRouter.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Smart audio playback routing for different formats
 //

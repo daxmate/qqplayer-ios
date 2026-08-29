@@ -1,6 +1,6 @@
 //
 //  DebugIntents.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  DEBUG-only intents the AppIntentsTesting bundle drives to put the
 //  Spotlight index into a known state. Excluded from release builds by the

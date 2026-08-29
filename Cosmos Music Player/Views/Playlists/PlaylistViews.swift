@@ -616,7 +616,7 @@ struct PlaylistCardView: View {
 
         // Load image from shared container
         guard let containerURL = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "group.dev.clq.Cosmos-Music-Player"
+            forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios"
         ) else { return }
 
         let fileURL = containerURL.appendingPathComponent(customPath)
@@ -634,7 +634,7 @@ struct PlaylistCardView: View {
 
         // Get shared container
         guard let containerURL = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "group.dev.clq.Cosmos-Music-Player"
+            forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios"
         ) else {
             print("❌ Failed to get shared container URL")
             return
@@ -1183,7 +1183,7 @@ struct PlaylistDetailScreen: View {
 
         // Load image from shared container
         guard let containerURL = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "group.dev.clq.Cosmos-Music-Player"
+            forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios"
         ) else {
             print("❌ Failed to get shared container URL")
             return
@@ -1203,7 +1203,7 @@ struct PlaylistDetailScreen: View {
 
         // Get shared container
         guard let containerURL = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "group.dev.clq.Cosmos-Music-Player"
+            forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios"
         ) else {
             print("❌ Failed to get shared container URL")
             return
@@ -1257,7 +1257,7 @@ struct PlaylistDetailScreen: View {
             if let customPath = playlist.customCoverImagePath,
                !customPath.isEmpty,
                let containerURL = FileManager.default.containerURL(
-                forSecurityApplicationGroupIdentifier: "group.dev.clq.Cosmos-Music-Player"
+                forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios"
                ) {
                 let fileURL = containerURL.appendingPathComponent(customPath)
                 try? FileManager.default.removeItem(at: fileURL)

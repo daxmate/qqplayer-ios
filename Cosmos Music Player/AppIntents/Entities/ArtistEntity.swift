@@ -1,6 +1,6 @@
 //
 //  ArtistEntity.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Assistant-schema artist entity. The artist's identity is its name.
 //

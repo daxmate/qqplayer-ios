@@ -1,6 +1,6 @@
 //
 //  DatabaseModels.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Database models for the music library
 //

@@ -1,6 +1,6 @@
 //
 //  MixGenerator.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  On-device Foundation Models mix generation: the model picks songs from a
 //  numbered candidate list built out of the library (favorites first), so it
@@ -203,7 +203,7 @@ final class MixGenerator {
 
     private func defaultTitle(for request: String) -> String {
         let trimmed = request.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "Cosmos Mix" : trimmed.capitalized
+        return trimmed.isEmpty ? "QQPlayer Mix" : trimmed.capitalized
     }
 }
 

@@ -1,6 +1,6 @@
 //
 //  LyricsManager.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Manages lyrics fetching from embedded metadata and lrclib.net
 //
@@ -606,7 +606,7 @@ actor LyricsManager {
         }
 
         var request = URLRequest(url: url)
-        request.setValue("Cosmos Music Player/1.0 (https://github.com/clquwu/Cosmos-Music-Player)", forHTTPHeaderField: "User-Agent")
+        request.setValue("QQPlayer/1.0 (https://github.com/daxmate/qqplayer-ios)", forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 10
 
         do {
@@ -649,7 +649,7 @@ actor LyricsManager {
         }
 
         var request = URLRequest(url: url)
-        request.setValue("Cosmos Music Player/1.0 (https://github.com/clquwu/Cosmos-Music-Player)", forHTTPHeaderField: "User-Agent")
+        request.setValue("QQPlayer/1.0 (https://github.com/daxmate/qqplayer-ios)", forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 10
 
         do {

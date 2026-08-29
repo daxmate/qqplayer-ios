@@ -1,6 +1,6 @@
 //
 //  SongEntity.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Assistant-schema song entity backed by the GRDB Track model. The entity id
 //  is the track's stableId so it survives database rebuilds.

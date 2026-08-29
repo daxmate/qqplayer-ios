@@ -17,7 +17,7 @@ class BaseTestCase: XCTestCase {
     @MainActor
     let app = XCUIApplication()
 
-    let definitions = IntentDefinitions(bundleIdentifier: "dev.clq.Cosmos-Music-Player")
+    let definitions = IntentDefinitions(bundleIdentifier: "com.daxmate.qqplayer.ios")
 
     // MARK: - Intent definitions
 

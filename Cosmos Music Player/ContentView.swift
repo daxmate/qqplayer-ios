@@ -53,7 +53,7 @@ struct ContentView: View {
                 await refreshLibrary()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .cosmosSettingsDidChange)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
             settings = DeleteSettings.load()
         }
     }
@@ -219,7 +219,7 @@ struct SheetModifier: ViewModifier {
                 } message: {
                     Text(Localized.librarySyncMessage)
                 }
-                .onReceive(NotificationCenter.default.publisher(for: .cosmosSettingsDidChange)) { _ in
+                .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
                     settings = DeleteSettings.load()
                 }
 

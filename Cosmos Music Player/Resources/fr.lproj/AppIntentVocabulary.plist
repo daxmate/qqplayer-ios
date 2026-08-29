@@ -9,8 +9,8 @@
 			<string>INPlayMediaIntent</string>
 			<key>IntentExamples</key>
 			<array>
-				<string>Joue ma musique sur Cosmos</string>
-				<string>Joue mes favoris sur Cosmos</string>
+				<string>Joue ma musique sur QQPlayer</string>
+				<string>Joue mes favoris sur QQPlayer</string>
 			</array>
 		</dict>
 		<dict>
@@ -18,8 +18,8 @@
 			<string>INAddMediaIntent</string>
 			<key>IntentExamples</key>
 			<array>
-				<string>Ajoute cette chanson à mes favoris sur Cosmos</string>
-				<string>Ajoute cette chanson à ma playlist sur Cosmos</string>
+				<string>Ajoute cette chanson à mes favoris sur QQPlayer</string>
+				<string>Ajoute cette chanson à ma playlist sur QQPlayer</string>
 			</array>
 		</dict>
 	</array>

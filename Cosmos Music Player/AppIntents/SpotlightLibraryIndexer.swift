@@ -1,6 +1,6 @@
 //
 //  SpotlightLibraryIndexer.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Keeps the library's App Entities indexed in Spotlight so Siri and Apple
 //  Intelligence can resolve songs, albums, artists and playlists by name.
@@ -18,7 +18,7 @@ final class SpotlightLibraryIndexer {
     static let shared = SpotlightLibraryIndexer()
 
     /// Named index — the `.default()` index doesn't support batch client state.
-    nonisolated static let indexName = "CosmosMusicPlayer"
+    nonisolated static let indexName = "QQPlayerLibrary"
 
     private let store = IntentEntityStore()
     private var indexingObserver: AnyCancellable?

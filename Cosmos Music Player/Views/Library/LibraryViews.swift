@@ -527,7 +527,7 @@ struct LibraryView: View {
         .background(.clear)
         .toolbarBackground(.clear, for: .navigationBar)
         .toolbarBackground(.clear, for: .automatic)
-        .onReceive(NotificationCenter.default.publisher(for: .cosmosSettingsDidChange)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
             settings = DeleteSettings.load()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToArtistFromPlayer"))) { notification in
@@ -669,7 +669,7 @@ struct LibrarySectionRowView: View {
         )
         .cornerRadius(12)
         .shadow(color: settings.backgroundColorChoice.color.opacity(0.15), radius: 4, x: 0, y: 2)
-        .onReceive(NotificationCenter.default.publisher(for: .cosmosSettingsDidChange)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
             settings = DeleteSettings.load()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("BackgroundColorChanged"))) { _ in
@@ -699,7 +699,7 @@ struct AllSongsScreen: View {
                     .disabled(tracks.isEmpty)
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .cosmosSettingsDidChange)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
                 settings = DeleteSettings.load()
             }
     }
@@ -741,7 +741,7 @@ struct LikedSongsScreen: View {
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LibraryNeedsRefresh"))) { _ in
                 loadLikedTracks()
             }
-            .onReceive(NotificationCenter.default.publisher(for: .cosmosSettingsDidChange)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
                 settings = DeleteSettings.load()
             }
     }
@@ -1598,7 +1598,7 @@ struct SearchView: View {
                     }
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .cosmosSettingsDidChange)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
                 settings = DeleteSettings.load()
             }
             .onAppear {

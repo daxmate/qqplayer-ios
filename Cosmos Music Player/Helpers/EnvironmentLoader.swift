@@ -1,6 +1,6 @@
 //
 //  EnvironmentLoader.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Environment variable loader for API keys and configuration
 //

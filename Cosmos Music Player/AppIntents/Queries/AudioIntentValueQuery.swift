@@ -1,6 +1,6 @@
 //
 //  AudioIntentValueQuery.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Resolves open-ended Siri requests ("play something", "play some calm
 //  jazz") into audio entities. For search queries it returns a broad,

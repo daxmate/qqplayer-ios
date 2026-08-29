@@ -1,6 +1,6 @@
 //
 //  ResumePlaybackIntent.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Proof-of-chain intent for the new App Intents stack: runs in-process,
 //  resolves IntentPlaybackService via @Dependency, and starts audio without
@@ -45,7 +45,7 @@ enum ResumePlaybackError: Error, CustomLocalizedStringResourceConvertible {
     var localizedStringResource: LocalizedStringResource {
         switch self {
         case .emptyLibrary:
-            return "There's no music in your Cosmos library yet."
+            return "There's no music in your QQPlayer library yet."
         }
     }
 }

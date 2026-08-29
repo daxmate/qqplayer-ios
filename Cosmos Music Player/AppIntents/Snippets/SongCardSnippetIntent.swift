@@ -1,6 +1,6 @@
 //
 //  SongCardSnippetIntent.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Interactive song card shown as a Siri/Shortcuts result: artwork, title,
 //  artist, a heart button and queue buttons. The system re-runs this intent

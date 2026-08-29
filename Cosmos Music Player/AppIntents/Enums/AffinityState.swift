@@ -1,8 +1,8 @@
 //
 //  AffinityState.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
-//  Like/dislike/cleared state for a song. Cosmos only has favorites, so
+//  Like/dislike/cleared state for a song. QQPlayer only has favorites, so
 //  `like` maps to adding a favorite and `dislike`/`unset` both remove it.
 //
 

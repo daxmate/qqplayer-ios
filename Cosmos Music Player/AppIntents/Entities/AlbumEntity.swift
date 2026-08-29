@@ -1,6 +1,6 @@
 //
 //  AlbumEntity.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Assistant-schema album entity backed by the GRDB Album model.
 //

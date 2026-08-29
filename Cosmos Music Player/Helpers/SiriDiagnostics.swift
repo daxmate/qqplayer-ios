@@ -1,6 +1,6 @@
 //
 //  SiriDiagnostics.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Temporary file-based diagnostics for the Siri routing investigation:
 //  every Siri-facing entry point appends a line to a log in the shared
@@ -12,7 +12,7 @@
 import Foundation
 
 enum SiriDiag {
-    static let appGroupId = "group.dev.clq.Cosmos-Music-Player"
+    static let appGroupId = "group.com.daxmate.qqplayer.ios"
     nonisolated(unsafe) private static var migrated = false
 
     static func log(_ message: String) {

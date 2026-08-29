@@ -1,6 +1,6 @@
 //
 //  AddToPlaylistIntent.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  "Add this song to my <playlist>" via the .audio.addToPlaylist schema.
 //

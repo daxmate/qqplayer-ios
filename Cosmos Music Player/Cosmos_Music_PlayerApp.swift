@@ -1,6 +1,6 @@
 //
-//  Cosmos_Music_PlayerApp.swift
-//  Cosmos Music Player
+//  QQPlayerApp.swift
+//  QQPlayer
 //
 //  Created by CLQ on 28/08/2025.
 //
@@ -78,7 +78,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 }
 
 @main
-struct Cosmos_Music_PlayerApp: App {
+struct QQPlayerApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var appCoordinator = AppCoordinator.shared
 
@@ -114,7 +114,7 @@ struct Cosmos_Music_PlayerApp: App {
                 .onOpenURL { url in
                     handleOpenURL(url)
                 }
-                .onContinueUserActivity("com.cosmos.music.play") { userActivity in
+                .onContinueUserActivity("com.daxmate.qqplayer.play") { userActivity in
                     handleSiriIntent(userActivity)
                 }
         }
@@ -192,7 +192,7 @@ struct Cosmos_Music_PlayerApp: App {
     private func handleWillResignActive() {
         guard PlayerEngine.shared.isPlaying else {
             releaseAudioSessionIfIdle()
-            print("🎧 Cosmos is not playing - leaving audio focus with the current app")
+            print("🎧 QQPlayer is not playing - leaving audio focus with the current app")
             return
         }
 
@@ -225,7 +225,7 @@ struct Cosmos_Music_PlayerApp: App {
     private func handleOpenURL(_ url: URL) {
         print("🔗 Received URL: \(url.absoluteString)")
 
-        guard url.scheme == "cosmos-music" else {
+        guard url.scheme == "qqplayer" else {
             print("❌ Unknown URL scheme: \(url.scheme ?? "nil")")
             return
         }
@@ -282,7 +282,7 @@ struct Cosmos_Music_PlayerApp: App {
         }
         
         let documentsURL = iCloudURL.appendingPathComponent("Documents")
-        let placeholderURL = documentsURL.appendingPathComponent(".cosmos_placeholder")
+        let placeholderURL = documentsURL.appendingPathComponent(".qqplayer_placeholder")
         
         do {
             // Create Documents directory if it doesn't exist
@@ -290,7 +290,7 @@ struct Cosmos_Music_PlayerApp: App {
             
             // Create placeholder file if it doesn't exist
             if !FileManager.default.fileExists(atPath: placeholderURL.path) {
-                let placeholderText = "This folder contains music files for Cosmos Music Player.\nPlace your FLAC files here to add them to your library."
+                let placeholderText = "This folder contains music files for QQPlayer.\nPlace your FLAC files here to add them to your library."
                 try placeholderText.write(to: placeholderURL, atomically: true, encoding: .utf8)
                 print("✅ Created iCloud Drive placeholder file to ensure folder visibility")
             }

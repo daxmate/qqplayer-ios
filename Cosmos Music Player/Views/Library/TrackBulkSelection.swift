@@ -1,6 +1,6 @@
 //
 //  TrackBulkSelection.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Shared multi-select behaviour for track lists.
 //
@@ -86,7 +86,7 @@ struct TrackBulkActionsModifier: ViewModifier {
             } message: {
                 Text(Localized.deleteFilesConfirmationMessage(selectedTracks.count))
             }
-            .onReceive(NotificationCenter.default.publisher(for: .cosmosSettingsDidChange)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
                 settings = DeleteSettings.load()
             }
     }

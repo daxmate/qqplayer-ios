@@ -1,6 +1,6 @@
 //
 //  QueueInsertionLocation.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Where PlayAudioIntent places the requested tracks in the playback queue.
 //

@@ -1,6 +1,6 @@
 //
 //  DatabaseManager.swift
-//  Cosmos Music Player
+//  QQPlayer
 //
 //  Database manager for the music library using GRDB
 //
@@ -107,7 +107,7 @@ class DatabaseManager: @unchecked Sendable {
         do {
             let databaseURL = try getDatabaseURL()
             let backupURL = databaseURL.deletingLastPathComponent()
-                .appendingPathComponent("cosmos_music_backup_\(Int(Date().timeIntervalSince1970)).db")
+                .appendingPathComponent("qqplayer_backup_\(Int(Date().timeIntervalSince1970)).db")
 
             // Try to backup the corrupted database
             if FileManager.default.fileExists(atPath: databaseURL.path) {
@@ -142,8 +142,8 @@ class DatabaseManager: @unchecked Sendable {
 
     private func getDatabaseURL() throws -> URL {
         // Try to use app group container first for sharing with Siri extension
-        if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.dev.clq.Cosmos-Music-Player") {
-            return containerURL.appendingPathComponent("cosmos_music.db")
+        if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios") {
+            return containerURL.appendingPathComponent("qqplayer.db")
         } else {
             // Fallback to documents directory
             let documentsPath = FileManager.default.urls(for: .documentDirectory,
@@ -1256,7 +1256,7 @@ class DatabaseManager: @unchecked Sendable {
         // Siri transcription and spelling errors rarely survive a SQL LIKE.
         // Rank the full library only after the cheap literal lookup misses.
         let ranked = try Track.fetchAll(db).map { track in
-            (track: track, score: trimmed.cosmosSearchSimilarity(to: track.title))
+            (track: track, score: trimmed.qqplayerSearchSimilarity(to: track.title))
         }
         .filter { $0.score >= 0.58 }
         .sorted {
@@ -2128,7 +2128,7 @@ class DatabaseManager: @unchecked Sendable {
 }
 
 private extension String {
-    var cosmosSearchNormalized: String {
+    var qqplayerSearchNormalized: String {
         let folded = folding(
             options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
             locale: .current
@@ -2142,9 +2142,9 @@ private extension String {
             .joined(separator: " ")
     }
 
-    func cosmosSearchSimilarity(to other: String) -> Double {
-        let left = Array(cosmosSearchNormalized)
-        let right = Array(other.cosmosSearchNormalized)
+    func qqplayerSearchSimilarity(to other: String) -> Double {
+        let left = Array(qqplayerSearchNormalized)
+        let right = Array(other.qqplayerSearchNormalized)
         guard !left.isEmpty, !right.isEmpty else { return 0 }
         let leftString = String(left)
         let rightString = String(right)
