@@ -43,6 +43,7 @@ struct LyricsView: View {
                     noLyricsView
                 }
             }
+            .ignoresSafeArea() // 内容容器与背景同尺寸铺满全屏（顶部不再留 safe area 空白）
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("BackgroundColorChanged"))) { _ in
             settings = DeleteSettings.load()
@@ -253,28 +254,30 @@ struct LyricsView: View {
     // MARK: - Plain Lyrics
 
     private func plainLyricsView(_ text: String) -> some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 0) {
-                // Top padding
-                Spacer()
-                    .frame(height: 24)
+        // 容器已铺满全屏（ignoresSafeArea）：顶部手动补偿状态栏高度，文字不被遮挡
+        GeometryReader { geometry in
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    // 顶部 padding（状态栏高度 + 内容间距）
+                    Spacer()
+                        .frame(height: geometry.safeAreaInsets.top + 24)
 
-                Text(text)
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundColor(.primary.opacity(0.9))
-                    .lineSpacing(10)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 16)
+                    Text(text)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(.primary.opacity(0.9))
+                        .lineSpacing(10)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 16)
 
-                // Bottom padding
-                Spacer()
-                    .frame(height: 40)
+                    // Bottom padding
+                    Spacer()
+                        .frame(height: 40)
+                }
             }
         }
-        .padding(.top, 20)
     }
 
     // MARK: - States
