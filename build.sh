@@ -21,8 +21,10 @@ try:
 except Exception:
     sys.exit(1)
 for d in data.get("result", {}).get("devices", []):
-    if d.get("state") == "connected" and d.get("identifier"):
-        print(d["identifier"])
+    conn = d.get("connectionProperties", {})
+    hw = d.get("hardwareProperties", {})
+    if conn.get("tunnelState") == "connected" and hw.get("udid"):
+        print(hw["udid"])
         sys.exit(0)
 sys.exit(1)
 ' "${OUT}"
@@ -44,7 +46,8 @@ build_install() {
   fi
   echo "=== 真机构建（UDID=${UDID}） ==="
   xcodebuild -project "Cosmos Music Player.xcodeproj" -scheme "${SCHEME}" \
-    -destination "id=${UDID}" -derivedDataPath "${DERIVED}" build
+    -destination "id=${UDID}" -derivedDataPath "${DERIVED}" \
+    -allowProvisioningUpdates build
   local APP
   APP="${DERIVED}/Build/Products/Debug-iphoneos/${APP_NAME}.app"
   echo "=== 安装到真机 ==="
