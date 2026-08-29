@@ -33,14 +33,20 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     private func setupSiriIntegration() {
-        // INVocabulary 需要 com.apple.developer.siri entitlement。CI 无签名构建
-        // （CODE_SIGNING_ALLOWED=NO）没有该 entitlement，调用会抛
-        // NSInternalInconsistencyException 直接崩溃（dispatch_once 块内异常无法
-        // 被 @try/@catch 捕获）。xcodebuild test 环境下跳过整个 Siri 集成。
+        // INVocabulary 需要 com.apple.developer.siri entitlement。无该 entitlement
+        // 的进程（模拟器、CI 无签名构建 CODE_SIGNING_ALLOWED=NO）调用
+        // INVocabulary.shared() 会抛 NSInternalInconsistencyException 直接崩溃
+        // （dispatch_once 块内异常无法被 @try/@catch 捕获）。xcodebuild test 环境
+        // 与模拟器直接跳过（iOS 无公开 API 校验自身 entitlement，SecTask 系 macOS
+        // 专有；真机付费签名构建 entitlement 生效，不受影响）。
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
             SiriDiag.log("Skipping Siri integration: running under XCTest")
             return
         }
+        #if targetEnvironment(simulator)
+            SiriDiag.log("Skipping Siri integration: simulator has no Siri entitlement")
+            return
+        #endif
 
         // Donate vocabulary on every OS version: Siri keeps routing by-name
         // media requests through the legacy SiriKit extension even on iOS 27
