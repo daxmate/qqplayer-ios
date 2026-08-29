@@ -10,30 +10,47 @@ DERIVED="build/DerivedData"
 SCHEME="Cosmos Music Player"   # scheme 名（工程名沿用 Cosmos，显示名已是 QQPlayer）
 APP_NAME="Cosmos Music Player" # 可执行/产物名（未改 PRODUCT_NAME，安装后显示 QQPlayer）
 
+# 探测已连接真机（devicectl JSON 输出 → python 提取 connected 设备，避免 awk $() 歧义）
+detect_udid() {
+  local OUT="/tmp/qqplayer-devices.json"
+  xcrun devicectl list devices --json-output "${OUT}" >/dev/null 2>&1 || return 1
+  python3 -c '
+import json, sys
+try:
+    data = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(1)
+for d in data.get("result", {}).get("devices", []):
+    if d.get("state") == "connected" and d.get("identifier"):
+        print(d["identifier"])
+        sys.exit(0)
+sys.exit(1)
+' "${OUT}"
+}
+
 build_sim() {
   echo "=== 模拟器构建 ==="
-  xcodebuild -project "Cosmos Music Player.xcodeproj" -scheme "$SCHEME" \
+  xcodebuild -project "Cosmos Music Player.xcodeproj" -scheme "${SCHEME}" \
     -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-    -derivedDataPath "$DERIVED" build
+    -derivedDataPath "${DERIVED}" build
 }
 
 build_install() {
-  UDID=$(xcrun devicectl list devices 2>/dev/null | awk '{
-    for (i = 1; i <= NF; i++)
-      if ($i ~ /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/ && $(i+1) == "connected") { print $i; exit }
-  }')
-  if [ -z "$UDID" ]; then
+  local UDID
+  UDID="$(detect_udid || true)"
+  if [ -z "${UDID}" ]; then
     echo "❌ 未发现已连接的真机（请用数据线连接 iPhone 并信任此 Mac）"
     exit 1
   fi
-  echo "=== 真机构建（UDID=$UDID） ==="
-  xcodebuild -project "Cosmos Music Player.xcodeproj" -scheme "$SCHEME" \
-    -destination "id=$UDID" -derivedDataPath "$DERIVED" build
-  APP="$DERIVED/Build/Products/Debug-iphoneos/$APP_NAME.app"
+  echo "=== 真机构建（UDID=${UDID}） ==="
+  xcodebuild -project "Cosmos Music Player.xcodeproj" -scheme "${SCHEME}" \
+    -destination "id=${UDID}" -derivedDataPath "${DERIVED}" build
+  local APP
+  APP="${DERIVED}/Build/Products/Debug-iphoneos/${APP_NAME}.app"
   echo "=== 安装到真机 ==="
-  xcrun devicectl device install app --device "$UDID" "$APP"
+  xcrun devicectl device install app --device "${UDID}" "${APP}"
   echo "=== 启动 ==="
-  xcrun devicectl device process launch --device "$UDID" com.daxmate.qqplayer.ios
+  xcrun devicectl device process launch --device "${UDID}" com.daxmate.qqplayer.ios
 }
 
 case "${1:-}" in
