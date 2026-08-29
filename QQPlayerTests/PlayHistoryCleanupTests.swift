@@ -108,3 +108,74 @@ struct PlayHistoryCleanupTests {
         }
     }
 }
+
+// MARK: - PlayHistoryRecorder（会话结算校验 + 墙钟计时）
+
+@MainActor
+struct PlayHistoryRecorderTests {
+    private static func makeRecorder() throws -> (PlayHistoryRecorder, DatabaseQueue) {
+        let dbQueue = try DatabaseQueue()
+        let manager = DatabaseManager(dbWriter: dbQueue)
+        try manager.createTables()
+        return (PlayHistoryRecorder(database: manager), dbQueue)
+    }
+
+    private func makeTrack(_ stableId: String) -> Track {
+        Track(stableId: stableId, title: stableId, path: "/m/\(stableId).flac")
+    }
+
+    @Test("playbackEnded 校验 track：不匹配/已结算的 ended 丢弃，不结算错会话")
+    func endedWithMismatchedTrackIsDropped() throws {
+        let (recorder, _) = try Self.makeRecorder()
+        let trackA = makeTrack("a")
+        recorder.playbackBegan(track: trackA, at: 0)
+
+        // 别的曲目的 ended：丢弃，会话保持（此前会直接结算）
+        recorder.playbackEnded(track: makeTrack("other"), at: 5)
+        #expect(recorder.activeSessionTrackStableId == "a")
+
+        // 正确曲目的 ended：结算
+        recorder.playbackEnded(track: trackA, at: 5)
+        #expect(recorder.activeSessionTrackStableId == nil)
+
+        // 已结算后再 ended：幂等丢弃
+        recorder.playbackEnded(track: trackA, at: 6)
+        #expect(recorder.activeSessionTrackStableId == nil)
+    }
+
+    @Test("墙钟计时：前向 seek 不虚增时长（位置差 999s 只记真实墙钟）")
+    func wallClockDoesNotCountForwardSeek() throws {
+        let (recorder, dbQueue) = try Self.makeRecorder()
+        let track = makeTrack("t1")
+        recorder.playbackBegan(track: track, at: 0)
+        Thread.sleep(forTimeInterval: 0.15)
+        // 旧位置差逻辑：pause at 999 会记 ~999s；墙钟只记真实收听 ~0.15s
+        recorder.playbackPaused(track: track, at: 999)
+        recorder.playbackEnded(track: track, at: 999)
+
+        try dbQueue.read { db in
+            let dur = try Int64.fetchOne(db, sql: "SELECT play_duration_ms FROM play_history WHERE track_stable_id = 't1'") ?? 0
+            #expect(dur > 0)
+            #expect(dur < 5_000) // 远小于 999_000ms
+        }
+    }
+
+    @Test("暂停/恢复：墙钟分段累计，暂停间隔不计入")
+    func pauseResumeSegments() throws {
+        let (recorder, dbQueue) = try Self.makeRecorder()
+        let track = makeTrack("t2")
+        recorder.playbackBegan(track: track, at: 0)
+        Thread.sleep(forTimeInterval: 0.1)
+        recorder.playbackPaused(track: track, at: 10) // 累计 ~0.1s，检查点推进
+        Thread.sleep(forTimeInterval: 0.25) // 暂停 0.25s（不应计入）
+        recorder.playbackBegan(track: track, at: 10) // 恢复：重置墙钟检查点
+        Thread.sleep(forTimeInterval: 0.1)
+        recorder.playbackEnded(track: track, at: 20) // 再累计 ~0.1s
+
+        try dbQueue.read { db in
+            let dur = try Int64.fetchOne(db, sql: "SELECT play_duration_ms FROM play_history WHERE track_stable_id = 't2'") ?? 0
+            #expect(dur > 100)
+            #expect(dur < 2_000) // ~0.2s 总量，暂停的 0.25s 不计入
+        }
+    }
+}

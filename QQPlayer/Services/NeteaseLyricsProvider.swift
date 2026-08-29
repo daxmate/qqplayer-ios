@@ -97,8 +97,14 @@ struct OrderedJSON {
             case "\u{0C}":
                 out += "\\f"
             default:
-                // 与 Python ensure_ascii=False 一致：非 ASCII 原样输出（UTF-8）
-                out.unicodeScalars.append(scalar)
+                if scalar.value < 0x20 {
+                    // 与 Python json.dumps(ensure_ascii=False) 一致：0x20 以下除短转义外的
+                    // 控制字符一律输出 \uXXXX（桌面端字节级对齐，防 eapi 报文分叉）
+                    out += String(format: "\\u%04X", scalar.value)
+                } else {
+                    // 非 ASCII 原样输出（UTF-8）
+                    out.unicodeScalars.append(scalar)
+                }
             }
         }
         return out

@@ -18,6 +18,7 @@
 //
 
 import Foundation
+import UIKit
 
 /// AB 循环区间状态（a/b 为歌词行号；b == nil 表示等选终点）
 struct ABLoopState: Equatable {
@@ -71,6 +72,10 @@ final class KaraokeController: ObservableObject {
     /// 前跳 >1s 只可能是用户主动 seek（进度条拖动，PlayerEngine.seek 不通知本控制器）
     /// → 重定位到当前实际行而不是触发句末自动停（2026-08-29：前向拖进度条被弹回旧句句首）
     private var lastTickTime: TimeInterval?
+
+    /// 缓存行无时间戳时的时间下界：播放时间永远不小于它 → 不触发重定位。
+    /// （语义同旧 `-Double.greatestFiniteMagnitude` 魔法值，具名后可读）
+    private static let noTimestampStart: TimeInterval = -Double.greatestFiniteMagnitude
 
     private init() {
         actions = PlayerEngineKaraokeActions()
@@ -155,13 +160,22 @@ final class KaraokeController: ObservableObject {
     }
 
     /// 单击 AB 按钮：当前句 = A，等待点击歌词设 B（b == nil）
-    /// 与单句循环互斥：进入 AB 关闭单句循环
-    func enterABLoop(currentLine: Int) {
+    /// 与单句循环互斥：进入 AB 关闭单句循环。
+    /// 返回是否成功进入（当前行无时间戳/前奏等取不到 A 点时失败并给震动反馈，
+    /// 不再静默无反应——此前 guard 直接 return，按钮看起来没反应）。
+    @discardableResult
+    func enterABLoop(currentLine: Int) -> Bool {
         guard isKaraokeOn,
               currentLine >= 0, currentLine < currentLines.count,
-              currentLines[currentLine].timestamp != nil else { return }
+              currentLines[currentLine].timestamp != nil else {
+            // 失败反馈：warning 级震动（评估现有机制：KaraokeControlBar 只在
+            // 取到 currentLineIndex 时给 light 震动；取不到/行无时间戳时这里补一条）
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            return false
+        }
         isSingleLineLoop = false
         abLoop = ABLoopState(a: currentLine, b: nil)
+        return true
     }
 
     /// 单击 AB 按钮（已启用时）：退出 AB 循环
@@ -231,8 +245,14 @@ final class KaraokeController: ObservableObject {
         }
         lastTickTime = time
         // 重定位：无缓存行，或时间回退到缓存行句首之前（前奏/回退；点击跳转走 jumpTo 显式更新）
-        if karaokeLine == nil
-            || time < (currentLines[karaokeLine!].timestamp ?? -Double.greatestFiniteMagnitude) {
+        if let cachedLine = karaokeLine {
+            let cachedStart = currentLines.indices.contains(cachedLine)
+                ? (currentLines[cachedLine].timestamp ?? Self.noTimestampStart)
+                : Self.noTimestampStart
+            if time < cachedStart {
+                karaokeLine = LyricTiming.activeLineIndex(time: time, in: currentLines)
+            }
+        } else {
             karaokeLine = LyricTiming.activeLineIndex(time: time, in: currentLines)
         }
         guard let line = karaokeLine else { return }

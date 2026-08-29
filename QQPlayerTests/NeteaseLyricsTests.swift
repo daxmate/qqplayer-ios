@@ -201,6 +201,34 @@ struct NeteaseSongMappingTests {
     }
 }
 
+struct OrderedJSONEscapeTests {
+    @Test("有序 JSON 转义：0x20 以下控制字符按 Python json.dumps 输出 \\uXXXX")
+    func escapesControlCharsAsUnicode() {
+        let json = OrderedJSON {
+            OrderedJSONEntry("k", "a\u{01}b\u{1F}c")
+        }
+        #expect(json.stringValue() == "{\"k\":\"a\\u0001b\\u001Fc\"}")
+    }
+
+    @Test("有序 JSON 转义：短转义/引号/反斜杠保持，中文原样输出")
+    func shortEscapesAndNonASCII() {
+        let json = OrderedJSON {
+            OrderedJSONEntry("a", "x\n\"y\\z\t")
+            OrderedJSONEntry("b", "花海")
+        }
+        #expect(json.stringValue() == "{\"a\":\"x\\n\\\"y\\\\z\\t\",\"b\":\"花海\"}")
+    }
+
+    @Test("有序 JSON 转义：0x20 以上的 ASCII 与 DEL(0x7F) 原样输出")
+    func printableAndDelStayRaw() {
+        let json = OrderedJSON {
+            OrderedJSONEntry("k", "a~\u{7F}")
+        }
+        // 0x7F 不是控制字符（json.dumps 不转义），原样输出
+        #expect(json.stringValue() == "{\"k\":\"a~\u{7F}\"}")
+    }
+}
+
 // MARK: - 工具扩展（测试用）
 
 private extension Data {

@@ -108,12 +108,36 @@ enum SmartPlaylistStore {
     }
 
     /// 播放列表页置顶卡片的元数据（计数：recent* 为曲目数，decades 为 bucket 数）。
+    /// 一次 read 事务内完成全部计数（此前 4 次独立 DB 查询，每次进页面重复执行）。
     static func cardInfos() throws -> [SmartPlaylistCardInfo] {
+        try DatabaseManager.shared.read { db in
+            try cardInfos(from: db)
+        }
+    }
+
+    /// 可测核心：单事务内完成四个卡片计数（语义与各 from db 查询完全一致）
+    static func cardInfos(from db: Database) throws -> [SmartPlaylistCardInfo] {
         [
-            SmartPlaylistCardInfo(kind: .recentAdded, title: SmartPlaylistKind.recentAdded.rawValue, count: try recentAddedTracks().count),
-            SmartPlaylistCardInfo(kind: .recentPlayed, title: SmartPlaylistKind.recentPlayed.rawValue, count: try recentPlayedTracks().count),
-            SmartPlaylistCardInfo(kind: .topPlayed, title: SmartPlaylistKind.topPlayed.rawValue, count: try topPlayedTracks().count),
-            SmartPlaylistCardInfo(kind: .decades, title: SmartPlaylistKind.decades.rawValue, count: try decadeBuckets().count),
+            SmartPlaylistCardInfo(
+                kind: .recentAdded,
+                title: SmartPlaylistKind.recentAdded.rawValue,
+                count: try recentAddedTracks(from: db, limit: limit).count
+            ),
+            SmartPlaylistCardInfo(
+                kind: .recentPlayed,
+                title: SmartPlaylistKind.recentPlayed.rawValue,
+                count: try recentPlayedTracks(from: db, limit: limit).count
+            ),
+            SmartPlaylistCardInfo(
+                kind: .topPlayed,
+                title: SmartPlaylistKind.topPlayed.rawValue,
+                count: try topPlayedTracks(from: db, limit: limit).count
+            ),
+            SmartPlaylistCardInfo(
+                kind: .decades,
+                title: SmartPlaylistKind.decades.rawValue,
+                count: try decadeBuckets(from: db).count
+            ),
         ]
     }
 
@@ -188,15 +212,20 @@ enum SmartPlaylistStore {
     }
 
     static func decadeBuckets(from db: Database) throws -> [DecadeBucketInfo] {
+        // GROUP BY 下推 SQLite：不再全表拉 year 列到内存聚合（此前每次进页面
+        // 都把整张 track 表的 year 拷进 Swift）；year 为空/null 的曲目归入 NULL 组，
+        // 语义与内存聚合完全一致（decadeKey 映射不变）。
         let rows = try Row.fetchAll(db, sql: """
-            SELECT a.year AS year
+            SELECT a.year AS year, COUNT(*) AS cnt
             FROM track t
             LEFT JOIN album a ON a.id = t.album_id
+            GROUP BY a.year
         """)
         var counts: [String: Int] = [:]
         for row in rows {
             let year: Int? = row["year"]
-            counts[decadeKey(ofYear: year), default: 0] += 1
+            let cnt: Int = row["cnt"]
+            counts[decadeKey(ofYear: year), default: 0] += cnt
         }
         return decadeBucketDefinitions.map {
             DecadeBucketInfo(key: $0.key, label: $0.label, count: counts[$0.key, default: 0])

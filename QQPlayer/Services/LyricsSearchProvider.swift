@@ -133,34 +133,43 @@ struct LyricsSearchProvider: Sendable {
     /// lrclib /api/search：只保留带时间戳的 syncedLyrics（纯文本歌词对播放器无用）
     /// 简繁双查询：lrclib 收录多为繁体标题（如「電台情歌」），简体查询词会漏；
     /// 用系统 ICU 转换生成繁体查询词补搜一次，按歌曲 id 去重合并。
+    /// 两个查询 async let 并发（各 10s 超时）：串行会放大最坏等待到 20s。
     private func searchLRCLib(title: String, artist: String) async -> [LyricsSearchCandidate] {
+        // swiftlint:disable todo
+        // TODO(搜索页分批展示)：双源结果当前等齐才返回（netease+lrclib 并发 ≈ max(10s,10s)）；
+        // 若要做「先出 netease 再出 lrclib」的分批展示，需把 search 改为流式/回调式 API。
+        // swiftlint:enable todo
         let queries = [
             (trackName: title, artistName: artist),
             (trackName: traditionalChinese(title), artistName: traditionalChinese(artist)),
         ]
+        async let simplifiedHits = fetchLRCLibHits(
+            trackName: queries[0].trackName, artistName: queries[0].artistName
+        )
+        async let traditionalHits = fetchLRCLibHits(
+            trackName: queries[1].trackName, artistName: queries[1].artistName
+        )
+        let hits = await simplifiedHits + traditionalHits
         var seenIDs = Set<Int>()
         var out: [LyricsSearchCandidate] = []
-        for query in queries {
-            let hits = await fetchLRCLibHits(trackName: query.trackName, artistName: query.artistName)
-            for hit in hits {
-                guard !hit.instrumental,
-                      let synced = hit.syncedLyrics,
-                      !synced.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                      !seenIDs.contains(hit.id) else {
-                    continue
-                }
-                seenIDs.insert(hit.id)
-                out.append(
-                    LyricsSearchCandidate(
-                        source: .lrclib,
-                        title: hit.trackName,
-                        artist: hit.artistName,
-                        duration: hit.duration,
-                        text: synced,
-                        tlyric: nil
-                    )
-                )
+        for hit in hits {
+            guard !hit.instrumental,
+                  let synced = hit.syncedLyrics,
+                  !synced.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !seenIDs.contains(hit.id) else {
+                continue
             }
+            seenIDs.insert(hit.id)
+            out.append(
+                LyricsSearchCandidate(
+                    source: .lrclib,
+                    title: hit.trackName,
+                    artist: hit.artistName,
+                    duration: hit.duration,
+                    text: synced,
+                    tlyric: nil
+                )
+            )
         }
         return out
     }

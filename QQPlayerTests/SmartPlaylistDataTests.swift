@@ -195,6 +195,22 @@ struct SmartPlaylistDataTests {
         }
     }
 
+    @Test("cardInfos：单事务内四类计数与各查询核心一致（recent* 封顶 limit）")
+    func cardInfosCounts() throws {
+        let dbQueue = try Self.makeDatabase()
+        try dbQueue.read { db in
+            let infos = try SmartPlaylistStore.cardInfos(from: db)
+            #expect(infos.count == 4)
+            #expect(infos.map(\.kind.rawValue) == ["recentAdded", "recentPlayed", "topPlayed", "decades"])
+
+            // recentAdded：8 首曲目（封顶 50）；recentPlayed/topPlayed：去重后 5 首；decades：9 桶
+            #expect(infos[0].count == 8)
+            #expect(infos[1].count == 5)
+            #expect(infos[2].count == 5)
+            #expect(infos[3].count == 9)
+        }
+    }
+
     // MARK: - 卡片封面拼贴曲目
 
     @Test("coverTracks：track 类歌单取前 limit 首")

@@ -9,8 +9,13 @@
 //    same `play_history` record.
 //  - Only settling (track switch / stop / natural end) closes the session and
 //    stores the actually-listened duration via an UPDATE.
-//  - Every DB write goes through DatabaseManager.shared.write; records are
-//    tiny and written synchronously on the main actor, matching the existing
+//  - Duration uses WALL CLOCK (pause/resume segment deltas), not playback
+//    position deltas: forward seeks (30s -> 200s) inflate position deltas,
+//    while wall clock always measures real listening time. The checkpoint is
+//    advanced after every accumulate, so pause/resume cycles never double
+//    count and paused intervals are excluded.
+//  - Every DB write goes through DatabaseManager; records are tiny and
+//    written synchronously on the main actor, matching the existing
 //    codebase style.
 //
 
@@ -23,9 +28,9 @@ final class PlayHistoryRecorder {
 
     /// Stable id of the track with an open session (nil = no active session).
     private(set) var activeSessionTrackStableId: String?
-    /// Playback position (seconds) at the last duration checkpoint. Advances on
-    /// every accumulate so repeated pause/resume cycles never double-count.
-    private(set) var sessionStartPlaybackTime: Double = 0
+    /// Wall clock at the last duration checkpoint. Advances on every accumulate
+    /// so repeated pause/resume cycles never double-count.
+    private(set) var sessionStartWallTime: Date = .distantPast
     /// `play_history` row id of the open session; the settling UPDATE targets it.
     private(set) var activeRecordId: Int64?
 
@@ -33,18 +38,34 @@ final class PlayHistoryRecorder {
     /// against corrupt timestamps; a real segment is bounded by track length.
     private static let maxSegmentDurationSeconds: Double = 24 * 60 * 60
 
-    private init() {}
+    private var database: DatabaseManager
+
+    private init() {
+        database = DatabaseManager.shared
+    }
+
+    /// Test seam: point the recorder at an injected (in-memory) database so
+    /// session accounting is unit-testable without touching the app database.
+    /// Production always uses the private init + shared singleton.
+    init(database: DatabaseManager) {
+        self.database = database
+    }
 
     // MARK: - Instrumentation entry points (called by PlayerEngine)
 
     /// Playback started (including resume from pause).
     ///
-    /// Ignored when a session for the same track is already open (resume keeps
-    /// the original record). Otherwise the previous session (if any) is settled
-    /// first, then a fresh record is inserted with played_at = now.
+    /// Resume (same track) keeps the original record and just restarts the
+    /// wall-clock checkpoint so the paused interval is not counted. Otherwise
+    /// the previous session (if any) is settled first, then a fresh record is
+    /// inserted with played_at = now.
     func playbackBegan(track: Track?, at playbackTime: Double) {
         guard let track, !track.stableId.isEmpty else { return }
-        guard activeSessionTrackStableId != track.stableId else { return }
+        guard activeSessionTrackStableId != track.stableId else {
+            // 同曲恢复：重置墙钟检查点（暂停间隔不计入时长）
+            sessionStartWallTime = Date()
+            return
+        }
 
         // Defensive: a different track started while a session is still open
         // (should not happen - PlayerEngine settles before switching).
@@ -54,14 +75,17 @@ final class PlayHistoryRecorder {
 
         var insertedId: Int64?
         do {
-            try DatabaseManager.shared.write { db in
-                var entry = PlayHistoryEntry(
+            try database.write { db in
+                // PlayHistoryEntry 只遵守 PersistableRecord：非 mutating insert 不会把自增
+                // id 回填到 entry（此前 entry.id 恒 nil → activeRecordId 恒 nil → 时长 UPDATE
+                // 全被 guard 挡住，播放时长从未写入。2026-08-30 墙钟测试暴露）。
+                let entry = PlayHistoryEntry(
                     trackStableId: track.stableId,
                     playedAt: Int64(Date().timeIntervalSince1970),
                     playDurationMs: 0
                 )
                 try entry.insert(db)
-                insertedId = entry.id
+                insertedId = db.lastInsertedRowID
             }
         } catch {
             print("⚠️ PlayHistoryRecorder: 写入播放记录失败: \(error)")
@@ -69,7 +93,7 @@ final class PlayHistoryRecorder {
 
         activeRecordId = insertedId
         activeSessionTrackStableId = track.stableId
-        sessionStartPlaybackTime = playbackTime
+        sessionStartWallTime = Date()
     }
 
     /// Playback paused. Accumulates the elapsed segment into the open record
@@ -82,7 +106,13 @@ final class PlayHistoryRecorder {
 
     /// Playback ended (track switched / stopped / finished). Accumulates the
     /// final segment and closes the session.
+    ///
+    /// Validates the track like playbackPaused does: an out-of-order or stale
+    /// `ended` for a different (or already settled) track is dropped instead
+    /// of settling the wrong session.
     func playbackEnded(track: Track?, at playbackTime: Double) {
+        guard let track, !track.stableId.isEmpty else { return }
+        guard activeSessionTrackStableId == track.stableId else { return }
         settleSession(endingAt: playbackTime)
     }
 
@@ -90,20 +120,21 @@ final class PlayHistoryRecorder {
 
     private func accumulateDuration(until playbackTime: Double) {
         guard activeSessionTrackStableId != nil,
-              let recordId = activeRecordId,
-              playbackTime.isFinite else {
+              let recordId = activeRecordId else {
             return
         }
-        let sessionStart = sessionStartPlaybackTime
-        let elapsed = playbackTime - sessionStart
-        // Only positive, finite segments: seeks backwards or corrupt values
-        // (NaN/inf, huge jumps) must not pollute the duration.
+        // 墙钟分段：真实收听时长，前向 seek 不虚增、回退不虚减。
+        // playbackTime 仅保留在签名里（PlayerEngine 调用契约），不参与计算。
+        let elapsed = Date().timeIntervalSince(sessionStartWallTime)
+        print("🔬 accumulate: recordId=\(String(describing: activeRecordId)) wall=\(sessionStartWallTime) elapsed=\(elapsed)")
+        // Only positive, finite segments: out-of-order events or corrupt
+        // values must not pollute the duration.
         guard elapsed > 0, elapsed <= Self.maxSegmentDurationSeconds else { return }
         let milliseconds = Int64(elapsed * 1000)
         guard milliseconds > 0 else { return }
 
         do {
-            try DatabaseManager.shared.write { db in
+            try database.write { db in
                 try db.execute(
                     sql: "UPDATE play_history SET play_duration_ms = play_duration_ms + ? WHERE id = ?",
                     arguments: [milliseconds, recordId]
@@ -114,15 +145,15 @@ final class PlayHistoryRecorder {
         }
 
         // Advance the checkpoint so the next accumulate covers only the new
-        // segment (pause at 30s, resume, pause at 60s -> 60s total, not 90s).
-        sessionStartPlaybackTime = playbackTime
+        // segment (pause at 30s, resume, pause at 60s -> 30s wall time, not 60s).
+        sessionStartWallTime = Date()
     }
 
     private func settleSession(endingAt playbackTime: Double) {
         guard activeSessionTrackStableId != nil else { return }
         accumulateDuration(until: playbackTime)
         activeSessionTrackStableId = nil
-        sessionStartPlaybackTime = 0
+        sessionStartWallTime = .distantPast
         activeRecordId = nil
     }
 }

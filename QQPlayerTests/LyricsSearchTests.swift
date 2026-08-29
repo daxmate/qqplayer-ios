@@ -143,6 +143,47 @@ struct LyricsSearchTests {
         #expect(await LyricsManager.shared.hasManualLyrics(for: other) == false)
     }
 
+    // MARK: - 负面缓存（确认无歌词的曲目，7 天 TTL）
+
+    @Test("负面缓存：全链路无歌词后写标记；再次获取直接返回 nil 不重走链路")
+    func negativeCacheRecordedAndHit() async {
+        // 独立缓存目录（避免污染 App 沙盒 / 与其他用例串扰）
+        let cacheDir = tempDir.appendingPathComponent("tracks", isDirectory: true)
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        LyricsManager.lyricsCacheDirectoryOverride = cacheDir
+
+        // artistId 为 nil → 网易云/lrclib 元数据 guard 快速失败，不触发网络；
+        // 路径不存在 → 内嵌提取快速失败。整条链路无结果 → 写负面标记。
+        let track = makeTrack("test-track-negative-\(UUID().uuidString)")
+        let result = await LyricsManager.shared.getLyrics(for: track)
+        #expect(result == nil)
+
+        let marker = cacheDir.appendingPathComponent("\(track.stableId).negative")
+        #expect(FileManager.default.fileExists(atPath: marker.path) == true)
+
+        // 负面缓存命中：再次获取直接返回 nil
+        let again = await LyricsManager.shared.getLyrics(for: track)
+        #expect(again == nil)
+        #expect(FileManager.default.fileExists(atPath: marker.path) == true)
+    }
+
+    @Test("负面缓存：手动指定歌词后清除标记（恢复自动时不再被旧负面缓存挡住）")
+    func negativeCacheClearedByManualLyrics() async {
+        let cacheDir = tempDir.appendingPathComponent("tracks", isDirectory: true)
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        LyricsManager.lyricsCacheDirectoryOverride = cacheDir
+
+        let track = makeTrack("test-track-negative-clear-\(UUID().uuidString)")
+        _ = await LyricsManager.shared.getLyrics(for: track) // 写负面标记
+        let marker = cacheDir.appendingPathComponent("\(track.stableId).negative")
+        #expect(FileManager.default.fileExists(atPath: marker.path) == true)
+
+        // 应用手动歌词 → 标记清除
+        await LyricsManager.shared.apply(candidate: neteaseCandidate(), for: track)
+        _ = await LyricsManager.shared.hasManualLyrics(for: track) // 排空磁盘写 Task
+        #expect(FileManager.default.fileExists(atPath: marker.path) == false)
+    }
+
     // MARK: - 简繁转换（lrclib 繁体标题补搜）
 
     @Test("简体转繁体：电台情歌 → 電台情歌")

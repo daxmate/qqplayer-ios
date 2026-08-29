@@ -41,6 +41,20 @@ actor LyricsManager {
     private let decoder = JSONDecoder()
     /// 测试注入：手动歌词存储目录（nil = 默认 Documents/lyrics-manual）
     nonisolated(unsafe) static var manualLyricsDirectoryOverride: URL?
+    /// 测试注入：逐曲歌词缓存目录（nil = 默认 Documents/lyrics-cache/tracks）
+    nonisolated(unsafe) static var lyricsCacheDirectoryOverride: URL?
+
+    // MARK: - 缓存上限/TTL 常量
+
+    /// 启动预加载上限：只把最近 N 条缓存载入内存，其余磁盘缓存命中时懒加载
+    private static let startupCacheLoadLimit = 50
+    /// 磁盘缓存文件数上限（LRU 淘汰：超出删除最久未使用的；正/负面缓存都算）
+    private static let diskCacheFileLimit = 200
+    /// 负面缓存有效期：确认无歌词的曲目在此期限内跳过全链路（与搜索缓存 TTL 一致）
+    private static let negativeCacheTTL: TimeInterval = 7 * 24 * 3600
+    /// 扫描式标签提取只转换文件头这段（Vorbis 注释/ID3v2 都在文件头部；
+    /// 整文件转 String 会让大文件内存翻倍——mapped Data 是懒页，堆上 String 是全量副本）
+    private static let scanTextHeaderBytes = 2 * 1024 * 1024
 
     private init() {
         Task {
@@ -71,6 +85,13 @@ actor LyricsManager {
             return diskCached
         }
 
+        // 负面缓存：7 天内确认无歌词 → 跳过内嵌/网易云/lrclib 全链路直接返回
+        // （此前无歌词曲目每次播放都重走全链路，每次都有网络请求）
+        if await isNegativeCached(trackId: track.stableId) {
+            print("⏭️ Negative lyrics cache hit, skipping fetch: \(track.title)")
+            return nil
+        }
+
         // Try embedded lyrics first
         if let embedded = await getEmbeddedLyrics(for: track) {
             print("📝 Found embedded lyrics for: \(track.title)")
@@ -95,6 +116,8 @@ actor LyricsManager {
             return fetched
         }
 
+        // 全链路无歌词：记录负面缓存（7 天 TTL），避免每次播放重走网络
+        await recordNegativeCache(trackId: track.stableId)
         print("⚠️ No lyrics found for: \(track.title)")
         return nil
     }
@@ -137,6 +160,7 @@ actor LyricsManager {
         cache[track.stableId] = lyrics
         Task {
             await saveManualLyricsToDisk(lyrics: lyrics, trackId: track.stableId)
+            await clearNegativeCache(trackId: track.stableId) // 已有歌词：清除负面标记
         }
         print("📝 Manual lyrics saved for: \(track.title) (\(lyrics.source.rawValue))")
     }
@@ -147,6 +171,7 @@ actor LyricsManager {
         cache[track.stableId] = nil
         Task {
             await removeManualLyricsFromDisk(trackId: track.stableId)
+            await clearNegativeCache(trackId: track.stableId) // 恢复自动：重走全链路，不残留旧负面标记
         }
         print("📝 Manual lyrics cleared for: \(track.title)")
     }
@@ -426,7 +451,10 @@ actor LyricsManager {
     }
 
     private nonisolated func scanTextTags(in data: Data, keys: [String]) -> String? {
-        guard let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else {
+        // 只转换文件头 scanTextHeaderBytes：Vorbis 注释/ID3v2 都在文件头部，
+        // 整文件转 String 会让大文件内存翻倍（mapped Data 是懒页，堆上 String 是全量副本）
+        let header = data.prefix(Self.scanTextHeaderBytes)
+        guard let text = String(data: header, encoding: .utf8) ?? String(data: header, encoding: .isoLatin1) else {
             return nil
         }
 
@@ -965,6 +993,9 @@ actor LyricsManager {
     // MARK: - Disk Cache
 
     private func getLyricsCacheDirectory() -> URL? {
+        if let override = Self.lyricsCacheDirectoryOverride {
+            return override
+        }
         guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
             return nil
         }
@@ -984,77 +1015,67 @@ actor LyricsManager {
     }
 
     private func saveLyricsToDisk(lyrics: Lyrics, trackId: String) async {
-        guard let fileURL = getLyricsFileURL(trackId: trackId) else {
-            print("❌ Failed to get lyrics cache file URL")
-            return
-        }
+        guard let fileURL = getLyricsFileURL(trackId: trackId) else { return }
 
         do {
             let data = try encoder.encode(lyrics)
             try data.write(to: fileURL, options: .atomic)
-            print("💾 Saved lyrics to disk: \(fileURL.lastPathComponent)")
-            print("   📍 Path: \(fileURL.path)")
         } catch {
             print("❌ Failed to save lyrics to disk: \(error)")
         }
+        await enforceDiskCacheLimit()
     }
 
     private func loadLyricsFromDisk(trackId: String) async -> Lyrics? {
-        guard let fileURL = getLyricsFileURL(trackId: trackId) else {
-            print("⚠️ Failed to get lyrics file URL for: \(trackId)")
-            return nil
-        }
-
-        guard fileManager.fileExists(atPath: fileURL.path) else {
-            print("⚠️ Lyrics file not found on disk for: \(trackId)")
-            return nil
+        guard let fileURL = getLyricsFileURL(trackId: trackId),
+              fileManager.fileExists(atPath: fileURL.path) else {
+            return nil // 未命中磁盘缓存是正常路径，不打日志（此前每首歌都打一条 ⚠️）
         }
 
         do {
             let data = try Data(contentsOf: fileURL)
             let lyrics = try decoder.decode(Lyrics.self, from: data)
-            print("✅ Loaded lyrics from disk: \(fileURL.lastPathComponent)")
+            // 命中即刷新 mtime：真 LRU——最近读过的缓存不被启动预载/写盘淘汰误删
+            try? fileManager.setAttributes([.modificationDate: Date()], ofItemAtPath: fileURL.path)
             return lyrics
         } catch {
-            print("❌ Failed to load lyrics from disk: \(error)")
-            print("   File: \(fileURL.path)")
-            // Delete corrupted file
+            // 损坏即删（单行日志，不逐文件刷屏）
+            print("⚠️ Corrupted lyrics cache, removing: \(fileURL.lastPathComponent)")
             try? fileManager.removeItem(at: fileURL)
             return nil
         }
     }
 
     private func loadCacheFromDisk() async {
-        guard let cacheDir = getLyricsCacheDirectory() else {
-            print("❌ Failed to get lyrics cache directory")
-            return
-        }
-
-        print("📁 Loading lyrics cache from: \(cacheDir.path)")
+        guard let cacheDir = getLyricsCacheDirectory() else { return }
 
         do {
-            let files = try fileManager.contentsOfDirectory(at: cacheDir, includingPropertiesForKeys: nil)
-            print("📁 Found \(files.count) total files in lyrics cache")
-
+            let files = try fileManager.contentsOfDirectory(
+                at: cacheDir,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )
             let jsonFiles = files.filter { $0.pathExtension == "json" }
-            print("📁 Found \(jsonFiles.count) JSON files")
+            // 只预载最近 N 条（按 mtime 倒序），其余磁盘缓存命中时懒加载——
+            // 播放越多内存不再无限增长（此前把全部 .json 解码进内存）
+            let dated = jsonFiles.compactMap { url -> (url: URL, mtime: Date)? in
+                guard let mtime = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate else {
+                    return nil
+                }
+                return (url, mtime)
+            }
+            let recent = dated.sorted { $0.mtime > $1.mtime }.prefix(Self.startupCacheLoadLimit)
 
             var loadedCount = 0
-
-            for fileURL in jsonFiles {
-                let trackId = fileURL.deletingPathExtension().lastPathComponent
-
+            for item in recent {
+                let trackId = item.url.deletingPathExtension().lastPathComponent
                 if let lyrics = await loadLyricsFromDisk(trackId: trackId) {
                     cache[trackId] = lyrics
                     loadedCount += 1
                 }
             }
-
-            if loadedCount > 0 {
-                print("💾 Successfully loaded \(loadedCount) lyrics from disk cache")
-            } else {
-                print("💾 No lyrics loaded from disk cache")
-            }
+            // 单行汇总（此前每文件 3-4 条日志，几百首歌上千行噪音）
+            print("📁 Lyrics disk cache: loaded \(loadedCount)/\(recent.count) recent of \(jsonFiles.count) files")
         } catch {
             print("❌ Failed to load lyrics cache from disk: \(error)")
         }
@@ -1070,6 +1091,69 @@ actor LyricsManager {
         } catch {
             print("❌ Failed to clear lyrics disk cache: \(error)")
         }
+    }
+
+    // MARK: - 负面缓存（确认无歌词的曲目，7 天 TTL；与正缓存同目录，统一参与 LRU）
+
+    /// 负面标记文件：{stableId}.negative，mtime 即记录时刻（原子写，无内容）
+    private func negativeCacheFileURL(trackId: String) -> URL? {
+        guard let cacheDir = getLyricsCacheDirectory() else { return nil }
+        return cacheDir.appendingPathComponent("\(trackId).negative")
+    }
+
+    private func isNegativeCached(trackId: String) async -> Bool {
+        guard let fileURL = negativeCacheFileURL(trackId: trackId),
+              let mtime = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate else {
+            return false
+        }
+        if Date().timeIntervalSince(mtime) < Self.negativeCacheTTL {
+            return true
+        }
+        // 过期：删除标记，下次全链路后重新写入
+        try? fileManager.removeItem(at: fileURL)
+        return false
+    }
+
+    private func recordNegativeCache(trackId: String) async {
+        guard let fileURL = negativeCacheFileURL(trackId: trackId) else { return }
+        // 原子写（空内容），mtime 即记录时刻
+        try? Data().write(to: fileURL, options: .atomic)
+        await enforceDiskCacheLimit()
+    }
+
+    private func clearNegativeCache(trackId: String) async {
+        guard let fileURL = negativeCacheFileURL(trackId: trackId) else { return }
+        try? fileManager.removeItem(at: fileURL)
+    }
+
+    /// LRU 上限：缓存文件数（.json 正缓存 + .negative 负面缓存）超出上限时
+    /// 删除最久未使用的（按 mtime，最近读/写的保留）
+    private func enforceDiskCacheLimit() async {
+        guard let cacheDir = getLyricsCacheDirectory() else { return }
+        let files = cacheFiles(in: cacheDir)
+        guard files.count > Self.diskCacheFileLimit else { return }
+
+        let dated = files.compactMap { url -> (url: URL, mtime: Date)? in
+            guard let mtime = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate else {
+                return nil
+            }
+            return (url, mtime)
+        }
+        let keep = Set(dated.sorted { $0.mtime > $1.mtime }.prefix(Self.diskCacheFileLimit).map(\.url))
+        for url in dated.map(\.url) where !keep.contains(url) {
+            try? fileManager.removeItem(at: url)
+        }
+        print("📁 Lyrics disk cache trimmed to \(Self.diskCacheFileLimit) files")
+    }
+
+    /// 缓存目录内参与 LRU 的文件
+    private func cacheFiles(in dir: URL) -> [URL] {
+        (try? fileManager.contentsOfDirectory(
+            at: dir,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ))?
+            .filter { $0.pathExtension == "json" || $0.pathExtension == "negative" } ?? []
     }
 }
 

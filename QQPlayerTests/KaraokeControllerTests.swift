@@ -261,6 +261,29 @@ struct KaraokeControllerTests {
         expectSingleSeek(fake, time: 5.0, play: true)
     }
 
+    @Test("enterABLoop：A 点取不到（行无时间戳/越界）返回 false 不进入；正常行返回 true")
+    func enterABLoopRejectsInvalidStart() async {
+        let fake = await makeFake(expireJumpQuiet: false)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics([
+            LyricsLine(timestamp: nil, text: "前奏（无时间戳）"),
+            LyricsLine(timestamp: 5, text: "第一句"),
+        ])
+
+        // 前奏行无时间戳：进入失败（带反馈），不建 AB
+        #expect(kc.enterABLoop(currentLine: 0) == false)
+        #expect(kc.abLoop == nil)
+
+        // 越界行：进入失败
+        #expect(kc.enterABLoop(currentLine: 5) == false)
+        #expect(kc.abLoop == nil)
+
+        // 正常行：成功进入等选终点
+        #expect(kc.enterABLoop(currentLine: 1) == true)
+        #expect(kc.abLoop == ABLoopState(a: 1, b: nil))
+    }
+
     // MARK: - 倍速
 
     @Test("cycleSpeed 档位循环：1.0 → 0.5 → … → 1.0，每次追加 setRate")

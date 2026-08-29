@@ -248,6 +248,19 @@ class DatabaseManager: @unchecked Sendable {
                 )
             """)
 
+            // Play history (automatic playlists data source: recent/top played).
+            // 与 migrateDatabaseIfNeeded 中的定义保持一致；测试内存库依赖此建表
+            // （PlayHistoryRecorder 写路径，2026-08-30 批次 D 测试暴露缺失）。
+            try db.execute(sql: """
+                CREATE TABLE IF NOT EXISTS play_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    track_stable_id TEXT NOT NULL,
+                    played_at INTEGER NOT NULL,
+                    play_duration_ms INTEGER DEFAULT 0
+                )
+            """)
+            try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_play_history_track ON play_history(track_stable_id)")
+            try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_play_history_played_at ON play_history(played_at)")
             try db.execute(sql: """
                 CREATE TABLE IF NOT EXISTS playlist (
                     id INTEGER PRIMARY KEY,
