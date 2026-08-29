@@ -6,6 +6,10 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# iOS 构建必须使用 Xcode 自带工具链；环境里的 CC/CXX（如 Homebrew gcc）会劫持
+# SPM C/C++ 依赖编译并报错（gcc 不识别 -target/-fmodules 等参数），强制清掉
+unset CC CXX 2>/dev/null || true
+
 DERIVED="build/DerivedData"
 SCHEME="QQPlayer"   # scheme 名
 APP_NAME="QQPlayer" # 可执行/产物名
