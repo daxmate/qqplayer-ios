@@ -33,6 +33,8 @@ fileprivate extension UIImage {
 struct PlaylistsScreen: View {
     @EnvironmentObject private var appCoordinator: AppCoordinator
     @State private var playlists: [Playlist] = []
+    /// 歌单 id → 曲目（loadPlaylists 时批量加载一次，替代网格每卡片每次 body 求值查库）
+    @State private var playlistTracksCache: [Int64: [Track]] = [:]
     @State private var isEditMode: Bool = false
     @State private var playlistToEdit: Playlist?
     @State private var playlistToDelete: Playlist?
@@ -68,7 +70,7 @@ struct PlaylistsScreen: View {
                         if !playlists.isEmpty {
                             ForEach(playlists, id: \.id) { playlist in
                                 if isEditMode {
-                                    PlaylistCardView(playlist: playlist, allTracks: getAllPlaylistTracks(playlist), isEditMode: true, onEdit: {
+                                    PlaylistCardView(playlist: playlist, allTracks: playlistTracksCache[playlist.id ?? 0] ?? [], isEditMode: true, onEdit: {
                                         playlistToEdit = playlist
                                         editPlaylistName = playlist.title
                                         showEditDialog = true
@@ -80,7 +82,7 @@ struct PlaylistsScreen: View {
                                     NavigationLink {
                                         PlaylistDetailScreen(playlist: playlist)
                                     } label: {
-                                        PlaylistCardView(playlist: playlist, allTracks: getAllPlaylistTracks(playlist))
+                                        PlaylistCardView(playlist: playlist, allTracks: playlistTracksCache[playlist.id ?? 0] ?? [])
                                     }
                                     .buttonStyle(PlainButtonStyle())
                                 }
@@ -242,6 +244,14 @@ struct PlaylistsScreen: View {
     private func loadPlaylists() {
         do {
             playlists = try appCoordinator.databaseManager.getAllPlaylists()
+            // 批量取所有歌单的 tracks（替代网格里每张卡片各查两次 DB，且每次 body 求值重跑）
+            var cache: [Int64: [Track]] = [:]
+            for playlist in playlists {
+                if let playlistId = playlist.id {
+                    cache[playlistId] = getAllPlaylistTracks(playlist)
+                }
+            }
+            playlistTracksCache = cache
         } catch {
             print("Failed to load playlists: \(error)")
         }
@@ -715,6 +725,8 @@ struct PlaylistDetailScreen: View {
     @State private var showCoverOptions = false
     @State private var artistNameCache: [Int64: String] = [:]
     @State private var artistDisplayNameCache: [String: String] = [:]
+    /// 按歌手排序时的歌手名缓存（.task 按需加载，替代 sortedTracks 每次求值全表查询）
+    @State private var artistSortCache: [Int64: String] = [:]
 
     private var playerEngine: PlayerEngine {
         appCoordinator.playerEngine
@@ -755,18 +767,16 @@ struct PlaylistDetailScreen: View {
             return filteredTracks.sorted { $0.title.lowercased() > $1.title.lowercased() }
         case .artistAZ:
             // Pre-fetch all artist names for performance
-            let artistCache = buildArtistCache(for: filteredTracks)
             return filteredTracks.sorted { track1, track2 in
-                let artist1 = artistCache[track1.artistId ?? -1] ?? ""
-                let artist2 = artistCache[track2.artistId ?? -1] ?? ""
+                let artist1 = artistSortCache[track1.artistId ?? -1] ?? ""
+                let artist2 = artistSortCache[track2.artistId ?? -1] ?? ""
                 return artist1.lowercased() < artist2.lowercased()
             }
         case .artistZA:
             // Pre-fetch all artist names for performance
-            let artistCache = buildArtistCache(for: filteredTracks)
             return filteredTracks.sorted { track1, track2 in
-                let artist1 = artistCache[track1.artistId ?? -1] ?? ""
-                let artist2 = artistCache[track2.artistId ?? -1] ?? ""
+                let artist1 = artistSortCache[track1.artistId ?? -1] ?? ""
+                let artist2 = artistSortCache[track2.artistId ?? -1] ?? ""
                 return artist1.lowercased() > artist2.lowercased()
             }
         case .sizeLargest:
@@ -1081,6 +1091,17 @@ struct PlaylistDetailScreen: View {
             loadSortPreference()
             loadCustomCover()
             loadArtistNameCache()
+        }
+        // 歌手名缓存按需加载：仅在歌手排序激活时构建一次（替代 sortedTracks 每次求值全表查询）
+        .task(id: sortOption) {
+            if sortOption == .artistAZ || sortOption == .artistZA {
+                artistSortCache = buildArtistCache(for: tracks)
+            }
+        }
+        .task(id: tracks.count) {
+            if sortOption == .artistAZ || sortOption == .artistZA {
+                artistSortCache = buildArtistCache(for: tracks)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LibraryNeedsRefresh"))) { _ in
             loadPlaylistTracks()
@@ -1505,68 +1526,13 @@ struct PlaylistTrackRowView: View {
     }
 }
 
-struct PlaylistListView: View {
-    let playlists: [Playlist]
-    let onPlaylistTap: (Playlist) -> Void
-
-    var body: some View {
-        if playlists.isEmpty {
-            VStack(spacing: 16) {
-                Image(systemName: "music.note.list")
-                    .font(.system(size: 40))
-                    .foregroundColor(.secondary)
-
-                Text("No playlists yet")
-                    .font(.headline)
-
-                Text("Create playlists by adding songs to them from the library")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            List(playlists, id: \.id) { playlist in
-                HStack {
-                    Image(systemName: "music.note.list")
-                        .foregroundColor(.green)
-                        .frame(width: 24, height: 24)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(playlist.title)
-                            .font(.headline)
-
-                        Text(Localized.playlist)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                }
-                .frame(height: 66)
-                .padding(.horizontal, 8)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    onPlaylistTap(playlist)
-                }
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets())
-            }
-            .listStyle(PlainListStyle())
-        }
-    }
-}
-
 struct PlaylistSelectionView: View {
     let track: Track
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appCoordinator: AppCoordinator
     @State private var playlists: [Playlist] = []
+    /// 本曲所在歌单 id 集合（loadPlaylists 时一次性查出，替代排序比较器/每行逐次同步 DB 读）
+    @State private var playlistsContainingTrack: Set<Int64> = []
     @State private var showCreatePlaylist = false
     @State private var newPlaylistName = ""
     @State private var showDeleteConfirmation = false
@@ -1577,8 +1543,8 @@ struct PlaylistSelectionView: View {
         // Sort playlists: first those where song is NOT in playlist (sorted by most recent played),
         // then those where song IS in playlist (also sorted by most recent played)
         return playlists.sorted { playlist1, playlist2 in
-            let isInPlaylist1 = (try? appCoordinator.isTrackInPlaylist(playlistId: playlist1.id ?? 0, trackStableId: track.stableId)) ?? false
-            let isInPlaylist2 = (try? appCoordinator.isTrackInPlaylist(playlistId: playlist2.id ?? 0, trackStableId: track.stableId)) ?? false
+            let isInPlaylist1 = playlistsContainingTrack.contains(playlist1.id ?? 0)
+            let isInPlaylist2 = playlistsContainingTrack.contains(playlist2.id ?? 0)
 
             // If one is not in playlist and the other is, prioritize the one not in playlist
             if !isInPlaylist1 && isInPlaylist2 {
@@ -1626,8 +1592,7 @@ struct PlaylistSelectionView: View {
                 } else {
                     List {
                         ForEach(sortedPlaylists, id: \.id) { playlist in
-                            let isInPlaylist = (try? appCoordinator.isTrackInPlaylist(playlistId: playlist.id ?? 0, trackStableId:
-                                track.stableId)) ?? false
+                            let isInPlaylist = playlistsContainingTrack.contains(playlist.id ?? 0)
 
                             HStack(spacing: 8) {
                                 // Main clickable area for add/remove
@@ -1724,6 +1689,14 @@ struct PlaylistSelectionView: View {
     private func loadPlaylists() {
         do {
             playlists = try DatabaseManager.shared.getAllPlaylists()
+            // 一次性查出本曲所在歌单 id 集合（替代排序比较器/ForEach 内逐次同步 DB 读）
+            let containingIds = try DatabaseManager.shared.read { db in
+                try PlaylistItem
+                    .filter(Column("track_stable_id") == track.stableId)
+                    .fetchAll(db)
+                    .map(\.playlistId)
+            }
+            playlistsContainingTrack = Set(containingIds)
         } catch {
             print("Failed to load playlists: \(error)")
         }

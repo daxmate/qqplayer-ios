@@ -37,17 +37,8 @@ struct LyricsSearchView: View {
         self.onClose = onClose
         self.onApply = onApply
         _searchTitle = State(initialValue: track.title)
-        // 预填歌手名（与播放页 artistButton 同款查库逻辑）
-        let artistName: String = {
-            guard let artistId = track.artistId,
-                  let artist = try? DatabaseManager.shared.read({ db in
-                      try Artist.fetchOne(db, key: artistId)
-                  }) else {
-                return ""
-            }
-            return artist.name
-        }()
-        _searchArtist = State(initialValue: artistName)
+        // 歌手名预填原本在 init 内同步 DB 读（阻塞初始化），改到 onAppear 的 Task 里
+        _searchArtist = State(initialValue: "")
     }
 
     var body: some View {
@@ -87,9 +78,22 @@ struct LyricsSearchView: View {
         .onAppear {
             Task {
                 manualActive = await LyricsManager.shared.hasManualLyrics(for: track)
+                // 预填歌手名（原 init 内同步 DB 读挪到这里；先填再搜，首次自动搜索带歌手过滤）
+                let artistName: String = {
+                    guard let artistId = track.artistId,
+                          let artist = try? DatabaseManager.shared.read({ db in
+                              try Artist.fetchOne(db, key: artistId)
+                          }) else {
+                        return ""
+                    }
+                    return artist.name
+                }()
+                if !artistName.isEmpty {
+                    searchArtist = artistName
+                }
+                // 进入页面自动搜索当前歌曲（预填关键词），用户可改词再搜
+                doSearch()
             }
-            // 进入页面自动搜索当前歌曲（预填关键词），用户可改词再搜
-            doSearch()
         }
         // 左滑关闭：跟手位移，达阈值/快速回甩滑出（与全屏歌词页右滑关闭同款，方向镜像）
         .offset(x: dragX)

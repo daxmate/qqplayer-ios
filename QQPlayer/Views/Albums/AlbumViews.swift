@@ -436,115 +436,133 @@ struct AlbumTrackRowView: View {
     let onTap: () -> Void
     /// Menu entry point into multi-select. The long press is unreliable over
     /// this row's Button root, so the menu is the dependable route.
-    var onEnterBulkMode: (() -> Void)?
+    let onEnterBulkMode: (() -> Void)?
     @EnvironmentObject private var appCoordinator: AppCoordinator
     @State private var isFavorite = false
     @State private var showPlaylistDialog = false
     @State private var showDeleteConfirmation = false
     @State private var deleteSettings = DeleteSettings.load()
+    /// Menu 交互中标记（仿 ArtistTrackRowView）：菜单点开时抑制行点击，避免菜单手势与行 tap 竞争
+    @State private var isMenuInteracting = false
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 8) {
-                // Track number
-                Text("\(trackNumber)")
+        HStack(spacing: 8) {
+            // Track number
+            Text("\(trackNumber)")
+                .font(.body)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+                .frame(width: 22, alignment: .leading)
+
+            // Track info
+            VStack(alignment: .leading, spacing: 4) {
+                Text(track.title)
                     .font(.body)
                     .fontWeight(.medium)
-                    .foregroundColor(.secondary)
-                    .frame(width: 22, alignment: .leading)
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .multilineTextAlignment(.leading)
 
-                // Track info
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(track.title)
-                        .font(.body)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-                        .multilineTextAlignment(.leading)
+                // Artist name and duration with dot separator
+                HStack(spacing: 0) {
+                    if let artistName, !artistName.isEmpty {
+                        Text(artistName)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
 
-                    // Artist name and duration with dot separator
-                    HStack(spacing: 0) {
-                        if let artistName, !artistName.isEmpty {
-                            Text(artistName)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-
-                            if track.durationMs != nil {
-                                Text(" • ")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-
-                        if let duration = track.durationMs {
-                            Text(formatDuration(duration))
+                        if track.durationMs != nil {
+                            Text(" • ")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
+
+                    if let duration = track.durationMs {
+                        Text(formatDuration(duration))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
-
-                Spacer()
-
-                // Menu button - reduced spacing
-                Menu {
-                    if let onEnterBulkMode {
-                        Button(action: { onEnterBulkMode() }) {
-                            Label(Localized.select, systemImage: "checkmark.circle")
-                        }
-                        Divider()
-                    }
-
-                    Button(action: {
-                        do {
-                            try appCoordinator.toggleFavorite(trackStableId: track.stableId)
-                            isFavorite.toggle()
-                        } catch {
-                            print("Failed to toggle favorite: \(error)")
-                        }
-                    }) {
-                        HStack {
-                            Image(systemName: isFavorite ? "heart.slash" : "heart")
-                                .foregroundColor(isFavorite ? .red : .primary)
-                            Text(isFavorite ? Localized.removeFromLikedSongs : Localized.addToLikedSongs)
-                                .foregroundColor(.primary)
-                        }
-                    }
-
-                    if let artistId = track.artistId,
-                       let artist = try? DatabaseManager.shared.read({ db in
-                           try Artist.fetchOne(db, key: artistId)
-                       }),
-                       let allArtistTracks = try? DatabaseManager.shared.getTracksByArtistId(artistId) {
-                        NavigationLink(destination: ArtistDetailScreenWrapper(artistName: artist.name, allTracks: allArtistTracks)) {
-                            Label(Localized.showArtistPage, systemImage: "person.circle")
-                        }
-                    }
-
-                    Button(action: {
-                        showPlaylistDialog = true
-                    }) {
-                        Label(Localized.addToPlaylistEllipsis, systemImage: "rectangle.stack.badge.plus")
-                    }
-
-                    Button(action: {
-                        showDeleteConfirmation = true
-                    }) {
-                        Label(Localized.deleteFile, systemImage: "trash")
-                    }
-                    .foregroundColor(.red)
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .foregroundColor(.secondary)
-                        .frame(width: 24, height: 30)
-                }
-                .buttonStyle(PlainButtonStyle())
             }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .contentShape(Rectangle())
+
+            Spacer()
+
+            // Menu button - independent sibling of the row's tap gesture
+            // (原实现把 Menu 嵌在根 Button 的 label 内，父 Button 手势与子 Menu 竞争，
+            // 省略号菜单点不出；仿 ArtistTrackRowView 改为 HStack + onTapGesture + 独立 Menu)
+            Menu {
+                if let onEnterBulkMode {
+                    Button(action: { onEnterBulkMode() }) {
+                        Label(Localized.select, systemImage: "checkmark.circle")
+                    }
+                    Divider()
+                }
+
+                Button(action: {
+                    do {
+                        try appCoordinator.toggleFavorite(trackStableId: track.stableId)
+                        isFavorite.toggle()
+                    } catch {
+                        print("Failed to toggle favorite: \(error)")
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: isFavorite ? "heart.slash" : "heart")
+                            .foregroundColor(isFavorite ? .red : .primary)
+                        Text(isFavorite ? Localized.removeFromLikedSongs : Localized.addToLikedSongs)
+                            .foregroundColor(.primary)
+                    }
+                }
+
+                if let artistId = track.artistId,
+                   let artist = try? DatabaseManager.shared.read({ db in
+                       try Artist.fetchOne(db, key: artistId)
+                   }),
+                   let allArtistTracks = try? DatabaseManager.shared.getTracksByArtistId(artistId) {
+                    NavigationLink(destination: ArtistDetailScreenWrapper(artistName: artist.name, allTracks: allArtistTracks)) {
+                        Label(Localized.showArtistPage, systemImage: "person.circle")
+                    }
+                }
+
+                Button(action: {
+                    showPlaylistDialog = true
+                }) {
+                    Label(Localized.addToPlaylistEllipsis, systemImage: "rectangle.stack.badge.plus")
+                }
+
+                Button(action: {
+                    showDeleteConfirmation = true
+                }) {
+                    Label(Localized.deleteFile, systemImage: "trash")
+                }
+                .foregroundColor(.red)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .foregroundColor(.secondary)
+                    .frame(width: 24, height: 30)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(PlainButtonStyle())
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        isMenuInteracting = true
+                    }
+                    .onEnded { _ in
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            isMenuInteracting = false
+                        }
+                    }
+            )
         }
-        .buttonStyle(PlainButtonStyle())
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if !isMenuInteracting {
+                onTap()
+            }
+        }
         .onAppear {
             checkFavoriteStatus()
         }

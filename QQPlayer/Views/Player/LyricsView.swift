@@ -15,6 +15,8 @@ struct LyricsView: View {
     @State private var scrollTarget: Int?
     @State private var settings = DeleteSettings.load()
     @State private var dragX: CGFloat = 0
+    /// 上次自动滚动的行号：仅 activeIndex 变化才 scrollTo（替代每 tick 全量遍历 + 对未变行也发起滚动）
+    @State private var lastScrolledIndex: Int?
     @ObservedObject private var karaoke = KaraokeController.shared
 
     var body: some View {
@@ -107,9 +109,14 @@ struct LyricsView: View {
                             Spacer()
                                 .frame(height: geometry.size.height / 2 - 40)
 
+                            // 每次 body 求值只算一次 activeIndex，isActive/distance 变 O(1) 查表
+                            // （替代逐行全量遍历 + distanceFromActive 每行 O(n) 遍历）。
+                            // 行列表保持 VStack：歌词行数通常 < 300，全量渲染开销可控；
+                            // LazyVStack 下 scrollTo 未实例化行有已知失败风险，自动滚动可靠性优先。
+                            let activeIndex = LyricTiming.activeLineIndex(time: currentTime, in: lines)
                             ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
-                                let isActive = isLineActive(line, at: index, in: lines)
-                                let distance = distanceFromActive(index: index, lines: lines)
+                                let isActive = activeIndex == index
+                                let distance = activeIndex.map { abs(index - $0) } ?? 99
 
                                 lyricLineView(
                                     line: line,
@@ -165,13 +172,6 @@ struct LyricsView: View {
                 }
             }
         }
-    }
-
-    private func distanceFromActive(index: Int, lines: [LyricsLine]) -> Int {
-        for (i, line) in lines.enumerated() where isLineActive(line, at: i, in: lines) {
-            return abs(index - i)
-        }
-        return 99
     }
 
     private func lyricLineView(line: LyricsLine, isActive: Bool, distance: Int, index: Int) -> some View {
@@ -669,25 +669,21 @@ struct LyricsView: View {
 
     // MARK: - Helper Methods
 
-    private func isLineActive(_ line: LyricsLine, at index: Int, in lines: [LyricsLine]) -> Bool {
-        LyricTiming.activeLineIndex(time: currentTime, in: lines) == index
-    }
-
     private func updateActiveLineAndScroll(for lines: [LyricsLine], in proxy: ScrollViewProxy) {
         // AB 等选终点（b == nil）：关闭自动滚动，让用户手动滚动找 B 句（用户拍板 2026-08-29）
         if karaoke.isKaraokeOn, let ab = karaoke.abLoop, ab.b == nil { return }
-        for (index, line) in lines.enumerated() where isLineActive(line, at: index, in: lines) {
-            withAnimation(
-                .interpolatingSpring(
-                    mass: 1.0,
-                    stiffness: 170,
-                    damping: 25,
-                    initialVelocity: 0
-                )
-            ) {
-                proxy.scrollTo(index, anchor: .center)
-            }
-            break
+        guard let activeIndex = LyricTiming.activeLineIndex(time: currentTime, in: lines),
+              activeIndex != lastScrolledIndex else { return }
+        lastScrolledIndex = activeIndex
+        withAnimation(
+            .interpolatingSpring(
+                mass: 1.0,
+                stiffness: 170,
+                damping: 25,
+                initialVelocity: 0
+            )
+        ) {
+            proxy.scrollTo(activeIndex, anchor: .center)
         }
     }
 }

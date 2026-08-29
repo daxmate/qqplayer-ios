@@ -46,9 +46,9 @@ struct LibraryView: View {
     @State private var syncToastMessage = ""
     @State private var syncToastIcon = "checkmark.circle.fill"
     @State private var syncToastColor = Color.green
-    @State private var newTracksFoundCount = 0
-    @State private var syncCompleted = false
     @State private var showMusicPicker = false
+    /// 等待索引完成（continuation，onChange(isIndexing) 唤醒；替代 while + sleep 忙等轮询）
+    @State private var indexingWaitContinuation: CheckedContinuation<Void, Never>?
 
     // Helper function to show sync feedback
     private func showSyncFeedback(trackCountBefore: Int, trackCountAfter: Int) {
@@ -75,20 +75,10 @@ struct LibraryView: View {
                 syncToastMessage = String(format: NSLocalizedString("sync_multiple_tracks_deleted", value: "%d songs removed", comment: ""), deletedCount)
             }
         } else {
-            // No changes - but check if we tracked any during sync
-            if newTracksFoundCount > 0 {
-                syncToastIcon = "plus.circle.fill"
-                syncToastColor = .green
-                if newTracksFoundCount == 1 {
-                    syncToastMessage = NSLocalizedString("sync_one_new_track", value: "1 new song found", comment: "")
-                } else {
-                    syncToastMessage = String(format: NSLocalizedString("sync_multiple_new_tracks", value: "%d new songs found", comment: ""), newTracksFoundCount)
-                }
-            } else {
-                syncToastIcon = "checkmark.circle.fill"
-                syncToastColor = .blue
-                syncToastMessage = NSLocalizedString("sync_no_changes", value: "Library is up to date", comment: "")
-            }
+            // No changes
+            syncToastIcon = "checkmark.circle.fill"
+            syncToastColor = .blue
+            syncToastMessage = NSLocalizedString("sync_no_changes", value: "Library is up to date", comment: "")
         }
 
         withAnimation(.easeInOut(duration: 0.2)) {
@@ -101,10 +91,6 @@ struct LibraryView: View {
                 showSyncToast = false
             }
         }
-
-        // Reset tracking variables
-        newTracksFoundCount = 0
-        syncCompleted = false
     }
 
     private func importMusicFiles(_ urls: [URL]) {
@@ -201,7 +187,10 @@ struct LibraryView: View {
     }
 
     private func storeBookmarkData(_ bookmarkData: Data, for url: URL) async {
-        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            print("❌ Failed to resolve documents directory")
+            return
+        }
         let bookmarksURL = documentsURL.appendingPathComponent("ExternalFileBookmarks.plist")
 
         do {
@@ -372,17 +361,7 @@ struct LibraryView: View {
                                             }
 
                                             Task {
-                                                // Wait for any ongoing indexing to complete first
-                                                while libraryIndexer.isIndexing {
-                                                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
-                                                }
-
-                                                let result = await onManualSync()
-
-                                                await MainActor.run {
-                                                    isRefreshing = false
-                                                    showSyncFeedback(trackCountBefore: result.before, trackCountAfter: result.after)
-                                                }
+                                                await runSync()
                                             }
                                         }) {
                                             ZStack {
@@ -435,58 +414,18 @@ struct LibraryView: View {
                 .navigationTitle("")
                 .navigationBarTitleDisplayMode(.large)
                 .refreshable {
-                    // Prevent multiple concurrent refreshes
+                    // Prevent multiple concurrent refreshes (pull-to-refresh also
+                    // takes the isRefreshing mutex so it cannot double-run with
+                    // the sync button)
                     guard !isRefreshing else { return }
 
                     // Provide haptic feedback for pull-to-refresh
                     let impactFeedback = UIImpactFeedbackGenerator(style: .light)
                     impactFeedback.impactOccurred()
 
-                    // Wait for any ongoing indexing to complete before starting sync
-                    while libraryIndexer.isIndexing {
-                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
-                    }
-
-                    // For pull-to-refresh, use manual sync if available, otherwise just refresh
-                    let result = if let onManualSync = onManualSync {
-                        await onManualSync() // Full sync + refresh
-                    } else {
-                        await onRefresh()    // Just refresh
-                    }
-
-                    // Show feedback after sync/refresh is complete
-                    await MainActor.run {
-                        showSyncFeedback(trackCountBefore: result.before, trackCountAfter: result.after)
-                    }
+                    isRefreshing = true
+                    await runSync()
                 }
-
-                // Hidden NavigationLink for programmatic navigation from player
-                NavigationLink(
-                    destination: artistToNavigate.map { artist in
-                        ArtistDetailScreenWrapper(artistName: artist.name, allTracks: artistAllTracks)
-                    },
-                    isActive: Binding(
-                        get: { artistToNavigate != nil },
-                        set: { if !$0 { artistToNavigate = nil } }
-                    )
-                ) {
-                    EmptyView()
-                }
-                .hidden()
-
-                // Hidden NavigationLink for album navigation from player
-                NavigationLink(
-                    destination: albumToNavigate.map { album in
-                        AlbumDetailScreen(album: album, allTracks: albumAllTracks)
-                    },
-                    isActive: Binding(
-                        get: { albumToNavigate != nil },
-                        set: { if !$0 { albumToNavigate = nil } }
-                    )
-                ) {
-                    EmptyView()
-                }
-                .hidden()
 
             }
             .navigationDestination(isPresented: Binding(
@@ -521,10 +460,35 @@ struct LibraryView: View {
                     PlaylistDetailScreen(playlist: playlist)
                 }
             }
+            // 播放器通知驱动的导航：与上面四个 navigationDestination(isPresented:) 统一
+            // （原实现为两个隐藏 NavigationLink(isActive:)，iOS 16 起已废弃）
+            .navigationDestination(isPresented: Binding(
+                get: { artistToNavigate != nil },
+                set: { if !$0 { artistToNavigate = nil } }
+            )) {
+                if let artist = artistToNavigate {
+                    ArtistDetailScreenWrapper(artistName: artist.name, allTracks: artistAllTracks)
+                }
+            }
+            .navigationDestination(isPresented: Binding(
+                get: { albumToNavigate != nil },
+                set: { if !$0 { albumToNavigate = nil } }
+            )) {
+                if let album = albumToNavigate {
+                    AlbumDetailScreen(album: album, allTracks: albumAllTracks)
+                }
+            }
         }
         .background(.clear)
         .toolbarBackground(.clear, for: .navigationBar)
         .toolbarBackground(.clear, for: .automatic)
+        .onChange(of: libraryIndexer.isIndexing) { _, isIndexing in
+            // 索引完成：唤醒等待中的同步（替代 while + sleep 忙等轮询）
+            if !isIndexing, let continuation = indexingWaitContinuation {
+                indexingWaitContinuation = nil
+                continuation.resume()
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
             settings = DeleteSettings.load()
         }
@@ -608,6 +572,30 @@ struct LibraryView: View {
             MusicFilePicker { urls in
                 importMusicFiles(urls)
             }
+        }
+    }
+
+    /// 统一同步入口（按钮与下拉刷新共用）：isRefreshing 互斥 + 无轮询等待索引完成。
+    /// 正在索引时通过 continuation 挂起，isIndexing 变 false 时由 onChange 唤醒。
+    private func runSync() async {
+        if libraryIndexer.isIndexing {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                indexingWaitContinuation = continuation
+            }
+        }
+
+        // For pull-to-refresh, use manual sync if available, otherwise just refresh
+        let result: (before: Int, after: Int)
+        if let onManualSync = onManualSync {
+            result = await onManualSync() // Full sync + refresh
+        } else {
+            result = await onRefresh()    // Just refresh
+        }
+
+        // Show feedback after sync/refresh is complete
+        await MainActor.run {
+            isRefreshing = false
+            showSyncFeedback(trackCountBefore: result.before, trackCountAfter: result.after)
         }
     }
 }
@@ -800,6 +788,8 @@ struct TrackListView: View {
     // Local State
     @State private var sortOption: TrackSortOption = .dateNewest
     @State private var recentlyActedTracks: Set<String> = []
+    /// 按歌手排序时的歌手名缓存（.task 按需加载，替代 sortedTracks 每次求值全表查询）
+    @State private var artistSortCache: [Int64: String] = [:]
 
     // Bulk selection state
     @State private var isBulkMode = false
@@ -836,18 +826,16 @@ struct TrackListView: View {
         case .nameZA: return filteredTracks.sorted { $0.title.lowercased() > $1.title.lowercased() }
         case .artistAZ:
             // Pre-fetch all artist names for performance
-            let artistCache = buildArtistCache(for: filteredTracks)
             return filteredTracks.sorted { track1, track2 in
-                let artist1 = artistCache[track1.artistId ?? -1] ?? ""
-                let artist2 = artistCache[track2.artistId ?? -1] ?? ""
+                let artist1 = artistSortCache[track1.artistId ?? -1] ?? ""
+                let artist2 = artistSortCache[track2.artistId ?? -1] ?? ""
                 return artist1.lowercased() < artist2.lowercased()
             }
         case .artistZA:
             // Pre-fetch all artist names for performance
-            let artistCache = buildArtistCache(for: filteredTracks)
             return filteredTracks.sorted { track1, track2 in
-                let artist1 = artistCache[track1.artistId ?? -1] ?? ""
-                let artist2 = artistCache[track2.artistId ?? -1] ?? ""
+                let artist1 = artistSortCache[track1.artistId ?? -1] ?? ""
+                let artist2 = artistSortCache[track2.artistId ?? -1] ?? ""
                 return artist1.lowercased() > artist2.lowercased()
             }
         case .sizeLargest: return filteredTracks.sorted { ($0.fileSize ?? 0) > ($1.fileSize ?? 0) }
@@ -893,8 +881,10 @@ struct TrackListView: View {
     }
 
     private func bulkAddToLikedSongs() {
+        // 先建 stableId → Track 字典，避免对每个选中曲目 O(n) first(where:)（总 O(n²)）
+        let tracksByStableId = Dictionary(uniqueKeysWithValues: sortedTracks.map { ($0.stableId, $0) })
         for trackId in selectedTracks {
-            if let track = sortedTracks.first(where: { $0.stableId == trackId }) {
+            if let track = tracksByStableId[trackId] {
                 try? appCoordinator.toggleFavorite(trackStableId: track.stableId)
             }
         }
@@ -904,8 +894,10 @@ struct TrackListView: View {
     private func bulkDelete() {
         Task {
             let deleteSettings = DeleteSettings.load()
+            // 先建 stableId → Track 字典，避免对每个选中曲目 O(n) first(where:)（总 O(n²)）
+            let tracksByStableId = Dictionary(uniqueKeysWithValues: sortedTracks.map { ($0.stableId, $0) })
             for trackId in selectedTracks {
-                if let track = sortedTracks.first(where: { $0.stableId == trackId }) {
+                if let track = tracksByStableId[trackId] {
                     if deleteSettings.deleteFromLibraryOnly {
                         DeleteSettings.addExcludedTrack(track.stableId)
                     } else {
@@ -1020,6 +1012,17 @@ struct TrackListView: View {
             Text(Localized.deleteFilesConfirmationMessage(selectedTracks.count))
         }
         .onAppear { loadSortPreference() }
+        // 歌手名缓存按需加载：仅在歌手排序激活时构建一次（替代 sortedTracks 每次求值全表查询）
+        .task(id: sortOption) {
+            if sortOption == .artistAZ || sortOption == .artistZA {
+                artistSortCache = buildArtistCache(for: tracks)
+            }
+        }
+        .task(id: tracks.count) {
+            if sortOption == .artistAZ || sortOption == .artistZA {
+                artistSortCache = buildArtistCache(for: tracks)
+            }
+        }
     }
 }
 
@@ -1566,7 +1569,7 @@ struct SearchView: View {
                             results: searchResults,
                             selectedCategory: selectedCategory,
                             allTracks: allTracks,
-                            onDismiss: { dismiss() },
+                            onDismiss: { await dismiss() },
                             onNavigateToArtist: onNavigateToArtist,
                             onNavigateToAlbum: onNavigateToAlbum,
                             onNavigateToPlaylist: onNavigateToPlaylist
@@ -1635,7 +1638,8 @@ struct SearchView: View {
         let results: SearchResults
         let selectedCategory: SearchView.SearchCategory
         let allTracks: [Track]
-        let onDismiss: () -> Void
+        /// 关闭搜索 sheet 后（等待完全收起）再导航/播放；0.5s 固定延时 hack 的替代
+        let onDismiss: () async -> Void
         let onNavigateToArtist: (Artist, [Track]) -> Void
         let onNavigateToAlbum: (Album, [Track]) -> Void
         let onNavigateToPlaylist: (Playlist) -> Void
@@ -1808,7 +1812,7 @@ struct SearchView: View {
         let track: Track
         let allTracks: [Track]
         let artistName: String?
-        let onDismiss: () -> Void
+        let onDismiss: () async -> Void
         @EnvironmentObject private var appCoordinator: AppCoordinator
         @StateObject private var playerEngine = PlayerEngine.shared
         @State private var settings = DeleteSettings.load()
@@ -1960,8 +1964,8 @@ struct SearchView: View {
                 )
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    onDismiss()
                     Task {
+                        await onDismiss()
                         // Only queue the selected song from search
                         await appCoordinator.playTrack(track, queue: [track])
                     }
@@ -2081,7 +2085,7 @@ struct SearchView: View {
 
     struct SearchArtistRowView: View {
         let artist: Artist
-        let onDismiss: () -> Void
+        let onDismiss: () async -> Void
         let onNavigate: (Artist, [Track]) -> Void
 
         var body: some View {
@@ -2092,8 +2096,8 @@ struct SearchView: View {
                 } else {
                     artistTracks = []
                 }
-                onDismiss()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Task {
+                    await onDismiss()
                     onNavigate(artist, artistTracks)
                 }
             }) {
@@ -2132,7 +2136,7 @@ struct SearchView: View {
 
     struct SearchArtistAlbumsRow: View {
         let artist: Artist
-        let onDismiss: () -> Void
+        let onDismiss: () async -> Void
         let onNavigateToAlbum: (Album, [Track]) -> Void
         @State private var artistAlbums: [Album] = []
         @State private var artistTracks: [Track] = []
@@ -2145,8 +2149,8 @@ struct SearchView: View {
                             ForEach(artistAlbums, id: \.id) { album in
                                 let albumTracks = artistTracks.filter { $0.albumId == album.id }
                                 Button {
-                                    onDismiss()
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    Task {
+                                        await onDismiss()
                                         onNavigateToAlbum(album, albumTracks)
                                     }
                                 } label: {
@@ -2225,7 +2229,7 @@ struct SearchView: View {
     struct SearchAlbumRowView: View {
         let album: Album
         let albumArtistName: String?
-        let onDismiss: () -> Void
+        let onDismiss: () async -> Void
         let onNavigate: (Album, [Track]) -> Void
         @State private var settings = DeleteSettings.load()
         @State private var artworkImage: UIImage?
@@ -2233,8 +2237,8 @@ struct SearchView: View {
 
         var body: some View {
             Button(action: {
-                onDismiss()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Task {
+                    await onDismiss()
                     onNavigate(album, albumTracks)
                 }
             }) {
@@ -2315,14 +2319,14 @@ struct SearchView: View {
 
     struct SearchPlaylistRowView: View {
         let playlist: Playlist
-        let onDismiss: () -> Void
+        let onDismiss: () async -> Void
         let onNavigate: (Playlist) -> Void
         @State private var settings = DeleteSettings.load()
 
         var body: some View {
             Button(action: {
-                onDismiss()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Task {
+                    await onDismiss()
                     onNavigate(playlist)
                 }
             }) {
@@ -2364,11 +2368,11 @@ struct MusicFilePicker: UIViewControllerRepresentable {
     let onFilesPicked: ([URL]) -> Void
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [
-            UTType.audio,
-            UTType("public.mp3")!,
-            UTType("org.xiph.flac")!,
-        ])
+        // 强制解包 guard 化：UTType("public.mp3") 等可能为 nil，compactMap 兜底
+        // （UTType.audio 恒非 nil，故 contentTypes 至少含一项，不会为空数组）
+        let contentTypes: [UTType] = [UTType.audio, UTType("public.mp3"), UTType("org.xiph.flac")]
+            .compactMap { $0 }
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: contentTypes)
 
         picker.delegate = context.coordinator
         picker.allowsMultipleSelection = true

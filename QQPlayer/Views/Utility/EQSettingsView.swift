@@ -14,6 +14,8 @@ struct EQSettingsView: View {
     @State private var showingImport = false
     @State private var showingCreateManual = false
     @State private var showingEditManual = false
+    /// 删除/导出失败提示（原实现只 print 无用户反馈）
+    @State private var actionError: String?
 
     var body: some View {
         NavigationView {
@@ -207,6 +209,14 @@ struct EQSettingsView: View {
                 ManualEQEditorView(preset: preset)
             }
         }
+        .alert(Localized.eqError, isPresented: Binding(
+            get: { actionError != nil },
+            set: { if !$0 { actionError = nil } }
+        )) {
+            Button(Localized.done, role: .cancel) { }
+        } message: {
+            Text(actionError ?? "")
+        }
     }
 
     // MARK: - Helper Methods
@@ -217,6 +227,9 @@ struct EQSettingsView: View {
                 try await eqManager.deletePreset(preset)
             } catch {
                 print("❌ \(Localized.failedToDelete): \(error)")
+                await MainActor.run {
+                    actionError = Localized.failedToDelete
+                }
             }
         }
     }
@@ -234,6 +247,9 @@ struct EQSettingsView: View {
                 }
             } catch {
                 print("❌ \(Localized.failedToExport): \(error)")
+                await MainActor.run {
+                    actionError = Localized.failedToExport
+                }
             }
         }
     }
@@ -332,6 +348,8 @@ struct ManualEQEditorView: View {
     @State private var bandBandwidths: [Double] = []
     @State private var selectedBandIndex: Int?
     @State private var isLoading = true
+    /// 保存失败提示（原实现只 print，编辑页与 CreateManualEQView 的 createError 不一致）
+    @State private var saveError: String?
 
     private let minFrequency = 20.0
     private let maxFrequency = 20_000.0
@@ -463,6 +481,14 @@ struct ManualEQEditorView: View {
                         self.selectedBandIndex = newCount - 1
                     }
                 }
+                .alert(Localized.eqError, isPresented: Binding(
+                    get: { saveError != nil },
+                    set: { if !$0 { saveError = nil } }
+                )) {
+                    Button(Localized.done, role: .cancel) { }
+                } message: {
+                    Text(saveError ?? "")
+                }
             }
         }
     }
@@ -530,6 +556,9 @@ struct ManualEQEditorView: View {
                 }
             } catch {
                 print("❌ Failed to save changes: \(error)")
+                await MainActor.run {
+                    saveError = NSLocalizedString("failed_to_save", value: "Failed to save changes", comment: "") + ": \(error.localizedDescription)"
+                }
             }
         }
     }

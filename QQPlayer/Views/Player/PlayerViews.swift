@@ -115,6 +115,10 @@ struct PlayerView: View {
     @State private var currentLyrics: Lyrics?
     @State private var isLoadingLyrics = false
     @State private var settings = DeleteSettings.load()
+    /// 标题/歌手按钮的元数据缓存（onChange(currentTrack) 时刷新，替代 body 求值中同步 DB 读）
+    @State private var trackAlbum: Album?
+    @State private var trackArtist: Artist?
+    @State private var trackArtistDisplayName: String?
     @State private var sleepTimerTask: Task<Void, Never>?
     @State private var sleepTimerEndDate: Date?
     /// AirPlay 路由选择器宿主（常驻层级，见 RoutePickerHost / showAirPlayPicker）
@@ -205,15 +209,31 @@ struct PlayerView: View {
             .padding(.horizontal, max(16, min(20, UIScreen.main.bounds.width * 0.05)))
             .padding(.vertical)
             .onChange(of: playerEngine.currentTrack) { _, _ in
-                guard !isAnimating else { return }
-                var transaction = Transaction()
-                transaction.disablesAnimations = true
-                withTransaction(transaction) {
-                    dragOffset = 0
+                // 切歌统一处理器（合并原三个独立 onChange：复位拖拽 / 查收藏 / 清歌词重载 +
+                // 标题/歌手元数据缓存）。执行顺序与原书写顺序一致，避免多个 onChange 依赖书写顺序埋雷。
+                if !isAnimating {
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
+                        dragOffset = 0
+                    }
+                    Task {
+                        await loadAllArtworks()
+                    }
                 }
-                Task {
-                    await loadAllArtworks()
-                }
+                checkFavoriteStatus()
+
+                // Clear current lyrics
+                currentLyrics = nil
+
+                // 跟唱：切歌清空歌词注入 + 清 AB（旧歌行号在新歌上失效；resetForNewTrack 幂等，
+                // PlayerEngine 侧若已接入同款调用，重复执行无副作用）
+                KaraokeController.shared.setLyrics([])
+                KaraokeController.shared.resetForNewTrack()
+
+                // 小歌词窗口常驻：切歌自动加载歌词（不再等按钮点击）
+                loadLyrics()
+                loadTrackMetadata()
             }
             .onAppear {
                 Task {
@@ -222,9 +242,7 @@ struct PlayerView: View {
                     checkFavoriteStatus()
                 }
                 loadLyrics()
-            }
-            .onChange(of: playerEngine.currentTrack) { _, _ in
-                checkFavoriteStatus()
+                loadTrackMetadata()
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("BackgroundColorChanged"))) { _ in
                 settings = DeleteSettings.load()
@@ -237,18 +255,6 @@ struct PlayerView: View {
             }
             .sheet(isPresented: $showQueueSheet) {
                 queueSheet
-            }
-            .onChange(of: playerEngine.currentTrack) { _, _ in
-                // Clear current lyrics
-                currentLyrics = nil
-
-                // 跟唱：切歌清空歌词注入 + 清 AB（旧歌行号在新歌上失效；resetForNewTrack 幂等，
-                // PlayerEngine 侧若已接入同款调用，重复执行无副作用）
-                KaraokeController.shared.setLyrics([])
-                KaraokeController.shared.resetForNewTrack()
-
-                // 小歌词窗口常驻：切歌自动加载歌词（不再等按钮点击）
-                loadLyrics()
             }
             .onChange(of: showLyricsSheet) { _, isOpen in
                 // 离开全屏歌词界面：退出跟唱模式（用户 2026-08-29 拍板）
@@ -649,10 +655,7 @@ struct PlayerView: View {
 
     private func titleButton(track: Track) -> some View {
         Group {
-            if let albumId = track.albumId,
-               let album = try? DatabaseManager.shared.read({ db in
-                   try Album.fetchOne(db, key: albumId)
-               }) {
+            if let album = trackAlbum {
                 Button(action: {
                     let userInfo = ["album": album, "allTracks": allTracks] as [String: Any]
                     NotificationCenter.default.post(name: NSNotification.Name("NavigateToAlbumFromPlayer"), object: nil, userInfo: userInfo)
@@ -679,21 +682,49 @@ struct PlayerView: View {
 
     private func artistButton(track: Track) -> some View {
         Group {
-            if let artistId = track.artistId,
-               let artist = try? DatabaseManager.shared.read({ db in
-                   try Artist.fetchOne(db, key: artistId)
-               }) {
+            if let artist = trackArtist {
                 Button(action: {
                     let userInfo = ["artist": artist, "allTracks": allTracks] as [String: Any]
                     NotificationCenter.default.post(name: NSNotification.Name("NavigateToArtistFromPlayer"), object: nil, userInfo: userInfo)
                 }) {
-                    Text((try? DatabaseManager.shared.getArtistDisplayName(forTrackStableId: track.stableId, fallbackArtistId: track.artistId)) ?? ArtistNameNormalizer.displayName(artist.name))
+                    Text(trackArtistDisplayName ?? ArtistNameNormalizer.displayName(artist.name))
                         .font(UIScreen.main.scale < UIScreen.main.nativeScale ? .caption : .subheadline)
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
+        }
+    }
+
+    /// 标题/歌手按钮元数据缓存（切歌/首次出现时加载一次，替代 body 求值中同步 DB 读）
+    private func loadTrackMetadata() {
+        guard let currentTrack = playerEngine.currentTrack else {
+            trackAlbum = nil
+            trackArtist = nil
+            trackArtistDisplayName = nil
+            return
+        }
+
+        if let albumId = currentTrack.albumId {
+            trackAlbum = try? DatabaseManager.shared.read({ db in
+                try Album.fetchOne(db, key: albumId)
+            })
+        } else {
+            trackAlbum = nil
+        }
+
+        if let artistId = currentTrack.artistId {
+            let artist = try? DatabaseManager.shared.read({ db in
+                try Artist.fetchOne(db, key: artistId)
+            })
+            trackArtist = artist
+            trackArtistDisplayName = artist.map {
+                (try? DatabaseManager.shared.getArtistDisplayName(forTrackStableId: currentTrack.stableId, fallbackArtistId: artistId)) ?? ArtistNameNormalizer.displayName($0.name)
+            }
+        } else {
+            trackArtist = nil
+            trackArtistDisplayName = nil
         }
     }
 
@@ -1150,10 +1181,6 @@ struct InteractiveProgressBar: View {
                     .offset(x: (geometry.size.width * displayProgress) - 6)
             }
             .contentShape(Rectangle())
-            .onTapGesture { location in
-                let newProgress = max(0, min(1, location.x / geometry.size.width))
-                onSeek(newProgress)
-            }
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in

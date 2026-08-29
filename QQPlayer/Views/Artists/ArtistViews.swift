@@ -101,57 +101,6 @@ struct ArtistsScreen: View {
     }
 }
 
-struct ArtistListView: View {
-    let artists: [Artist]
-    let onArtistTap: (Artist) -> Void
-
-    var body: some View {
-        if artists.isEmpty {
-            VStack(spacing: 16) {
-                Image(systemName: "person.2")
-                    .font(.system(size: 40))
-                    .foregroundColor(.secondary)
-
-                Text("No artists found")
-                    .font(.headline)
-
-                Text("Artists will appear here once you add music to your library")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            List(artists, id: \.id) { artist in
-                HStack {
-                    Image(systemName: "person")
-                        .foregroundColor(.purple)
-                        .frame(width: 24, height: 24)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(ArtistNameNormalizer.displayName(artist.name))
-                            .font(.headline)
-
-                        Text("Artist")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .frame(height: 66)
-                .padding(.horizontal, 8)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    onArtistTap(artist)
-                }
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets())
-            }
-            .listStyle(PlainListStyle())
-        }
-    }
-}
-
 struct ArtistDetailScreen: View {
     /// 归一后的一组歌手（同名简繁两行归并后传入）；primaryArtist 用于专辑/网络信息
     let artists: [Artist]
@@ -162,11 +111,12 @@ struct ArtistDetailScreen: View {
     @State private var isLoading = false
     @State private var artistImage: UIImage?
     @State private var showFullProfile = false
-    @State private var hasTriedAlternatives = false
-    @State private var hasShownWrongArtistButton = false
     @State private var settings = DeleteSettings.load()
     @State private var isBulkMode = false
     @State private var selectedTracks: Set<String> = []
+    /// artistTracks 缓存：一次查询入库，LibraryNeedsRefresh 时刷新（替代 body 每次访问查 5 次 DB）
+    @State private var cachedArtistTracks: [Track] = []
+    @State private var artistTracksLoaded = false
 
     private var playerEngine: PlayerEngine {
         appCoordinator.playerEngine
@@ -183,6 +133,15 @@ struct ArtistDetailScreen: View {
     }
 
     private var artistTracks: [Track] {
+        // 已缓存：直接返回（body 多次访问不再触发 DB 查询）
+        if artistTracksLoaded { return cachedArtistTracks }
+        // 未加载（首次渲染前）：先用内存过滤兜底，避免空列表闪烁
+        return allTracks.filter { track in
+            artists.contains { $0.id == track.artistId }
+        }
+    }
+
+    private func loadArtistTracks() {
         let tracks: [Track]
         let artistIds = artists.compactMap(\.id)
         if !artistIds.isEmpty,
@@ -196,14 +155,15 @@ struct ArtistDetailScreen: View {
 
         // Filter out incompatible formats when connected to CarPlay
         if SFBAudioEngineManager.shared.isCarPlayEnvironment {
-            return tracks.filter { track in
+            cachedArtistTracks = tracks.filter { track in
                 let ext = URL(fileURLWithPath: track.path).pathExtension.lowercased()
                 let incompatibleFormats = ["ogg", "opus", "dsf", "dff"]
                 return !incompatibleFormats.contains(ext)
             }
+        } else {
+            cachedArtistTracks = tracks
         }
-
-        return tracks
+        artistTracksLoaded = true
     }
 
     private var artistAlbums: [Album] {
@@ -229,7 +189,14 @@ struct ArtistDetailScreen: View {
             isBulkMode: $isBulkMode,
             selectedTracks: $selectedTracks
         )
-        .onAppear { loadArtistData() }
+        .onAppear {
+            loadArtistData()
+            loadArtistTracks()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LibraryNeedsRefresh"))) { _ in
+            // 曲库刷新后重建曲目缓存（替代计算属性每次访问查库）
+            loadArtistTracks()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .qqplayerSettingsDidChange)) { _ in
             settings = DeleteSettings.load()
         }
@@ -584,57 +551,6 @@ struct ArtistDetailScreen: View {
             } catch {
                 self.isLoading = false
                 print("❌ Failed to load artist data: \(error)")
-            }
-        }
-    }
-
-    private func searchAlternativeArtist() async {
-        isLoading = true
-
-        Task { @MainActor in
-            do {
-                let currentSource = unifiedArtist?.source
-                let fetchedArtist = try await HybridMusicAPIService.shared.searchAlternativeArtist(name: displayName, currentSource: currentSource)
-
-                if let fetchedArtist = fetchedArtist {
-                    self.unifiedArtist = fetchedArtist
-                    self.artistImage = nil // Clear old image
-                    await loadArtistImage(from: fetchedArtist.images)
-                    print("✅ Found alternative artist: \(fetchedArtist.name) from \(fetchedArtist.source.rawValue)")
-                } else {
-                    print("❌ No alternative artist found")
-                }
-
-                self.isLoading = false
-            } catch {
-                self.isLoading = false
-                print("❌ Failed to find alternative artist: \(error)")
-            }
-        }
-    }
-
-    private func searchSimilarArtist() async {
-        isLoading = true
-        hasTriedAlternatives = true
-
-        Task { @MainActor in
-            do {
-                let currentSource = unifiedArtist?.source
-                let fetchedArtist = try await HybridMusicAPIService.shared.searchSimilarArtist(originalName: displayName, currentSource: currentSource)
-
-                if let fetchedArtist = fetchedArtist {
-                    self.unifiedArtist = fetchedArtist
-                    self.artistImage = nil // Clear old image
-                    await loadArtistImage(from: fetchedArtist.images)
-                    print("✅ Found similar artist: \(fetchedArtist.name) from \(fetchedArtist.source.rawValue)")
-                } else {
-                    print("❌ No similar artist found")
-                }
-
-                self.isLoading = false
-            } catch {
-                self.isLoading = false
-                print("❌ Failed to find similar artist: \(error)")
             }
         }
     }
