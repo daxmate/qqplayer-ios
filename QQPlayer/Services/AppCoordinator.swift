@@ -221,7 +221,7 @@ class AppCoordinator: ObservableObject {
         
         // Try to create the app folder
         do {
-            let appFolderURL = containerURL.appendingPathComponent("QQPlayer Player", isDirectory: true)
+            let appFolderURL = containerURL.appendingPathComponent("QQPlayer", isDirectory: true)
             
             if !FileManager.default.fileExists(atPath: appFolderURL.path) {
                 try FileManager.default.createDirectory(at: appFolderURL, 
