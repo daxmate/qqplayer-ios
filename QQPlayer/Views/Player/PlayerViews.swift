@@ -162,6 +162,7 @@ struct PlayerView: View {
                     await loadTracks()
                     checkFavoriteStatus()
                 }
+                loadLyrics()
             }
             .onChange(of: playerEngine.currentTrack) { _, _ in
                 checkFavoriteStatus()
@@ -185,12 +186,8 @@ struct PlayerView: View {
                 // Clear current lyrics
                 currentLyrics = nil
 
-                // If lyrics sheet is open, load lyrics for new track
-                if showLyricsSheet {
-                    loadLyrics()
-                } else {
-                    isLoadingLyrics = false
-                }
+                // 小歌词窗口常驻：切歌自动加载歌词（不再等按钮点击）
+                loadLyrics()
             }
     }
 
@@ -202,6 +199,7 @@ struct PlayerView: View {
                     titleAndArtistSection(track: currentTrack)
                 }
 
+                lyricMiniSection
                 progressBarSection
                 controlsSection
             } else {
@@ -554,6 +552,23 @@ struct PlayerView: View {
                 }
             }
         )
+    }
+
+    // MARK: - Mini Lyrics Section
+
+    // 封面下方的小歌词窗口：显示当前句（+翻译），点击进入全屏歌词
+    private var lyricMiniSection: some View {
+        LyricMiniSection(
+            lyrics: currentLyrics,
+            isLoading: isLoadingLyrics,
+            onTap: {
+                showLyricsSheet = true
+                if currentLyrics == nil && !isLoadingLyrics {
+                    loadLyrics()
+                }
+            }
+        )
+        .padding(.horizontal, 8)
     }
 
     // MARK: - Controls Section
@@ -949,6 +964,75 @@ struct PlayerView: View {
                 break
             }
         }
+    }
+}
+
+/// 封面下方的小歌词窗口：显示当前句（+翻译），跟随播放进度更新；点击进入全屏歌词。
+/// 独立 struct 观察 progress，避免整个 PlayerView 每秒重绘四次。
+private struct LyricMiniSection: View {
+    @ObservedObject private var progress = PlayerEngine.shared.progress
+    let lyrics: Lyrics?
+    let isLoading: Bool
+    let onTap: () -> Void
+
+    /// 当前应显示的歌词行：最后一句已到时间戳的；还没到第一句时显示第一句（等待高亮）
+    private var displayLine: LyricsLine? {
+        guard let lines = lyrics?.syncedLyrics, !lines.isEmpty else { return nil }
+        let time = progress.playbackTime
+        var current: LyricsLine?
+        for line in lines {
+            guard let ts = line.timestamp else { continue }
+            if time >= ts { current = line } else { break }
+        }
+        return current ?? lines.first
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            Group {
+                if isLoading {
+                    Text("加载歌词中…")
+                        .font(.callout)
+                        .foregroundColor(.secondary)
+                } else if let line = displayLine {
+                    VStack(spacing: 4) {
+                        Text(line.text)
+                            .font(.callout.weight(.medium))
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+
+                        if let translation = line.translation, !translation.isEmpty {
+                            Text(translation)
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                } else if let lyrics = lyrics,
+                          let firstLine = lyrics.plainLyrics.split(separator: "\n").first {
+                    // 无时间轴歌词：显示第一行
+                    Text(String(firstLine))
+                        .font(.callout.weight(.medium))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                } else {
+                    Text("暂无歌词")
+                        .font(.callout)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 16)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
+        .animation(.easeInOut(duration: 0.2), value: displayLine?.text)
     }
 }
 
