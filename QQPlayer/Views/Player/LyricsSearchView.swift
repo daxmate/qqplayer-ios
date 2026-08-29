@@ -125,10 +125,10 @@ struct LyricsSearchView: View {
                     .frame(width: 32, height: 32)
             }
             .buttonStyle(PlainButtonStyle())
-            .accessibilityLabel("关闭歌词搜索")
+            .accessibilityLabel(NSLocalizedString("lyrics_search_close", value: "Close lyrics search", comment: ""))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("歌词搜索")
+                Text(NSLocalizedString("lyrics_search_title", value: "Lyrics Search", comment: ""))
                     .font(.headline)
                     .foregroundColor(.primary)
                 Text(track.title)
@@ -153,7 +153,7 @@ struct LyricsSearchView: View {
     private var searchBar: some View {
         VStack(spacing: 10) {
             HStack(spacing: 10) {
-                TextField("歌名", text: $searchTitle)
+                TextField(NSLocalizedString("lyrics_search_song_title", value: "Song title", comment: ""), text: $searchTitle)
                     .textFieldStyle(.plain)
                     .font(.subheadline)
                     .padding(.horizontal, 12)
@@ -162,7 +162,7 @@ struct LyricsSearchView: View {
                     .submitLabel(.search)
                     .onSubmit { doSearch() }
 
-                TextField("歌手（可选）", text: $searchArtist)
+                TextField(NSLocalizedString("lyrics_search_artist", value: "Artist (optional)", comment: ""), text: $searchArtist)
                     .textFieldStyle(.plain)
                     .font(.subheadline)
                     .padding(.horizontal, 12)
@@ -181,7 +181,7 @@ struct LyricsSearchView: View {
                 .buttonStyle(PlainButtonStyle())
                 .disabled(searching)
                 .opacity(searching ? 0.5 : 1)
-                .accessibilityLabel("搜索")
+                .accessibilityLabel(NSLocalizedString("lyrics_search_button", value: "Search", comment: ""))
             }
         }
     }
@@ -194,7 +194,7 @@ struct LyricsSearchView: View {
                 .font(.system(size: 14))
                 .foregroundColor(accentColor)
 
-            Text("已手动指定歌词")
+            Text(NSLocalizedString("lyrics_search_manual_active", value: "Manual lyrics assigned", comment: ""))
                 .font(.footnote)
                 .foregroundColor(.secondary)
 
@@ -207,7 +207,7 @@ struct LyricsSearchView: View {
                     onApply(nil) // 恢复自动：外层重新加载
                 }
             } label: {
-                Text("恢复自动")
+                Text(NSLocalizedString("lyrics_search_restore_auto", value: "Restore automatic", comment: ""))
                     .font(.footnote.weight(.medium))
                     .foregroundColor(accentColor)
             }
@@ -226,7 +226,7 @@ struct LyricsSearchView: View {
             VStack(spacing: 12) {
                 Spacer()
                 ProgressView()
-                Text("搜索中…")
+                Text(NSLocalizedString("lyrics_search_searching", value: "Searching…", comment: ""))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 Spacer()
@@ -237,7 +237,7 @@ struct LyricsSearchView: View {
                 Image(systemName: "text.badge.xmark")
                     .font(.system(size: 36))
                     .foregroundColor(.secondary)
-                Text("未找到歌词，试试修改歌名/歌手")
+                Text(NSLocalizedString("lyrics_search_no_results", value: "No lyrics found. Try changing the title or artist", comment: ""))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 Spacer()
@@ -288,7 +288,7 @@ struct LyricsSearchView: View {
                 Spacer()
 
                 if candidate.tlyric != nil {
-                    Text("译")
+                    Text(NSLocalizedString("lyrics_search_translation_badge", value: "TR", comment: ""))
                         .font(.caption2.weight(.bold))
                         .foregroundColor(accentColor)
                         .padding(.horizontal, 6)
@@ -297,7 +297,7 @@ struct LyricsSearchView: View {
                             RoundedRectangle(cornerRadius: 6)
                                 .stroke(accentColor.opacity(0.6), lineWidth: 1)
                         )
-                        .accessibilityLabel("含中文翻译")
+                        .accessibilityLabel(NSLocalizedString("lyrics_search_has_translation", value: "Contains translation", comment: ""))
                 }
 
                 if applyingIndex == index {
@@ -330,7 +330,7 @@ struct LyricsSearchView: View {
     private func doSearch() {
         let title = searchTitle.trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty else {
-            searchError = "请输入歌名"
+            searchError = NSLocalizedString("lyrics_search_enter_title", value: "Please enter a song title", comment: "")
             return
         }
         guard !searching else { return }
@@ -364,7 +364,7 @@ struct LyricsSearchView: View {
                     manualActive = true
                     onApply(lyrics)
                 } else {
-                    searchError = "应用失败，请重试"
+                    searchError = NSLocalizedString("lyrics_search_apply_failed", value: "Failed to apply. Please try again", comment: "")
                 }
             }
         }

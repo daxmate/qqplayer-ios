@@ -1088,18 +1088,18 @@ struct PlaylistDetailScreen: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("BackgroundColorChanged"))) { _ in
             settings = DeleteSettings.load()
         }
-        .confirmationDialog("Playlist Cover", isPresented: $showCoverOptions) {
+        .confirmationDialog(NSLocalizedString("playlist_cover", value: "Playlist Cover", comment: ""), isPresented: $showCoverOptions) {
             PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                Text("Change Cover Image")
+                Text(NSLocalizedString("change_cover_image", value: "Change Cover Image", comment: ""))
             }
 
             if customCoverImage != nil {
-                Button("Remove Custom Cover", role: .destructive) {
+                Button(NSLocalizedString("remove_custom_cover", value: "Remove Custom Cover", comment: ""), role: .destructive) {
                     removeCustomCover()
                 }
             }
 
-            Button("Cancel", role: .cancel) { }
+            Button(Localized.cancel, role: .cancel) { }
         }
         .onChange(of: selectedPhotoItem) { newItem in
             Task {

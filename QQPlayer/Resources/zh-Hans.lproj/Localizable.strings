@@ -327,6 +327,41 @@
 "delete_folder_playlists_confirm" = "删除播放列表";
 "keep_folder_playlists" = "保留播放列表";
 
+/* 跟唱模式（Karaoke） */
+"karaoke_ab_end_hint" = "点歌词设置 AB 终点";
+"karaoke_previous_line" = "上一句";
+"karaoke_play" = "播放";
+"karaoke_pause" = "暂停";
+"karaoke_next_line" = "下一句";
+"karaoke_speed_label" = "倍速 %.1f";
+"karaoke_single_line_loop" = "单句循环";
+"karaoke_ab_loop" = "AB 循环";
+"karaoke_ab_loop_hint" = "单击以当前句为起点，点击歌词设置终点；再单击退出";
+
+/* 歌词搜索 */
+"lyrics_search_close" = "关闭歌词搜索";
+"lyrics_search_title" = "歌词搜索";
+"lyrics_search_song_title" = "歌名";
+"lyrics_search_artist" = "歌手（可选）";
+"lyrics_search_button" = "搜索";
+"lyrics_search_manual_active" = "已手动指定歌词";
+"lyrics_search_restore_auto" = "恢复自动";
+"lyrics_search_searching" = "搜索中…";
+"lyrics_search_no_results" = "未找到歌词，试试修改歌名/歌手";
+"lyrics_search_translation_badge" = "译";
+"lyrics_search_has_translation" = "含中文翻译";
+"lyrics_search_enter_title" = "请输入歌名";
+"lyrics_search_apply_failed" = "应用失败，请重试";
+
+/* 小歌词窗口 */
+"lyrics_mini_loading" = "加载歌词中…";
+"lyrics_mini_none" = "暂无歌词";
+
+/* 歌单封面 */
+"playlist_cover" = "播放列表封面";
+"change_cover_image" = "更换封面图片";
+"remove_custom_cover" = "移除自定义封面";
+
 /* ============================================================
    App Intents / Siri
    ============================================================ */

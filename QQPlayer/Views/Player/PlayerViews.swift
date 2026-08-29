@@ -1011,7 +1011,7 @@ private struct LyricMiniSection: View {
     var body: some View {
         Group {
             if isLoading {
-                Text("加载歌词中…")
+                Text(NSLocalizedString("lyrics_mini_loading", value: "Loading lyrics…", comment: ""))
                     .font(.callout)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity)
@@ -1032,7 +1032,7 @@ private struct LyricMiniSection: View {
                     .lineLimit(1)
                     .frame(maxWidth: .infinity)
             } else {
-                Text("暂无歌词")
+                Text(NSLocalizedString("lyrics_mini_none", value: "No lyrics", comment: ""))
                     .font(.callout)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity)

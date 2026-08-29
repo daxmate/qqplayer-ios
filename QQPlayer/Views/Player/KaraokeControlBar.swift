@@ -2,15 +2,17 @@
 //  KaraokeControlBar.swift
 //  QQPlayer
 //
-//  跟唱模式底部控制条：倍速 / 单句循环 / AB 循环（对齐桌面 ControlBar 语义）
+//  跟唱模式底部控制条：播放控制三键 + 倍速 / 单句循环 / AB 循环（对齐桌面 ControlBar 语义）
 //
 
 import SwiftUI
 
-/// 跟唱模式控制条（桌面 ControlBar 的 iOS 版）：三按钮横排胶囊。
-/// - 倍速：点击循环档位（0.5x → … → 1.0x），非 1.0 高亮
+/// 跟唱模式控制条（桌面 ControlBar 的 iOS 版）：播放控制三键 + 模式三按钮。
+/// - 播放控制：上一句 / 播放暂停 / 下一句（歌词行级，用户 2026-08-29 拍板）
+/// - 倍速：点击弹出速度菜单（除当前档位外的其他速度点选），非 1.0 高亮
 /// - 单句循环：点击切换，开启高亮
-/// - AB 循环：长按 0.5s 以当前句为 A（等选终点态显示 "AB…" + 提示）；已启用时单击退出
+/// - AB 循环：单击切换（用户 2026-08-29 拍板：不用长按）——未启用 → 以当前句为 A
+///   进入等选终点态（显示 "AB…" + 提示），已启用 → 单击退出
 /// 状态全部读自 KaraokeController.shared（本组件只消费，不做决策）。
 struct KaraokeControlBar: View {
     @ObservedObject private var karaoke = KaraokeController.shared
@@ -18,7 +20,7 @@ struct KaraokeControlBar: View {
     @ObservedObject private var playerEngine = PlayerEngine.shared
     let accentColor: Color
 
-    /// 当前句 index（长按 AB 取 A 点）；还没到第一句时为 nil
+    /// 当前句 index（AB 单击取 A 点）；还没到第一句时为 nil
     private var currentLineIndex: Int? {
         LyricTiming.activeLineIndex(time: progress.playbackTime, in: karaoke.currentLines)
     }
@@ -36,7 +38,7 @@ struct KaraokeControlBar: View {
     var body: some View {
         VStack(spacing: 10) {
             if isWaitingABEnd {
-                Text("点歌词设置 AB 终点")
+                Text(NSLocalizedString("karaoke_ab_end_hint", value: "Tap a lyric line to set the AB end point", comment: ""))
                     .font(.caption2.weight(.medium))
                     .foregroundColor(accentColor)
                     .padding(.horizontal, 12)
@@ -73,7 +75,7 @@ struct KaraokeControlBar: View {
                 .background(Circle().fill(.ultraThinMaterial))
         }
         .buttonStyle(PlainButtonStyle())
-        .accessibilityLabel("上一句")
+        .accessibilityLabel(NSLocalizedString("karaoke_previous_line", value: "Previous line", comment: ""))
     }
 
     private var playPauseButton: some View {
@@ -91,7 +93,9 @@ struct KaraokeControlBar: View {
                 .background(Circle().fill(.ultraThinMaterial))
         }
         .buttonStyle(PlainButtonStyle())
-        .accessibilityLabel(playerEngine.isPlaying ? "暂停" : "播放")
+        .accessibilityLabel(playerEngine.isPlaying
+            ? NSLocalizedString("karaoke_pause", value: "Pause", comment: "")
+            : NSLocalizedString("karaoke_play", value: "Play", comment: ""))
     }
 
     private var nextLineButton: some View {
@@ -105,7 +109,7 @@ struct KaraokeControlBar: View {
                 .background(Circle().fill(.ultraThinMaterial))
         }
         .buttonStyle(PlainButtonStyle())
-        .accessibilityLabel("下一句")
+        .accessibilityLabel(NSLocalizedString("karaoke_next_line", value: "Next line", comment: ""))
     }
 
     // MARK: - 倍速
@@ -125,7 +129,7 @@ struct KaraokeControlBar: View {
                 Text(String(format: "%.1fx", karaoke.speed))
             }
         }
-        .accessibilityLabel("倍速 \(String(format: "%.1f", karaoke.speed))")
+        .accessibilityLabel(String(format: NSLocalizedString("karaoke_speed_label", value: "Speed %.1f", comment: ""), karaoke.speed))
     }
 
     // MARK: - 单句循环
@@ -139,7 +143,7 @@ struct KaraokeControlBar: View {
             }
         }
         .buttonStyle(PlainButtonStyle())
-        .accessibilityLabel("单句循环")
+        .accessibilityLabel(NSLocalizedString("karaoke_single_line_loop", value: "Single-line loop", comment: ""))
     }
 
     // MARK: - AB 循环
@@ -163,8 +167,8 @@ struct KaraokeControlBar: View {
         }
         .buttonStyle(PlainButtonStyle())
         .accessibilityAddTraits(.isButton)
-        .accessibilityLabel("AB 循环")
-        .accessibilityHint("单击以当前句为起点，点击歌词设置终点；再单击退出")
+        .accessibilityLabel(NSLocalizedString("karaoke_ab_loop", value: "AB loop", comment: ""))
+        .accessibilityHint(NSLocalizedString("karaoke_ab_loop_hint", value: "Tap once to start at the current line, tap a lyric line to set the end; tap again to exit", comment: ""))
     }
 
     // MARK: - 胶囊样式

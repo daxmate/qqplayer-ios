@@ -552,6 +552,64 @@
 
 "keep_folder_playlists" = "保留播放列表";
 
+/* 跟唱模式（Karaoke） */
+"karaoke_ab_end_hint" = "點歌詞設定 AB 終點";
+
+"karaoke_previous_line" = "上一句";
+
+"karaoke_play" = "播放";
+
+"karaoke_pause" = "暫停";
+
+"karaoke_next_line" = "下一句";
+
+"karaoke_speed_label" = "倍速 %.1f";
+
+"karaoke_single_line_loop" = "單句循環";
+
+"karaoke_ab_loop" = "AB 循環";
+
+"karaoke_ab_loop_hint" = "按一下以目前這一句為起點，點歌詞設定終點；再按一下退出";
+
+/* 歌詞搜尋 */
+"lyrics_search_close" = "關閉歌詞搜尋";
+
+"lyrics_search_title" = "歌詞搜尋";
+
+"lyrics_search_song_title" = "歌名";
+
+"lyrics_search_artist" = "歌手（可選）";
+
+"lyrics_search_button" = "搜尋";
+
+"lyrics_search_manual_active" = "已手動指定歌詞";
+
+"lyrics_search_restore_auto" = "恢復自動";
+
+"lyrics_search_searching" = "搜尋中…";
+
+"lyrics_search_no_results" = "找不到歌詞，試試修改歌名/歌手";
+
+"lyrics_search_translation_badge" = "譯";
+
+"lyrics_search_has_translation" = "含中文翻譯";
+
+"lyrics_search_enter_title" = "請輸入歌名";
+
+"lyrics_search_apply_failed" = "套用失敗，請重試";
+
+/* 小歌詞視窗 */
+"lyrics_mini_loading" = "載入歌詞中…";
+
+"lyrics_mini_none" = "暫無歌詞";
+
+/* 歌單封面 */
+"playlist_cover" = "播放列表封面";
+
+"change_cover_image" = "更換封面圖片";
+
+"remove_custom_cover" = "移除自訂封面";
+
 /* Intent titles & descriptions */
 "Resume Playback" = "繼續播放";
 
