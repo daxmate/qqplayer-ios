@@ -72,6 +72,12 @@ class TutorialViewModel: ObservableObject {
     }
 
     func checkAppleIDStatus() {
+        // CKContainer.default() 需要 iCloud entitlement；xcodebuild test 无签名构建
+        // （CODE_SIGNING_ALLOWED=NO）下调用会抛 CKException 崩溃，测试环境直接跳过。
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else {
+            return
+        }
+
         // Use Apple's recommended CloudKit approach for detecting iCloud sign-in status
         CKContainer.default().accountStatus { [weak self] accountStatus, error in
             Task { @MainActor in
