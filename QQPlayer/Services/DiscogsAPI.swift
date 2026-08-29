@@ -141,6 +141,14 @@ class DiscogsAPIService: ObservableObject, @unchecked Sendable {
     private let consumerKey = EnvironmentLoader.shared.discogsConsumerKey
     private let consumerSecret = EnvironmentLoader.shared.discogsConsumerSecret
     private let baseURL = "https://api.discogs.com"
+
+    /// Discogs needs both API keys; without them the feature is disabled
+    /// (requests return no results) instead of crashing at startup.
+    private var isConfigured: Bool {
+        guard let key = consumerKey, let secret = consumerSecret,
+              !key.isEmpty, !secret.isEmpty else { return false }
+        return true
+    }
     
     private let cache = NSCache<NSString, CachedArtistInfo>()
     private let cacheDirectory: URL
@@ -191,6 +199,10 @@ class DiscogsAPIService: ObservableObject, @unchecked Sendable {
     // MARK: - Private Methods
     
     private func performSearch(query: String, type: String) async throws -> [DiscogsSearchResult] {
+        guard isConfigured else {
+            print("🎵 Discogs: Skipped search (API keys not configured)")
+            return []
+        }
         let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
         let urlString = "\(baseURL)/database/search?type=\(type)&q=\(encodedQuery)&per_page=5"
         
@@ -199,7 +211,7 @@ class DiscogsAPIService: ObservableObject, @unchecked Sendable {
         }
         
         var request = URLRequest(url: url)
-        request.setValue("Discogs key=\(consumerKey), secret=\(consumerSecret)", forHTTPHeaderField: "Authorization")
+        request.setValue("Discogs key=\(consumerKey ?? ""), secret=\(consumerSecret ?? "")", forHTTPHeaderField: "Authorization")
         request.setValue("QQPlayer/1.0", forHTTPHeaderField: "User-Agent")
         
         print("🌐 Discogs: Making request to: \(urlString)")
@@ -243,12 +255,15 @@ class DiscogsAPIService: ObservableObject, @unchecked Sendable {
     }
     
     private func getArtistDetails(from resourceUrl: String) async throws -> DiscogsArtist {
+        guard isConfigured else {
+            throw DiscogsAPIError.invalidURL
+        }
         guard let url = URL(string: resourceUrl) else {
             throw DiscogsAPIError.invalidURL
         }
         
         var request = URLRequest(url: url)
-        request.setValue("Discogs key=\(consumerKey), secret=\(consumerSecret)", forHTTPHeaderField: "Authorization")
+        request.setValue("Discogs key=\(consumerKey ?? ""), secret=\(consumerSecret ?? "")", forHTTPHeaderField: "Authorization")
         request.setValue("QQPlayer/1.0", forHTTPHeaderField: "User-Agent")
         
         print("🌐 Discogs: Fetching artist details from: \(resourceUrl)")

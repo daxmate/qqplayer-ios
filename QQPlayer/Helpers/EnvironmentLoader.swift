@@ -103,33 +103,21 @@ class EnvironmentLoader: @unchecked Sendable {
 // MARK: - API Key Helpers
 
 extension EnvironmentLoader {
-    // Spotify API Keys
-    var spotifyClientId: String {
-        guard let clientId = getValue(for: "SPOTIFY_CLIENT_ID"), !clientId.isEmpty else {
-            fatalError("❌ SPOTIFY_CLIENT_ID not found in environment variables. Please add it to your .env file.")
-        }
-        return clientId
+    // Spotify API Keys (optional — missing keys disable the feature, never crash)
+    var spotifyClientId: String? {
+        getValue(for: "SPOTIFY_CLIENT_ID")
     }
     
-    var spotifyClientSecret: String {
-        guard let clientSecret = getValue(for: "SPOTIFY_CLIENT_SECRET"), !clientSecret.isEmpty else {
-            fatalError("❌ SPOTIFY_CLIENT_SECRET not found in environment variables. Please add it to your .env file.")
-        }
-        return clientSecret
+    var spotifyClientSecret: String? {
+        getValue(for: "SPOTIFY_CLIENT_SECRET")
     }
     
-    // Discogs API Keys
-    var discogsConsumerKey: String {
-        guard let consumerKey = getValue(for: "DISCOGS_CONSUMER_KEY"), !consumerKey.isEmpty else {
-            fatalError("❌ DISCOGS_CONSUMER_KEY not found in environment variables. Please add it to your .env file.")
-        }
-        return consumerKey
+    // Discogs API Keys (optional — missing keys disable the feature, never crash)
+    var discogsConsumerKey: String? {
+        getValue(for: "DISCOGS_CONSUMER_KEY")
     }
     
-    var discogsConsumerSecret: String {
-        guard let consumerSecret = getValue(for: "DISCOGS_CONSUMER_SECRET"), !consumerSecret.isEmpty else {
-            fatalError("❌ DISCOGS_CONSUMER_SECRET not found in environment variables. Please add it to your .env file.")
-        }
-        return consumerSecret
+    var discogsConsumerSecret: String? {
+        getValue(for: "DISCOGS_CONSUMER_SECRET")
     }
 }

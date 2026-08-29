@@ -216,6 +216,11 @@ class SpotifyAPIService: ObservableObject, @unchecked Sendable {
     }
     
     private func getAccessToken() async throws -> SpotifyAccessToken {
+        // Spotify needs both API keys; without them the feature is disabled
+        // instead of crashing at startup.
+        guard let clientId, let clientSecret, !clientId.isEmpty, !clientSecret.isEmpty else {
+            throw SpotifyAPIError.authenticationError
+        }
         guard let url = URL(string: authURL) else {
             throw SpotifyAPIError.invalidURL
         }
