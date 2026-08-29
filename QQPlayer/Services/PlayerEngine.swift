@@ -683,7 +683,19 @@ class PlayerEngine: NSObject, ObservableObject {
         Task {
             // Get artwork
             let artwork = await ArtworkManager.shared.getArtwork(for: track)
-            let artworkData = artwork?.pngData()
+
+            // pngData 编码 + 写盘下沉后台线程（主 actor 编码/同步 IO 卡 UI，
+            // 2026-08-29 审计 #9）：值拷贝 UIImage 引用后离线处理。
+            let artworkData: Data?
+            if let artwork {
+                artworkData = await withCheckedContinuation { continuation in
+                    DispatchQueue.global(qos: .utility).async {
+                        continuation.resume(returning: artwork.pngData())
+                    }
+                }
+            } else {
+                artworkData = nil
+            }
 
             // Get artist name
             let artistName: String
@@ -708,8 +720,15 @@ class PlayerEngine: NSObject, ObservableObject {
                 backgroundColorHex: colorHex
             )
 
-            WidgetDataManager.shared.saveCurrentTrack(widgetData, artworkData: artworkData)
-            WidgetCenter.shared.reloadAllTimelines()
+            // 写盘 + 小组件刷新下沉后台（saveCurrentTrack 内部有 UserDefaults.synchronize
+            // 与文件写入，均为同步 IO，2026-08-29 审计 #9）
+            await withCheckedContinuation { continuation in
+                DispatchQueue.global(qos: .utility).async {
+                    WidgetDataManager.shared.saveCurrentTrack(widgetData, artworkData: artworkData)
+                    WidgetCenter.shared.reloadAllTimelines()
+                    continuation.resume()
+                }
+            }
         }
     }
 
@@ -908,7 +927,10 @@ class PlayerEngine: NSObject, ObservableObject {
         // engine 未 setup 时设属性也安全：attach 后生效
         timePitchNode.rate = Float(rate)
         if usingSFBEngine {
-            print("⚠️ SFBAudioEngine 暂不支持倍速（Opus/DSD 不变速）")
+            // SFB 引擎不支持变速：UI 立即复位显示（否则显示倍速档但实际没变速，
+            // 2026-08-29 审计 #7）。currentPlaybackRate 保留用户值：切回 native 曲目时恢复。
+            print("⚠️ SFBAudioEngine 暂不支持倍速（Opus/DSD 不变速）——复位跟唱倍速显示")
+            KaraokeController.shared.resetSpeedForUnsupportedEngine()
         }
     }
 
@@ -1039,6 +1061,14 @@ class PlayerEngine: NSObject, ObservableObject {
                     }
                     usingSFBEngine = true
 
+                    // SFB 引擎不支持变速：切到 Opus/DSD 曲目时若之前设了倍速，
+                    // 复位 UI 显示（否则倍速静默失效而 UI/跟唱仍显示倍速档，
+                    // 2026-08-29 审计 #7）。
+                    if currentPlaybackRate != 1.0 {
+                        print("⚠️ SFBAudioEngine 不支持倍速（currentPlaybackRate=\(currentPlaybackRate)）——复位跟唱倍速显示")
+                        KaraokeController.shared.resetSpeedForUnsupportedEngine()
+                    }
+
                     // Note: SFBAudioEngine now handles its own native EQ setup
 
                     // Sync duration from SFB engine
@@ -1101,6 +1131,12 @@ class PlayerEngine: NSObject, ObservableObject {
                 // Don't call configureAudioSession() again to avoid overriding DoP settings
             } else {
                 // Native setup (already handled above)
+                // audioFile 是属性（optional）：上方 if/else 加载块内的 guard 绑定
+                // 作用域到不了这里，重新绑定避免强解包（2026-08-29 审计 #2）。
+                guard let audioFile = audioFile else {
+                    print("⚠️ audioFile became nil before native graph setup")
+                    return false
+                }
                 if !preservePlaybackTime {
                     playbackTime = 0
                 }
@@ -1126,8 +1162,11 @@ class PlayerEngine: NSObject, ObservableObject {
                     print("⚠️ Could not activate native audio session before graph setup: \(error)")
                 }
 
-                await configureAudioSession(for: audioFile!.processingFormat)
-                ensureAudioEngineSetup(with: audioFile!.processingFormat)
+                // 用上方 guard 绑定的局部 audioFile，不用属性强解包：中间隔了
+                // await resetAudioSessionForNative()，并发 loadTrack 失败路径可能把
+                // 属性置 nil（2026-08-29 审计 #2）。
+                await configureAudioSession(for: audioFile.processingFormat)
+                ensureAudioEngineSetup(with: audioFile.processingFormat)
             }
 
             guard isCurrentLoad(generation) else { return false }
@@ -1259,13 +1298,16 @@ class PlayerEngine: NSObject, ObservableObject {
         // If no audio file is loaded but we have a current track, load it first
         if audioFile == nil && currentTrack != nil && !isLoadingTrack {
             Task {
+                // Task 晚于当前 turn 执行，期间 normalizeIndexAndTrack()（清空队列时
+                // 置 currentTrack=nil）可能先跑 → 直接强解包会崩溃。先捕获局部值。
+                guard let track = currentTrack else { return }
                 var loaded = true
                 // If state was already restored but audioFile is nil (e.g., after interruption),
                 // we need to reload the current track with preserved position
                 if hasRestoredState {
                     print("🔄 Reloading track after interruption, preserving position: \(playbackTime)s")
                     let savedPosition = playbackTime
-                    loaded = await loadTrack(currentTrack!, preservePlaybackTime: true)
+                    loaded = await loadTrack(track, preservePlaybackTime: true)
 
                     // Restore position after reload
                     if loaded && savedPosition > 0 {
@@ -1364,9 +1406,12 @@ class PlayerEngine: NSObject, ObservableObject {
         print("🔊 Audio format - Sample Rate: \(audioFile.processingFormat.sampleRate), Channels: \(audioFile.processingFormat.channelCount)")
         print("🔊 Audio file length: \(audioFile.length) frames")
 
-        // Check if the file length is reasonable
-        guard audioFile.length > 0 && audioFile.length < 1_000_000_000 else {
-            print("❌ Invalid audio file length: \(audioFile.length)")
+        // Check if the file length is reasonable: 固定 1e9 帧上限误杀长高解析度曲目
+        // （96kHz≈2.9h、192kHz≈1.45h），按 sampleRate 换算小时数做上限
+        // （2026-08-29 审计 #3）。Int64 + scheduleSegment 已有 AVAudioFrameCount.max 防护。
+        let durationHours = Double(audioFile.length) / audioFile.processingFormat.sampleRate / 3600.0
+        guard audioFile.length > 0, durationHours <= 24.0 else {
+            print("❌ Invalid audio file length: \(audioFile.length) frames (\(String(format: "%.1f", durationHours))h)")
             return
         }
 
@@ -1587,9 +1632,8 @@ class PlayerEngine: NSObject, ObservableObject {
 
         // Keep audio engine running for next playback
         // Don't stop the engine here as it causes the error message
-
-        // Give the audio engine a moment to clean up
-        try? await Task.sleep(nanoseconds: 10_000_000) // 10ms
+        // 2026-08-29 审计 #6：删除固定 10ms 盲睡（每次切歌都付；playerNode.stop()/
+        // AVAudioEngine API 均同步，无明确事件可等。若后续出现竞态，应等待明确事件而非盲睡）
     }
 
     func seek(to time: TimeInterval) async {
@@ -1605,13 +1649,27 @@ class PlayerEngine: NSObject, ObservableObject {
                 updateNowPlayingInfoEnhanced()
                 return
             } catch {
-                // P1-B 降级：与 play() 一致——SFB 不可用时复位 usingSFBEngine 落入 native 路径。
-                // audioFile 置 nil（可能是上一首 native 曲目残留，避免在错误文件上 seek）；
-                // 目标位置写入 playbackTime，后续 play() 重载时会以该位置恢复。
-                print("❌ Failed to seek with SFBAudioEngine: \(error) — falling back to native engine")
-                usingSFBEngine = false
-                audioFile = nil
-                playbackTime = time
+                let nsError = error as NSError
+                if nsError.domain == "SFBAudioEngineManager" && nsError.code == 4 {
+                    // P1-B 降级：与 play() 一致——SFB 不可用时（CarPlay 切换后 audioPlayer 被置
+                    // nil）复位 usingSFBEngine 落入 native 路径。audioFile 置 nil（可能是上一首
+                    // native 曲目残留，避免在错误文件上 seek）；目标位置写入 playbackTime，
+                    // 后续 play() 重载时会以该位置恢复。
+                    print("❌ Failed to seek with SFBAudioEngine: \(error) — falling back to native engine")
+                    usingSFBEngine = false
+                    audioFile = nil
+                    playbackTime = time
+                } else {
+                    // 真实 seek 失败（SFBAudioEngineManager code 5）：音频没动，
+                    // 回滚 playbackTime（保持原位置不更新 UI），并提示（2026-08-29 审计 #4）。
+                    print("❌ SFBAudioEngine seek failed: \(error) — keeping position at \(playbackTime)s")
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("PlayerSeekFailed"),
+                        object: nil,
+                        userInfo: ["targetTime": time]
+                    )
+                    return
+                }
             }
         }
 
@@ -2257,15 +2315,23 @@ class PlayerEngine: NSObject, ObservableObject {
             let restoredQueue = try databaseManager.getTracksByStableIdsPreservingOrder(originalQueue)
             guard !restoredQueue.isEmpty else { return }
 
-            // Find current track in original queue
+            // 随机期间增删队列（addToQueue/insertNext 只改 playbackQueue）的曲目
+            // 按 stableId 差集补回队尾，否则关闭随机时这些曲目消失
+            // （2026-08-29 审计 #5）。
+            let restoredIds = Set(restoredQueue.map { $0.stableId })
+            let additions = playbackQueue.filter { !restoredIds.contains($0.stableId) }
+            let mergedQueue = restoredQueue + additions
+
+            // Find current track in merged queue
             if let currentTrack = self.currentTrack,
-               let originalIndex = restoredQueue.firstIndex(where: { $0.stableId == currentTrack.stableId }) {
-                playbackQueue = restoredQueue
-                currentIndex = originalIndex
-                print("🔀 Original queue restored, current track at index \(originalIndex)")
+               let mergedIndex = mergedQueue.firstIndex(where: { $0.stableId == currentTrack.stableId }) {
+                playbackQueue = mergedQueue
+                currentIndex = mergedIndex
+                print("🔀 Original queue restored, current track at index \(mergedIndex)" +
+                    (additions.isEmpty ? "" : ", \(additions.count) shuffled-era additions kept"))
             } else {
-                playbackQueue = restoredQueue
-                currentIndex = min(currentIndex, max(0, restoredQueue.count - 1))
+                playbackQueue = mergedQueue
+                currentIndex = min(currentIndex, max(0, mergedQueue.count - 1))
             }
         } catch {
             print("❌ Failed to restore original queue: \(error)")

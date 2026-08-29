@@ -120,10 +120,14 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
             return
         }
 
+        // 闭包在 AVAudioEngine 内部串行队列执行，不能直接读 MainActor 隔离的
+        // sfbEqualizer（数据竞争，Swift 6 编译期不检查，2026-08-29 审计 #8）：
+        // 在 MainActor 侧预拷贝为 @unchecked Sendable 的 box，闭包内只用 box。
+        let existingEqualizerBox = sfbEqualizer.map { AVAudioUnitEQBox(node: $0) }
         player.modifyProcessingGraph { [weak self] engine in
             guard let self else { return }
 
-            var equalizer = self.sfbEqualizer
+            var equalizer = existingEqualizerBox?.node
 
             if equalizer == nil {
                 equalizer = engine.attachedNodes.compactMap { $0 as? AVAudioUnitEQ }.first
@@ -615,6 +619,15 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
 
         print("🔍 SFBAudioEngine seeking to: \(time)s (duration: \(duration)s)")
 
+        // 失败统一抛错（code 5）不再假装成功：PlayerEngine 据此回滚 UI 位置并提示
+        // （2026-08-29 审计 #4）。code 4 保留给 "No audio player available"（P1-B 降级）。
+        func seekFailed(_ detail: String) -> NSError {
+            NSError(domain: "SFBAudioEngineManager", code: 5, userInfo: [
+                NSLocalizedDescriptionKey: "Seek failed",
+                NSLocalizedFailureReasonErrorKey: detail,
+            ])
+        }
+
         // For DSD files, try time-based seeking only (frame seeking can cause issues)
         let fileExtension = track.url.pathExtension.lowercased()
         let isDSDFile = fileExtension == "dsf" || fileExtension == "dff"
@@ -622,13 +635,11 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
         if isDSDFile {
             print("🔍 DSD file detected - trying time-based seeking only")
             let timeSeekResult = audioPlayer?.seek(time: time) ?? false
-            if timeSeekResult {
-                currentTime = time
-                print("✅ DSD file seeked to time: \(time)s")
-            } else {
-                currentTime = time
-                print("⚠️ DSD seeking failed, updated currentTime only")
+            guard timeSeekResult else {
+                throw seekFailed("DSD time-based seeking failed")
             }
+            currentTime = time
+            print("✅ DSD file seeked to time: \(time)s")
             return
         }
 
@@ -646,37 +657,38 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
             print("🔍 Seeking to frame: \(safeFramePosition) of \(useTotalFrames) (time: \(time)s, sampleRate: \(useSampleRate))")
 
             // Try to seek to the calculated frame position
-            do {
-                // Use SFBAudioEngine's AudioPlayer seek methods with correct API
-                if let audioPlayer = player as? AudioPlayer {
-                    // Try frame-based seeking first (most precise)
-                    let seekResult = audioPlayer.seek(frame: AVAudioFramePosition(safeFramePosition))
-                    if seekResult {
-                        currentTime = time
-                        print("✅ SFBAudioEngine seeked to frame: \(safeFramePosition)")
-                    } else {
-                        // Frame seeking failed, try time-based seeking
-                        let timeSeekResult = audioPlayer.seek(time: time)
-                        if timeSeekResult {
-                            currentTime = time
-                            print("✅ SFBAudioEngine seeked to time: \(time)s (frame seek failed)")
-                        } else {
-                            // Both methods failed, fallback to manual time update
-                            currentTime = time
-                            print("⚠️ Both frame and time seeking failed, updated currentTime only")
-                        }
-                    }
-                } else {
-                    // Fallback: just update current time (for formats that don't support seeking)
+            if let audioPlayer = player as? AudioPlayer {
+                // Try frame-based seeking first (most precise)
+                let seekResult = audioPlayer.seek(frame: AVAudioFramePosition(safeFramePosition))
+                if seekResult {
                     currentTime = time
-                    print("⚠️ AudioPlayer not available, updated currentTime only")
+                    print("✅ SFBAudioEngine seeked to frame: \(safeFramePosition)")
+                    return
                 }
+                // Frame seeking failed, try time-based seeking
+                let timeSeekResult = audioPlayer.seek(time: time)
+                if timeSeekResult {
+                    currentTime = time
+                    print("✅ SFBAudioEngine seeked to time: \(time)s (frame seek failed)")
+                    return
+                }
+                throw seekFailed("Both frame and time seeking failed")
             }
-        } else {
-            // Fallback when we don't have proper duration/sampleRate
-            currentTime = time
-            print("⚠️ No sample rate or duration, using time-only seeking")
+            throw seekFailed("AudioPlayer unavailable for seeking")
         }
+
+        // Fallback when we don't have proper duration/sampleRate: still attempt a
+        // real time-based seek instead of faking success.
+        if let audioPlayer = player as? AudioPlayer {
+            let timeSeekResult = audioPlayer.seek(time: time)
+            guard timeSeekResult else {
+                throw seekFailed("No format info and time-based seeking failed")
+            }
+            currentTime = time
+            print("⚠️ No sample rate or duration, using time-only seeking (succeeded)")
+            return
+        }
+        throw seekFailed("AudioPlayer unavailable for seeking")
     }
 
     // MARK: - Timer Management

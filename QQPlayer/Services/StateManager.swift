@@ -290,8 +290,17 @@ class StateManager: @unchecked Sendable {
     }
 
     func loadPlaylist(slug: String) throws -> PlaylistState? {
+        // 本地优先（与 loadFavorites 对称）：iCloud 不可用时本地歌单不"丢失"
+        // （2026-08-29 审计 #10）。savePlaylist 永远先写本地，本地版本 >= 云端。
+        if let localPlaylist = try? loadPlaylistFromLocalDocuments(slug: slug) {
+            print("📱 Loaded playlist '\(slug)' from local Documents")
+            return localPlaylist
+        }
+
+        // iCloud 仅作补充/迁移源
         guard let appFolderURL = getAppFolderURL() else {
-            throw StateManagerError.iCloudNotAvailable
+            print("⚠️ iCloud not available and no local copy of '\(slug)'")
+            return nil
         }
 
         let playlistsFolder = appFolderURL.appendingPathComponent("playlists", isDirectory: true)
@@ -319,6 +328,30 @@ class StateManager: @unchecked Sendable {
         }
     }
 
+    /// 读取本地 Documents 全部歌单（本地优先策略核心；iCloud 不可用时兜底，
+    /// 2026-08-29 审计 #10）
+    private func loadAllPlaylistsFromLocalDocuments() throws -> [PlaylistState] {
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let localPlaylistsFolder = documentsURL.appendingPathComponent("qqplayer-playlists", isDirectory: true)
+        guard FileManager.default.fileExists(atPath: localPlaylistsFolder.path) else {
+            return []
+        }
+
+        let playlistFiles = try FileManager.default.contentsOfDirectory(at: localPlaylistsFolder,
+                                                                        includingPropertiesForKeys: nil)
+        var playlists: [PlaylistState] = []
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        for fileURL in playlistFiles where fileURL.pathExtension == "json" {
+            if let data = try? Data(contentsOf: fileURL),
+               let playlist = try? decoder.decode(PlaylistState.self, from: data) {
+                playlists.append(playlist)
+            }
+        }
+        return playlists
+    }
+
     private func loadPlaylistFromLocalDocuments(slug: String) throws -> PlaylistState? {
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let localPlaylistsFolder = documentsURL.appendingPathComponent("qqplayer-playlists", isDirectory: true)
@@ -335,59 +368,73 @@ class StateManager: @unchecked Sendable {
     }
 
     func getAllPlaylists() throws -> [PlaylistState] {
+        // 本地优先（与 loadFavorites 对称）：iCloud 不可用时本地歌单不"丢失"
+        // （2026-08-29 审计 #10）。savePlaylist 永远先写本地，本地版本 >= 云端，
+        // 故同 slug 以本地为准。
+        var merged: [String: PlaylistState] = [:]
+        for playlist in try loadAllPlaylistsFromLocalDocuments() {
+            merged[playlist.slug] = playlist
+        }
+
+        // iCloud 仅作补充/迁移源：补充本地没有的 slug（旧版本只写云端的场景）
         guard let appFolderURL = getAppFolderURL() else {
-            throw StateManagerError.iCloudNotAvailable
+            print("⚠️ iCloud not available - returning \(merged.count) local playlists")
+            return merged.values.sorted { $0.updatedAt > $1.updatedAt }
         }
 
         let playlistsFolder = appFolderURL.appendingPathComponent("playlists", isDirectory: true)
 
         guard FileManager.default.fileExists(atPath: playlistsFolder.path) else {
-            return []
+            return merged.values.sorted { $0.updatedAt > $1.updatedAt }
         }
 
-        let playlistFiles = try FileManager.default.contentsOfDirectory(at: playlistsFolder,
-                                                                        includingPropertiesForKeys: nil)
+        do {
+            let playlistFiles = try FileManager.default.contentsOfDirectory(at: playlistsFolder,
+                                                                            includingPropertiesForKeys: nil)
+            var corruptedFiles: [URL] = []
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
 
-        var playlists: [PlaylistState] = []
-        var corruptedFiles: [URL] = []
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+            for fileURL in playlistFiles where fileURL.pathExtension == "json" {
+                do {
+                    let data = try Data(contentsOf: fileURL)
+                    let playlist = try decoder.decode(PlaylistState.self, from: data)
+                    if merged[playlist.slug] == nil {
+                        merged[playlist.slug] = playlist
+                    }
+                } catch {
+                    // Check for authentication errors
+                    if let nsError = error as NSError? {
+                        if nsError.domain == NSPOSIXErrorDomain && nsError.code == 81 {
+                            print("🔐 Authentication required - returning local playlists only")
+                            break
+                        }
+                    }
+                    print("⚠️ Failed to read playlist file \(fileURL.lastPathComponent): \(error)")
 
-        for fileURL in playlistFiles where fileURL.pathExtension == "json" {
-            do {
-                let data = try Data(contentsOf: fileURL)
-                let playlist = try decoder.decode(PlaylistState.self, from: data)
-                playlists.append(playlist)
-            } catch {
-                // Check for authentication errors
-                if let nsError = error as NSError? {
-                    if nsError.domain == NSPOSIXErrorDomain && nsError.code == 81 {
-                        print("🔐 Authentication required for playlist file: \(fileURL.lastPathComponent)")
-                        throw StateManagerError.iCloudNotAvailable
+                    // Try to recover from local backup
+                    let slug = fileURL.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "playlist-", with: "")
+                    if merged[slug] == nil, let recoveredPlaylist = try? loadPlaylistFromLocalDocuments(slug: slug) {
+                        print("✅ Recovered playlist from local backup: \(slug)")
+                        merged[slug] = recoveredPlaylist
+                        // Try to repair cloud file
+                        try? savePlaylist(recoveredPlaylist)
+                    } else {
+                        corruptedFiles.append(fileURL)
+                        print("❌ Unable to recover playlist: \(fileURL.lastPathComponent)")
                     }
                 }
-                print("⚠️ Failed to read playlist file \(fileURL.lastPathComponent): \(error)")
-
-                // Try to recover from local backup
-                let slug = fileURL.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "playlist-", with: "")
-                if let recoveredPlaylist = try? loadPlaylistFromLocalDocuments(slug: slug) {
-                    print("✅ Recovered playlist from local backup: \(slug)")
-                    playlists.append(recoveredPlaylist)
-                    // Try to repair cloud file
-                    try? savePlaylist(recoveredPlaylist)
-                } else {
-                    corruptedFiles.append(fileURL)
-                    print("❌ Unable to recover playlist: \(fileURL.lastPathComponent)")
-                }
             }
+
+            // Move corrupted files to a quarantine folder
+            if !corruptedFiles.isEmpty {
+                try? quarantineCorruptedFiles(corruptedFiles, in: playlistsFolder)
+            }
+        } catch {
+            print("⚠️ Failed to read iCloud playlists: \(error)")
         }
 
-        // Move corrupted files to a quarantine folder
-        if !corruptedFiles.isEmpty {
-            try? quarantineCorruptedFiles(corruptedFiles, in: playlistsFolder)
-        }
-
-        return playlists.sorted { $0.updatedAt > $1.updatedAt }
+        return merged.values.sorted { $0.updatedAt > $1.updatedAt }
     }
 
     private func quarantineCorruptedFiles(_ files: [URL], in folder: URL) throws {

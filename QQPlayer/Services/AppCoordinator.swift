@@ -938,14 +938,26 @@ class AppCoordinator: ObservableObject {
 
                 // Save artwork for each track
                 for (index, track) in artworkTracks.enumerated() {
-                    if let artwork = await ArtworkManager.shared.getArtwork(for: track),
-                       let artworkData = artwork.jpegData(compressionQuality: 0.8) {
+                    if let artwork = await ArtworkManager.shared.getArtwork(for: track) {
                         let filename = "playlist_\(playlistId)_\(index).jpg"
                         let fileURL = containerURL.appendingPathComponent(filename)
 
-                        try? artworkData.write(to: fileURL, options: .atomic)
-                        artworkPaths.append(filename)
-                        print("✅ Widget: Saved artwork '\(track.title)' for playlist '\(playlist.title)' tile \(index)")
+                        // 编码 + 写盘下沉后台线程（主 actor 串行 3 歌单 × 4 曲目
+                        // jpegData + write 会阻塞 UI，2026-08-29 审计 #9）
+                        let hasData = await withCheckedContinuation { continuation in
+                            DispatchQueue.global(qos: .utility).async {
+                                if let artworkData = artwork.jpegData(compressionQuality: 0.8) {
+                                    try? artworkData.write(to: fileURL, options: .atomic)
+                                    continuation.resume(returning: true)
+                                } else {
+                                    continuation.resume(returning: false)
+                                }
+                            }
+                        }
+                        if hasData {
+                            artworkPaths.append(filename)
+                            print("✅ Widget: Saved artwork '\(track.title)' for playlist '\(playlist.title)' tile \(index)")
+                        }
                     }
                 }
 

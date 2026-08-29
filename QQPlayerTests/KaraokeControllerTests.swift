@@ -296,6 +296,25 @@ struct KaraokeControllerTests {
         #expect(fake.rates == [0.7, 1.0])
     }
 
+    @Test("resetSpeedForUnsupportedEngine（SFB 不支持倍速）：复位显示为 1.0，不写回引擎")
+    func resetSpeedForUnsupportedEngineClearsDisplay() async {
+        let fake = await makeFake(expireJumpQuiet: false)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setSpeed(0.7)
+        fake.rates = []
+
+        kc.resetSpeedForUnsupportedEngine()
+
+        #expect(kc.speed == 1.0) // UI 显示复位
+        #expect(fake.rates.isEmpty) // 不调用 setRate（SFB 引擎不生效；用户值保留在 PlayerEngine）
+
+        // 已是 1.0 时调用无副作用
+        kc.resetSpeedForUnsupportedEngine()
+        #expect(kc.speed == 1.0)
+        #expect(fake.rates.isEmpty)
+    }
+
     @Test("上一句/下一句：跳到目标句首播放，边界不动作")
     func stepLine() async {
         let fake = await makeFake(expireJumpQuiet: false)

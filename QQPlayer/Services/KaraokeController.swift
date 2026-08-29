@@ -135,6 +135,15 @@ final class KaraokeController: ObservableObject {
         actions?.setRate(speed)
     }
 
+    /// SFB 引擎（Opus/DSD）不支持变速：由 PlayerEngine 在 SFB 曲目加载或用户
+    /// 设置倍速时调用，复位 UI 显示为 1.0（避免显示倍速档但实际没变速，
+    /// 2026-08-29 审计 #7）。不写回引擎；PlayerEngine.currentPlaybackRate 保留
+    /// 用户值，切回 native 曲目时倍速档恢复。
+    func resetSpeedForUnsupportedEngine() {
+        guard speed != 1.0 else { return }
+        speed = 1.0
+    }
+
     // MARK: - 单句循环 / AB 循环
 
     func toggleSingleLineLoop() {
