@@ -608,21 +608,24 @@ struct PlayerView: View {
 
     // MARK: - Mini Lyrics Section
 
-    // 封面下方的小歌词窗口：三行（上一句/当前句/下一句），当前句放大 + 主题色，点击/左滑进入全屏歌词
+    // 封面下方的小歌词窗口：三行（上一句/当前句/下一句），当前句放大 + 主题色
+    // 点击/左滑进入全屏歌词，右滑打开歌词搜索页（从左滑入）
     private var lyricMiniSection: some View {
         LyricMiniSection(
             lyrics: currentLyrics,
             isLoading: isLoadingLyrics,
-            accentColor: settings.backgroundColorChoice.color,
-            onTap: {
-                showLyricsSheet = true
-                if currentLyrics == nil && !isLoadingLyrics {
-                    loadLyrics()
-                }
-            }
+            accentColor: settings.backgroundColorChoice.color
         )
         .padding(.horizontal, 8)
-        // 小歌词窗口：点击/左滑进全屏歌词页，右滑开歌词搜索页（从左滑入）
+        // 点击进全屏歌词页（普通视图 + onTapGesture：与 DragGesture 仲裁标准，
+        // 不用 Button——Button 手势优先级高，快速右滑会误触发 tap 直接进歌词页）
+        .onTapGesture {
+            showLyricsSheet = true
+            if currentLyrics == nil && !isLoadingLyrics {
+                loadLyrics()
+            }
+        }
+        // 左滑 → 全屏歌词页（从右侧滑入）；右滑 → 歌词搜索页（从左侧滑入）
         .gesture(
             DragGesture(minimumDistance: 12)
                 .onEnded { value in
@@ -642,6 +645,13 @@ struct PlayerView: View {
                     }
                 }
         )
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction {
+            showLyricsSheet = true
+            if currentLyrics == nil && !isLoadingLyrics {
+                loadLyrics()
+            }
+        }
     }
 
     // MARK: - Controls Section
@@ -1047,7 +1057,6 @@ private struct LyricMiniSection: View {
     let lyrics: Lyrics?
     let isLoading: Bool
     let accentColor: Color
-    let onTap: () -> Void
 
     /// 当前句 index（syncedLyrics 中）；还没到第一句时返回 0
     private var activeIndex: Int? {
@@ -1060,41 +1069,38 @@ private struct LyricMiniSection: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
-            Group {
-                if isLoading {
-                    Text("加载歌词中…")
-                        .font(.callout)
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity)
-                } else if let lines = lyrics?.syncedLyrics, !lines.isEmpty {
-                    let idx = activeIndex ?? 0
-                    VStack(spacing: 6) {
-                        miniLine(line(idx - 1, in: lines)?.text, isActive: false)
-                        miniLine(line(idx, in: lines)?.text, isActive: true)
-                        miniLine(line(idx + 1, in: lines)?.text, isActive: false)
-                    }
+        Group {
+            if isLoading {
+                Text("加载歌词中…")
+                    .font(.callout)
+                    .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity)
-                } else if let lyrics = lyrics,
-                          let firstLine = lyrics.plainLyrics.split(separator: "\n").first {
-                    // 无时间轴歌词：显示第一行
-                    Text(String(firstLine))
-                        .font(.callout.weight(.medium))
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity)
-                } else {
-                    Text("暂无歌词")
-                        .font(.callout)
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity)
+            } else if let lines = lyrics?.syncedLyrics, !lines.isEmpty {
+                let idx = activeIndex ?? 0
+                VStack(spacing: 6) {
+                    miniLine(line(idx - 1, in: lines)?.text, isActive: false)
+                    miniLine(line(idx, in: lines)?.text, isActive: true)
+                    miniLine(line(idx + 1, in: lines)?.text, isActive: false)
                 }
+                .frame(maxWidth: .infinity)
+            } else if let lyrics = lyrics,
+                      let firstLine = lyrics.plainLyrics.split(separator: "\n").first {
+                // 无时间轴歌词：显示第一行
+                Text(String(firstLine))
+                    .font(.callout.weight(.medium))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity)
+            } else {
+                Text("暂无歌词")
+                    .font(.callout)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity)
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 16)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(PlainButtonStyle())
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .contentShape(Rectangle())
         .animation(.easeInOut(duration: 0.2), value: activeIndex)
     }
 
