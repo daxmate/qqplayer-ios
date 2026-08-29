@@ -15,6 +15,7 @@ struct LyricsView: View {
     @State private var scrollTarget: Int?
     @State private var settings = DeleteSettings.load()
     @State private var dragX: CGFloat = 0
+    @ObservedObject private var karaoke = KaraokeController.shared
 
     var body: some View {
         ZStack {
@@ -44,13 +45,35 @@ struct LyricsView: View {
                 }
             }
             .ignoresSafeArea() // 内容容器与背景同尺寸铺满全屏（顶部不再留 safe area 空白）
+            // 页面级双击：跟唱模式开关（对齐桌面双击歌词 toggle）。
+            // highPriorityGesture：双击优先于行单击识别——快速双击行 = 切换模式且不触发行跳转；
+            // 单击（等双击窗口判定失败后）落到行的单击 = 跳转。控制条是 ZStack 上层兄弟节点，
+            // 触摸不经过本容器，按钮单击不受影响。
+            .highPriorityGesture(
+                TapGesture(count: 2)
+                    .onEnded {
+                        KaraokeController.shared.toggleKaraokeMode()
+                    }
+            )
+
+            // 跟唱模式：底部控制条（非跟唱隐藏）
+            if karaoke.isKaraokeOn {
+                VStack(spacing: 0) {
+                    Spacer()
+                    KaraokeControlBar(accentColor: settings.backgroundColorChoice.color)
+                        .padding(.bottom, 12)
+                }
+                .transition(.opacity)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("BackgroundColorChanged"))) { _ in
             settings = DeleteSettings.load()
         }
-        // 右滑关闭：跟手位移，达阈值/快速回甩滑出（Apple Music 风格）
+        // 右滑关闭：跟手位移，达阈值/快速回甩滑出（Apple Music 风格）。
+        // simultaneousGesture：跟唱模式 ScrollView 可交互（pan 手势）时，pan 与关闭拖动
+        // 互不取消——纵向滚动正常、右滑关闭仍可用；非跟唱 ScrollView 禁用，行为与原来一致。
         .offset(x: dragX)
-        .gesture(
+        .simultaneousGesture(
             DragGesture(minimumDistance: 8)
                 .onChanged { value in
                     guard value.translation.width > 0 else { return }
@@ -70,6 +93,7 @@ struct LyricsView: View {
                     }
                 }
         )
+        .animation(.easeInOut(duration: 0.2), value: karaoke.isKaraokeOn)
     }
 
     // MARK: - Synced Lyrics
@@ -101,7 +125,8 @@ struct LyricsView: View {
                                 .frame(height: geometry.size.height / 2 - 40)
                         }
                     }
-                    .disabled(true)  // Disable user scrolling - auto-scroll only
+                    // 非跟唱：禁用交互（纯自动滚动）；跟唱：可交互（单击行跳转 / 手动滚动）
+                    .disabled(!karaoke.isKaraokeOn)
 
                     // Fade gradients at top and bottom（贴近系统底色，歌词边缘柔和融入背景）
                     VStack(spacing: 0) {
@@ -190,6 +215,21 @@ struct LyricsView: View {
             ),
             value: isActive
         )
+        // 跟唱模式：单击行 = 跳转 / 等选终点 = 设 B（决策在 KaraokeController.clickLine）
+        .contentShape(Rectangle())
+        .onTapGesture {
+            KaraokeController.shared.clickLine(index: index)
+        }
+        // 加分项：AB 激活时端点行加 accentColor 小圆点（桌面 AB 区间高亮的 iOS 简化）
+        .overlay(alignment: .trailing) {
+            if let ab = karaoke.abLoop, karaoke.isKaraokeOn,
+               index == ab.a || index == ab.b {
+                Circle()
+                    .fill(settings.backgroundColorChoice.color)
+                    .frame(width: 7, height: 7)
+                    .padding(.trailing, 26)
+            }
+        }
     }
 
     private func translationFontSize(isActive: Bool, distance: Int) -> CGFloat {

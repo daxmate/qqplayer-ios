@@ -91,6 +91,7 @@ struct PlayerView: View {
     @StateObject private var playerEngine = PlayerEngine.shared
     @StateObject private var artworkManager = ArtworkManager.shared
     @StateObject private var cloudDownloadManager = CloudDownloadManager.shared
+    @ObservedObject private var karaoke = KaraokeController.shared
     @EnvironmentObject private var appCoordinator: AppCoordinator
     @State private var currentArtwork: UIImage?
     @State private var nextArtwork: UIImage?
@@ -229,6 +230,11 @@ struct PlayerView: View {
                 // Clear current lyrics
                 currentLyrics = nil
 
+                // 跟唱：切歌清空歌词注入 + 清 AB（旧歌行号在新歌上失效；resetForNewTrack 幂等，
+                // PlayerEngine 侧若已接入同款调用，重复执行无副作用）
+                KaraokeController.shared.setLyrics([])
+                KaraokeController.shared.resetForNewTrack()
+
                 // 小歌词窗口常驻：切歌自动加载歌词（不再等按钮点击）
                 loadLyrics()
             }
@@ -246,6 +252,15 @@ struct PlayerView: View {
                 Spacer(minLength: UIScreen.main.scale < UIScreen.main.nativeScale ? 16 : 20)
 
                 lyricMiniSection
+
+                // 跟唱模式：小歌词下方显示控制条（非跟唱隐藏；与全屏歌词页共用 KaraokeControlBar）
+                Group {
+                    if karaoke.isKaraokeOn {
+                        KaraokeControlBar(accentColor: settings.backgroundColorChoice.color)
+                            .padding(.top, UIScreen.main.scale < UIScreen.main.nativeScale ? 8 : 10)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.2), value: karaoke.isKaraokeOn)
 
                 Spacer(minLength: UIScreen.main.scale < UIScreen.main.nativeScale ? 16 : 20)
 
@@ -732,6 +747,14 @@ struct PlayerView: View {
                     }
                 }
         )
+        // 双击：跟唱模式开关。与单击（进全屏歌词页）共存：双击优先，单击等双击窗口判定失败后触发
+        // （~0.3s 延迟可接受）；与左/右滑 DragGesture 也不冲突（双击无位移，拖动判失败后滑动手势接管）。
+        .highPriorityGesture(
+            TapGesture(count: 2)
+                .onEnded {
+                    KaraokeController.shared.toggleKaraokeMode()
+                }
+        )
         .accessibilityAddTraits(.isButton)
         .accessibilityAction {
             withAnimation(.easeOut(duration: 0.26)) {
@@ -791,6 +814,8 @@ struct PlayerView: View {
 
             await MainActor.run {
                 currentLyrics = lyrics
+                // 跟唱模式歌词注入（LyricsView / 控制条共用 PlayerView 的 currentLyrics 数据源）
+                KaraokeController.shared.setLyrics(lyrics?.syncedLyrics ?? [])
                 isLoadingLyrics = false
             }
         }
