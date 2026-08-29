@@ -514,6 +514,11 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
                 ])
             }
             try player.play(decoder)
+            // New decoder starts at frame 0 - reset the stored position so the
+            // nil-snapshot fallback in updatePlaybackPosition never carries a
+            // stale value from a previous track (which would fake an
+            // end-of-track and cut the new track short)
+            currentTime = 0
             isPlaying = true
             startUpdateTimer()
 
@@ -686,40 +691,43 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
     }
 
     private func updatePlaybackPosition() {
-        if isPlaying, let player = audioPlayer {
-            // Get actual playback position from SFBAudioEngine
-            // Use decoder properties for accurate position calculation
-            let useSampleRate = currentTrack?.sampleRate ?? decoderSampleRate
-            _ = currentTrack?.frameLength ?? decoderFrameLength
+        guard isPlaying, let player = audioPlayer else { return }
 
-            if useSampleRate > 0 {
-                // Try to get actual frame position from the audio player
-                // Note: SFBAudioEngine might not expose current frame directly,
-                // so we'll use our stored currentTime but validate against actual playback
+        // Read the player's real playback position: frames rendered by the
+        // audio engine divided by the decoder sample rate (SFBAudioPlayer
+        // exposes it as `currentTime`, nil only while the snapshot is
+        // invalid). This is exact and immune to timer drift - the old
+        // approach (currentTime += 0.1 per tick) accumulated error because
+        // the timer fires at >= 0.1s intervals, drifting by seconds to tens
+        // of seconds over a 5-minute track and delaying end-of-track
+        // detection. SFB's currentTime stays valid while paused (the engine
+        // keeps running with the decoder state intact), so the value freezes
+        // at the last rendered frame instead of marching on.
+        if let realTime = player.currentTime, realTime >= 0 {
+            currentTime = realTime
+        } else {
+            // Playback snapshot unavailable (e.g. decoder still initializing
+            // right after load). Nudge the stored value so progress advances
+            // smoothly until the real position becomes readable.
+            currentTime += 0.1
+        }
 
-                // For now, increment time but validate against duration
-                currentTime += 0.1
+        // Ensure we don't exceed the actual track duration (the real position
+        // can overshoot the nominal end by a few frames)
+        if duration > 0 && currentTime > duration {
+            currentTime = duration
+        }
 
-                // Ensure we don't exceed the actual track duration
-                if duration > 0 && currentTime > duration {
-                    currentTime = duration
-                }
-            } else {
-                // Fallback to simple time increment
-                currentTime += 0.1
-            }
+        // Log position every 10 seconds for debugging
+        if Int(currentTime * 10) % 100 == 0 {
+            print("🎵 SFBAudioEngine position: \(currentTime)/\(duration)")
+        }
 
-            // Log position every 10 seconds for debugging
-            if Int(currentTime * 10) % 100 == 0 {
-                print("🎵 SFBAudioEngine position: \(currentTime)/\(duration)")
-            }
-
-            if duration > 0 && currentTime >= duration {
-                print("🏁 SFBAudioEngine track completed: \(currentTime)/\(duration)")
-                // Track completion will be handled by PlayerEngine
-                isPlaying = false
-                updateTimer?.invalidate()
-            }
+        if duration > 0 && currentTime >= duration {
+            print("🏁 SFBAudioEngine track completed: \(currentTime)/\(duration)")
+            // Track completion will be handled by PlayerEngine
+            isPlaying = false
+            updateTimer?.invalidate()
         }
     }
 
