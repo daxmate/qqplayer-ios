@@ -97,6 +97,9 @@ struct PlayerView: View {
     @State private var previousArtwork: UIImage?
     @State private var dragOffset: CGFloat = 0
     @State private var pullOffset: CGFloat = 0 // 封面下拉跟手位移（关闭播放页）
+    /// 封面拖动手势的方向锁定（nil = 未定）：首次判定后锁定，防下拉过程中手指微斜
+    /// 导致横/纵分支来回切换（abs(width) vs abs(height) 瞬时翻转）→ 视图抖动
+    @State private var gestureAxis: Axis?
     @State private var isAnimating = false
     @State private var allTracks: [Track] = []
     @State private var isFavorite = false
@@ -353,8 +356,14 @@ struct PlayerView: View {
             .onChanged { value in
                 guard !isAnimating else { return }
 
-                let isHorizontal = abs(value.translation.width) > abs(value.translation.height)
-                if isHorizontal {
+                // 方向锁定：首个回调判定后不再改变，避免下拉/横滑过程中手指微斜导致抖动
+                if gestureAxis == nil {
+                    gestureAxis = abs(value.translation.width) > abs(value.translation.height)
+                        ? .horizontal
+                        : .vertical
+                }
+
+                if gestureAxis == .horizontal {
                     // 横向：切歌跟手
                     let canNavigate = playerEngine.playbackQueue.count > 1
                     let proposedOffset = canNavigate
@@ -376,9 +385,14 @@ struct PlayerView: View {
                 }
             }
             .onEnded { value in
-                guard !isAnimating else { return }
+                guard !isAnimating else {
+                    gestureAxis = nil
+                    return
+                }
 
-                let isHorizontal = abs(value.translation.width) > abs(value.translation.height)
+                let isHorizontal = gestureAxis == .horizontal
+                gestureAxis = nil // 手势结束，释放方向锁定
+
                 if isHorizontal {
                     guard playerEngine.playbackQueue.count > 1 else {
                         resetArtworkDrag()
@@ -406,8 +420,9 @@ struct PlayerView: View {
                     } else {
                         completeArtworkSwipe(.next, pageDistance: pageDistance)
                     }
-                } else if value.translation.height > 0 {
-                    // 纵向结束：达阈值/快速回甩 → 关闭；否则回弹
+                } else {
+                    // 纵向结束（无论最终位移方向）：达阈值/快速回甩 → 关闭；否则回弹。
+                    // 注意用 else 而非 height > 0：下拉后又拉回原位也需回弹，否则视图卡在半路
                     if PlayerDismissGesture.shouldDismissPlayer(
                         pullOffset: pullOffset,
                         predictedHeight: value.predictedEndTranslation.height
