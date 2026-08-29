@@ -11,9 +11,10 @@ struct LyricsView: View {
     let lyrics: Lyrics?
     let currentTime: TimeInterval
     let isLoading: Bool
+    let onClose: () -> Void
     @State private var scrollTarget: Int?
     @State private var settings = DeleteSettings.load()
-    @Environment(\.dismiss) var dismiss
+    @State private var dragX: CGFloat = 0
 
     var body: some View {
         ZStack {
@@ -96,9 +97,7 @@ struct LyricsView: View {
                     Spacer()
 
                     Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            dismiss()
-                        }
+                        onClose()
                     } label: {
                         ZStack {
                             Circle()
@@ -159,6 +158,27 @@ struct LyricsView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("BackgroundColorChanged"))) { _ in
             settings = DeleteSettings.load()
         }
+        // 右滑关闭：跟手位移，达阈值/快速回甩滑出（Apple Music 风格）
+        .offset(x: dragX)
+        .gesture(
+            DragGesture(minimumDistance: 8)
+                .onChanged { value in
+                    guard value.translation.width > 0 else { return }
+                    dragX = value.translation.width
+                }
+                .onEnded { value in
+                    let shouldClose = value.translation.width > 120 ||
+                        (value.translation.width > 40 && value.predictedEndTranslation.width > 260)
+                    if shouldClose {
+                        // 由外层 transition（move trailing）负责滑出动画，从当前位置滑出
+                        onClose()
+                    } else {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                            dragX = 0
+                        }
+                    }
+                }
+        )
     }
 
     // MARK: - Synced Lyrics
@@ -746,6 +766,7 @@ struct LyricsView: View {
             source: .embedded
         ),
         currentTime: 6.0,
-        isLoading: false
+        isLoading: false,
+        onClose: {}
     )
 }

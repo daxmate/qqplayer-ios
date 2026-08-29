@@ -96,6 +96,7 @@ struct PlayerView: View {
     @State private var nextArtwork: UIImage?
     @State private var previousArtwork: UIImage?
     @State private var dragOffset: CGFloat = 0
+    @State private var pullOffset: CGFloat = 0 // 封面下拉跟手位移（关闭播放页）
     @State private var isAnimating = false
     @State private var allTracks: [Track] = []
     @State private var isFavorite = false
@@ -113,7 +114,28 @@ struct PlayerView: View {
         ZStack {
             ScreenSpecificBackgroundView(screen: .player)
             mainContent
+
+            // 全屏歌词页：满屏覆盖（右滑入/右滑出），与播放页同一 ZStack，随下拉一起跟手
+            if showLyricsSheet {
+                LiveLyricsSheet(
+                    lyrics: currentLyrics,
+                    isLoading: isLoadingLyrics,
+                    onClose: {
+                        withAnimation(.easeOut(duration: 0.26)) {
+                            showLyricsSheet = false
+                        }
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .trailing),
+                    removal: .move(edge: .trailing)
+                ))
+                .zIndex(10)
+            }
         }
+        // 封面下拉跟手：播放页整体下移，松手达阈值关闭
+        .offset(y: pullOffset)
+        .animation(.easeInOut(duration: 0.26), value: showLyricsSheet)
         // Cap Dynamic Type so large accessibility sizes don't overflow the player layout
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
@@ -156,9 +178,6 @@ struct PlayerView: View {
             .sheet(isPresented: $showQueueSheet) {
                 queueSheet
             }
-            .sheet(isPresented: $showLyricsSheet) {
-                lyricsSheet
-            }
             .onChange(of: playerEngine.currentTrack) { _, _ in
                 // Clear current lyrics
                 currentLyrics = nil
@@ -197,10 +216,6 @@ struct PlayerView: View {
     private var queueSheet: some View {
         QueueManagementView()
             .accentColor(settings.backgroundColorChoice.color)
-    }
-
-    private var lyricsSheet: some View {
-        LiveLyricsSheet(lyrics: currentLyrics, isLoading: isLoadingLyrics)
     }
 
     // MARK: - Artwork Section
@@ -300,50 +315,79 @@ struct PlayerView: View {
         }
     }
 
+    // 封面下拉关闭播放页：跟手限幅 / 关闭阈值
+    private let pullMaxOffset: CGFloat = 160
+    private let pullCloseThreshold: CGFloat = 100
+
     private func artworkDragGesture(gestureWidth: CGFloat, pageDistance: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 8)
             .onChanged { value in
                 guard !isAnimating else { return }
-                guard abs(value.translation.width) > abs(value.translation.height) else { return }
 
-                let canNavigate = playerEngine.playbackQueue.count > 1
-                let proposedOffset = canNavigate
-                    ? value.translation.width
-                    : value.translation.width * 0.16
-                let limit = pageDistance
-                var transaction = Transaction()
-                transaction.isContinuous = true
-                withTransaction(transaction) {
-                    dragOffset = max(-limit, min(limit, proposedOffset))
+                let isHorizontal = abs(value.translation.width) > abs(value.translation.height)
+                if isHorizontal {
+                    // 横向：切歌跟手
+                    let canNavigate = playerEngine.playbackQueue.count > 1
+                    let proposedOffset = canNavigate
+                        ? value.translation.width
+                        : value.translation.width * 0.16
+                    let limit = pageDistance
+                    var transaction = Transaction()
+                    transaction.isContinuous = true
+                    withTransaction(transaction) {
+                        dragOffset = max(-limit, min(limit, proposedOffset))
+                    }
+                } else if value.translation.height > 0 {
+                    // 纵向下拉：关闭播放页（跟手位移，限幅）
+                    var transaction = Transaction()
+                    transaction.isContinuous = true
+                    withTransaction(transaction) {
+                        pullOffset = min(value.translation.height, pullMaxOffset)
+                    }
                 }
             }
             .onEnded { value in
                 guard !isAnimating else { return }
-                guard playerEngine.playbackQueue.count > 1 else {
-                    resetArtworkDrag()
-                    return
-                }
 
-                let translation = value.translation.width
-                let projectedTranslation = value.predictedEndTranslation.width
-                let distanceThreshold = gestureWidth * 0.22
-                let projectionThreshold = gestureWidth * 0.34
-                let shouldCommit = abs(translation) > distanceThreshold ||
-                    abs(projectedTranslation) > projectionThreshold
+                let isHorizontal = abs(value.translation.width) > abs(value.translation.height)
+                if isHorizontal {
+                    guard playerEngine.playbackQueue.count > 1 else {
+                        resetArtworkDrag()
+                        return
+                    }
 
-                guard shouldCommit else {
-                    resetArtworkDrag()
-                    return
-                }
+                    let translation = value.translation.width
+                    let projectedTranslation = value.predictedEndTranslation.width
+                    let distanceThreshold = gestureWidth * 0.22
+                    let projectionThreshold = gestureWidth * 0.34
+                    let shouldCommit = abs(translation) > distanceThreshold ||
+                        abs(projectedTranslation) > projectionThreshold
 
-                let directionValue = abs(projectedTranslation) > abs(translation)
-                    ? projectedTranslation
-                    : translation
+                    guard shouldCommit else {
+                        resetArtworkDrag()
+                        return
+                    }
 
-                if directionValue > 0 {
-                    completeArtworkSwipe(.previous, pageDistance: pageDistance)
-                } else {
-                    completeArtworkSwipe(.next, pageDistance: pageDistance)
+                    let directionValue = abs(projectedTranslation) > abs(translation)
+                        ? projectedTranslation
+                        : translation
+
+                    if directionValue > 0 {
+                        completeArtworkSwipe(.previous, pageDistance: pageDistance)
+                    } else {
+                        completeArtworkSwipe(.next, pageDistance: pageDistance)
+                    }
+                } else if value.translation.height > 0 {
+                    // 纵向结束：达阈值/快速回甩 → 关闭；否则回弹
+                    let fastFlick = pullOffset >= 40 && value.predictedEndTranslation.height > 300
+                    if pullOffset >= pullCloseThreshold || fastFlick {
+                        NotificationCenter.default.post(name: NSNotification.Name("MinimizePlayer"), object: nil)
+                        pullOffset = 0
+                    } else {
+                        withAnimation(.spring(response: 0.36, dampingFraction: 0.82)) {
+                            pullOffset = 0
+                        }
+                    }
                 }
             }
     }
@@ -533,7 +577,7 @@ struct PlayerView: View {
 
     // MARK: - Mini Lyrics Section
 
-    // 封面下方的小歌词窗口：三行（上一句/当前句/下一句），当前句放大 + 主题色，点击进入全屏歌词
+    // 封面下方的小歌词窗口：三行（上一句/当前句/下一句），当前句放大 + 主题色，点击/左滑进入全屏歌词
     private var lyricMiniSection: some View {
         LyricMiniSection(
             lyrics: currentLyrics,
@@ -547,6 +591,18 @@ struct PlayerView: View {
             }
         )
         .padding(.horizontal, 8)
+        // 左滑 → 全屏歌词页（从右侧滑入）
+        .gesture(
+            DragGesture(minimumDistance: 12)
+                .onEnded { value in
+                    if value.translation.width < -60 || value.predictedEndTranslation.width < -120 {
+                        showLyricsSheet = true
+                        if currentLyrics == nil && !isLoadingLyrics {
+                            loadLyrics()
+                        }
+                    }
+                }
+        )
     }
 
     // MARK: - Controls Section
@@ -1072,12 +1128,14 @@ private struct LiveLyricsSheet: View {
     @ObservedObject private var progress = PlayerEngine.shared.progress
     let lyrics: Lyrics?
     let isLoading: Bool
+    let onClose: () -> Void
 
     var body: some View {
         LyricsView(
             lyrics: lyrics,
             currentTime: progress.playbackTime,
-            isLoading: isLoading
+            isLoading: isLoading,
+            onClose: onClose
         )
     }
 }
