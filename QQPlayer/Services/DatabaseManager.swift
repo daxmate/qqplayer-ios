@@ -174,15 +174,26 @@ class DatabaseManager: @unchecked Sendable {
     }
 
     private func getDatabaseURL() throws -> URL {
-        // Try to use app group container first for sharing with Siri extension
-        if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios") {
-            return containerURL.appendingPathComponent("qqplayer.db")
-        } else {
-            // Fallback to documents directory
-            let documentsPath = FileManager.default.urls(for: .documentDirectory,
-                                                         in: .userDomainMask).first!
-            return documentsPath.appendingPathComponent("MusicLibrary.sqlite")
-        }
+        #if os(macOS)
+            // macOS 无 iOS 的 App Group 容器（目录不存在，GRDB 打开必失败，
+            // 导致 in-memory fallback，扫描全部白跑）。用 Application Support
+            // 独立目录，与桌面版（~/Library/Application Support/qqplayer/）区分。
+            let appSupport = FileManager.default.urls(for: .applicationSupportDirectory,
+                                                      in: .userDomainMask).first!
+            let dir = appSupport.appendingPathComponent("QQPlayerMac", isDirectory: true)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir.appendingPathComponent("qqplayer.db")
+        #else
+            // Try to use app group container first for sharing with Siri extension
+            if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios") {
+                return containerURL.appendingPathComponent("qqplayer.db")
+            } else {
+                // Fallback to documents directory
+                let documentsPath = FileManager.default.urls(for: .documentDirectory,
+                                                             in: .userDomainMask).first!
+                return documentsPath.appendingPathComponent("MusicLibrary.sqlite")
+            }
+        #endif
     }
 
     /// Creates the full production schema. Internal so tests can build an

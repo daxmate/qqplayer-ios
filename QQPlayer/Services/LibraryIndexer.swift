@@ -734,6 +734,12 @@ class LibraryIndexer: NSObject, ObservableObject {
         /// 仅替换数据源（NSMetadataQuery → 目录枚举）。MVP 为启动全扫，
         /// FSEvents 实时监控后补（调研报告 §3.5 风险 2）。
         private func startMacScan() {
+            // 必须与 iOS 分支保持同一套状态前置：isIndexing 置 true 才能通过
+            // scanMusicFolder 首行的 guard（否则扫描被直接拦截、永远不会执行）。
+            isIndexing = true
+            indexingProgress = 0.0
+            tracksFound = 0
+
             let generation = indexingGeneration
             Task {
                 await scanMusicFolder(generation: generation)

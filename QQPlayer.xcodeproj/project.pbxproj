@@ -262,6 +262,7 @@
 				Mac/MacPlayerView.swift,
 				Views/Player/KaraokeControlBar.swift,
 				Views/Player/PlayerGestureLogic.swift,
+				Assets.xcassets,
 			);
 			target = B1A000000000000000000007 /* QQPlayerMac */;
 		};
@@ -1308,6 +1309,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "QQPlayer/QQPlayer-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 			};
 			name = Debug;
 		};
@@ -1331,6 +1333,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "QQPlayer/QQPlayer-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 			};
 			name = Release;
 		};
