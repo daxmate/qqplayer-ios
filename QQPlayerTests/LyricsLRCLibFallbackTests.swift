@@ -34,7 +34,7 @@ struct LyricsLRCLibFallbackTests {
         "duration": 289.0,
         "instrumental": false,
         "plainLyrics": "我怀念的是无言感动",
-        "syncedLyrics": "[00:17.07]我问为什么\n[00:18.60]那女孩传简讯给我"
+        "syncedLyrics": "[00:17.07]我问为什么\\n[00:18.60]那女孩传简讯给我"
     }]
     """
 
