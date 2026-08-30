@@ -41,6 +41,8 @@
 		1785EE9EA7D649388F552CDD /* DiscogsAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 145FEC71F24C4ECFA8D5056E /* DiscogsAPITests.swift */; };
 		0937E1860D1E419D976EFA11 /* HybridMusicAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F25A9396A62497892BAE967 /* HybridMusicAPITests.swift */; };
 		8B39816A2390441EA17F4B87 /* LyricsLRCLibFallbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84F56C1D13EF47CCADFACA84 /* LyricsLRCLibFallbackTests.swift */; };
+		CD0AFF2F6F2944CFB8174D62 /* HintSystemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13B0714450B5432D9103647E /* HintSystemTests.swift */; };
+		B1C108FAF1AB4B1DBB94FE9B /* WhatsNewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0399BDBD88CA4F6C9D2D731E /* WhatsNewTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -132,6 +134,8 @@
 		145FEC71F24C4ECFA8D5056E /* DiscogsAPITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DiscogsAPITests.swift; sourceTree = "<group>"; };
 		1F25A9396A62497892BAE967 /* HybridMusicAPITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HybridMusicAPITests.swift; sourceTree = "<group>"; };
 		84F56C1D13EF47CCADFACA84 /* LyricsLRCLibFallbackTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LyricsLRCLibFallbackTests.swift; sourceTree = "<group>"; };
+		13B0714450B5432D9103647E /* HintSystemTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HintSystemTests.swift; sourceTree = "<group>"; };
+		0399BDBD88CA4F6C9D2D731E /* WhatsNewTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WhatsNewTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -332,6 +336,8 @@
 				145FEC71F24C4ECFA8D5056E /* DiscogsAPITests.swift */,
 				1F25A9396A62497892BAE967 /* HybridMusicAPITests.swift */,
 				84F56C1D13EF47CCADFACA84 /* LyricsLRCLibFallbackTests.swift */,
+				13B0714450B5432D9103647E /* HintSystemTests.swift */,
+				0399BDBD88CA4F6C9D2D731E /* WhatsNewTests.swift */,
 			);
 			path = QQPlayerTests;
 			sourceTree = "<group>";
@@ -641,6 +647,8 @@
 				1785EE9EA7D649388F552CDD /* DiscogsAPITests.swift in Sources */,
 				0937E1860D1E419D976EFA11 /* HybridMusicAPITests.swift in Sources */,
 				8B39816A2390441EA17F4B87 /* LyricsLRCLibFallbackTests.swift in Sources */,
+				CD0AFF2F6F2944CFB8174D62 /* HintSystemTests.swift in Sources */,
+				B1C108FAF1AB4B1DBB94FE9B /* WhatsNewTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

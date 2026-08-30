@@ -355,6 +355,17 @@ struct Localized {
     static let sleepTimer45Minutes = "sleep_timer_45_minutes".localized
     static let sleepTimer60Minutes = "sleep_timer_60_minutes".localized
     static let cancelSleepTimer = "cancel_sleep_timer".localized
+    // MARK: - Contextual hints (首次提示气泡)
+    static let hintDismiss = "hint_dismiss".localized
+    static let hintPlaybackTitle = "hint_playback_title".localized
+    static let hintPlaybackLine1 = "hint_playback_line1".localized
+    static let hintPlaybackLine2 = "hint_playback_line2".localized
+    static let hintPlaybackLine3 = "hint_playback_line3".localized
+    static let hintFullLyricsTitle = "hint_full_lyrics_title".localized
+    static let hintFullLyricsLine1 = "hint_full_lyrics_line1".localized
+    static let hintFullLyricsLine2 = "hint_full_lyrics_line2".localized
+    static let hintSearchTitle = "hint_search_title".localized
+    static let hintSearchLine1 = "hint_search_line1".localized
 
     // MARK: - Bulk Selection
     static let select = "select".localized
@@ -382,6 +393,41 @@ struct Localized {
     static let playOrderShuffle = "play_order_shuffle".localized
     static let playOrderRepeatAll = "play_order_repeat_all".localized
     static let playOrderRepeatOne = "play_order_repeat_one".localized
+    // MARK: - Feature guide (帮助中心)
+    static let featureGuide = "feature_guide".localized
+    static let featureGuideSectionPlayer = "feature_guide_section_player".localized
+    static let featureGuideSectionLyrics = "feature_guide_section_lyrics".localized
+    static let featureGuideSectionControls = "feature_guide_section_controls".localized
+    static let featureGuideSectionSmart = "feature_guide_section_smart".localized
+    static let featureGuideSectionMisc = "feature_guide_section_misc".localized
+    static let featureGuideSwipeArtworkTitle = "feature_guide_swipe_artwork_title".localized
+    static let featureGuideSwipeArtworkDetail = "feature_guide_swipe_artwork_detail".localized
+    static let featureGuidePullToCloseTitle = "feature_guide_pull_to_close_title".localized
+    static let featureGuidePullToCloseDetail = "feature_guide_pull_to_close_detail".localized
+    static let featureGuideExpandControlsTitle = "feature_guide_expand_controls_title".localized
+    static let featureGuideExpandControlsDetail = "feature_guide_expand_controls_detail".localized
+    static let featureGuideOpenFullLyricsTitle = "feature_guide_open_full_lyrics_title".localized
+    static let featureGuideOpenFullLyricsDetail = "feature_guide_open_full_lyrics_detail".localized
+    static let featureGuideSearchLyricsTitle = "feature_guide_search_lyrics_title".localized
+    static let featureGuideSearchLyricsDetail = "feature_guide_search_lyrics_detail".localized
+    static let featureGuideKaraokeStartTitle = "feature_guide_karaoke_start_title".localized
+    static let featureGuideKaraokeStartDetail = "feature_guide_karaoke_start_detail".localized
+    static let featureGuideKaraokeControlsTitle = "feature_guide_karaoke_controls_title".localized
+    static let featureGuideKaraokeControlsDetail = "feature_guide_karaoke_controls_detail".localized
+    static let featureGuideKaraokeExitTitle = "feature_guide_karaoke_exit_title".localized
+    static let featureGuideKaraokeExitDetail = "feature_guide_karaoke_exit_detail".localized
+    static let featureGuideOrderModesTitle = "feature_guide_order_modes_title".localized
+    static let featureGuideOrderModesDetail = "feature_guide_order_modes_detail".localized
+    static let featureGuideSmartSourceTitle = "feature_guide_smart_source_title".localized
+    static let featureGuideSmartSourceDetail = "feature_guide_smart_source_detail".localized
+    static let featureGuideSmartWhereTitle = "feature_guide_smart_where_title".localized
+    static let featureGuideSmartWhereDetail = "feature_guide_smart_where_detail".localized
+    static let featureGuideEQTitle = "feature_guide_eq_title".localized
+    static let featureGuideEQDetail = "feature_guide_eq_detail".localized
+    static let featureGuideDarkModeTitle = "feature_guide_dark_mode_title".localized
+    static let featureGuideDarkModeDetail = "feature_guide_dark_mode_detail".localized
+    static let featureGuideImportTitle = "feature_guide_import_title".localized
+    static let featureGuideImportDetail = "feature_guide_import_detail".localized
 
     // MARK: - Smart playlists (自动歌单)
     static let smartRecentAdded = "smart_recent_added".localized
@@ -409,4 +455,9 @@ struct Localized {
     static func smartDecadeCount(_ count: Int) -> String {
         "smart_decade_count".localized(with: count)
     }
+    // MARK: - What's New (新功能弹窗)
+    static let whatsNewTitle = "whats_new_title".localized
+    static let whatsNewItemHints = "whats_new_item_hints".localized
+    static let whatsNewItemGuide = "whats_new_item_guide".localized
+    static let whatsNewItemAnnouncement = "whats_new_item_announcement".localized
 }

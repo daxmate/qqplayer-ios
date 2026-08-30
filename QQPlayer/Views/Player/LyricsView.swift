@@ -15,6 +15,8 @@ struct LyricsView: View {
     @State private var scrollTarget: Int?
     @State private var settings = DeleteSettings.load()
     @State private var dragX: CGFloat = 0
+    /// 首次进入全屏歌词页的手势提示气泡
+    @State private var showHint = false
     /// 上次自动滚动的行号：仅 activeIndex 变化才 scrollTo（替代每 tick 全量遍历 + 对未变行也发起滚动）
     @State private var lastScrolledIndex: Int?
     @ObservedObject private var karaoke = KaraokeController.shared
@@ -58,6 +60,12 @@ struct LyricsView: View {
                 .transition(.opacity)
             }
         }
+        .onAppear {
+            // 首次进入全屏歌词页：触发手势提示气泡（之后永不再现）
+            withAnimation(.easeOut(duration: 0.3)) {
+                showHint = HintCoordinator.showIfNeeded(.fullLyricsPage)
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("BackgroundColorChanged"))) { _ in
             settings = DeleteSettings.load()
         }
@@ -86,6 +94,25 @@ struct LyricsView: View {
                 }
         )
         .animation(.easeInOut(duration: 0.2), value: karaoke.isKaraokeOn)
+        // 首次进入的手势提示气泡：居中浮层（卡片自身不拦截卡片外区域）
+        .overlay(alignment: .center) {
+            if showHint {
+                HintCardView(
+                    title: Localized.hintFullLyricsTitle,
+                    lines: [
+                        Localized.hintFullLyricsLine1,
+                        Localized.hintFullLyricsLine2,
+                    ],
+                    accentColor: settings.backgroundColorChoice.color,
+                    onDismiss: {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            showHint = false
+                        }
+                    }
+                )
+                .padding(.horizontal, 24)
+            }
+        }
         // 页面级双击：跟唱模式开关（挂在最外层 ZStack，全屏任意位置双击都触发）。
         // highPriorityGesture：优先于行单击识别——快速双击行 = 切换模式且不触发行跳转；
         // 单击（等双击窗口判定失败后）落到行的单击 = 跳转。控制条 Button 的触摸不经过本容器，不受影响。

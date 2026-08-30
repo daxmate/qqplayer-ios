@@ -48,6 +48,8 @@ struct PlayerView: View {
     @State private var trackArtistDisplayName: String?
     @State private var sleepTimerTask: Task<Void, Never>?
     @State private var sleepTimerEndDate: Date?
+    /// 首次进入播放页的手势提示气泡
+    @State private var showHint = false
     /// AirPlay 路由选择器宿主（常驻层级，见 RoutePickerHost / showAirPlayPicker）
     @State private var routePickerView: AVRoutePickerView?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -163,6 +165,10 @@ struct PlayerView: View {
                 loadTrackMetadata()
             }
             .onAppear {
+                // 首次进入播放页：触发手势提示气泡（之后永不再现）
+                withAnimation(.easeOut(duration: 0.3)) {
+                    showHint = HintCoordinator.showIfNeeded(.playbackPage)
+                }
                 Task {
                     await loadAllArtworks()
                     await loadTracks()
@@ -208,7 +214,27 @@ struct PlayerView: View {
                 // 封面区与控制区之间用弹性 Spacer 撑开：封面贴顶、控制区贴底、歌词居中
                 Spacer(minLength: UIScreen.main.scale < UIScreen.main.nativeScale ? 16 : 20)
 
-                lyricMiniSection
+                // 首次进入播放页的手势提示气泡：显示在小歌词窗上方（布局内插入，
+                // 不遮挡任何手势区域；卡片自带过渡动画，隐藏后布局平滑复位）
+                VStack(spacing: 10) {
+                    if showHint {
+                        HintCardView(
+                            title: Localized.hintPlaybackTitle,
+                            lines: [
+                                Localized.hintPlaybackLine1,
+                                Localized.hintPlaybackLine2,
+                                Localized.hintPlaybackLine3,
+                            ],
+                            accentColor: settings.backgroundColorChoice.color,
+                            onDismiss: {
+                                withAnimation(.easeOut(duration: 0.3)) {
+                                    showHint = false
+                                }
+                            }
+                        )
+                    }
+                    lyricMiniSection
+                }
 
                 Spacer(minLength: UIScreen.main.scale < UIScreen.main.nativeScale ? 16 : 20)
 

@@ -25,6 +25,8 @@ struct LyricsSearchView: View {
     @State private var applyingIndex: Int?
     @State private var manualActive = false
     @State private var dragX: CGFloat = 0
+    /// 首次进入歌词搜索页的手势提示气泡
+    @State private var showHint = false
 
     init(
         track: Track,
@@ -76,6 +78,10 @@ struct LyricsSearchView: View {
             }
         }
         .onAppear {
+            // 首次进入歌词搜索页：触发手势提示气泡（之后永不再现）
+            withAnimation(.easeOut(duration: 0.3)) {
+                showHint = HintCoordinator.showIfNeeded(.lyricsSearchPage)
+            }
             Task {
                 manualActive = await LyricsManager.shared.hasManualLyrics(for: track)
                 // 预填歌手名（原 init 内同步 DB 读挪到这里；先填再搜，首次自动搜索带歌手过滤）
@@ -100,6 +106,23 @@ struct LyricsSearchView: View {
         // 列表区域左滑会被滚动视图吃掉（只有空白区能滑）；simultaneous 与列表互不取消——
         // 纵向滚动正常、左滑关闭仍可用（与 LyricsView 同款模式）。
         .offset(x: dragX)
+        // 首次进入的手势提示气泡：顶部浮层（卡片自身不拦截卡片外区域）
+        .overlay(alignment: .top) {
+            if showHint {
+                HintCardView(
+                    title: Localized.hintSearchTitle,
+                    lines: [Localized.hintSearchLine1],
+                    accentColor: accentColor,
+                    onDismiss: {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            showHint = false
+                        }
+                    }
+                )
+                .padding(.top, 64)
+                .padding(.horizontal, 20)
+            }
+        }
         .simultaneousGesture(
             DragGesture(minimumDistance: 8)
                 .onChanged { value in

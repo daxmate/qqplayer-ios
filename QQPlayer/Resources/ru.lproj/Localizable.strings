@@ -273,6 +273,42 @@
 /* Queue Actions */
 "play_next" = "Воспроизвести следующим";
 "add_to_queue" = "Добавить в очередь";
+/* Справочник функций */
+"feature_guide" = "Функции и жесты";
+"feature_guide_section_player" = "Страница плеера";
+"feature_guide_section_lyrics" = "Текст и караоке";
+"feature_guide_section_controls" = "Управление воспроизведением";
+"feature_guide_section_smart" = "Умные плейлисты";
+"feature_guide_section_misc" = "Прочее";
+"feature_guide_swipe_artwork_title" = "Смахивание обложки для смены трека";
+"feature_guide_swipe_artwork_detail" = "Смахните обложку влево или вправо, чтобы переключиться на предыдущий / следующий трек";
+"feature_guide_pull_to_close_title" = "Потянуть вниз, чтобы закрыть";
+"feature_guide_pull_to_close_detail" = "Потяните обложку вниз, чтобы закрыть плеер";
+"feature_guide_expand_controls_title" = "Развернуть больше кнопок";
+"feature_guide_expand_controls_detail" = "Смахните вверх по области управления, чтобы открыть больше кнопок (порядок / очередь / таймер / текст / AirPlay), смахните вниз, чтобы свернуть";
+"feature_guide_open_full_lyrics_title" = "Открыть полный текст";
+"feature_guide_open_full_lyrics_detail" = "Коснитесь мини-текста или смахните его влево";
+"feature_guide_search_lyrics_title" = "Найти нужный текст";
+"feature_guide_search_lyrics_detail" = "Смахните мини-текст вправо, чтобы открыть поиск; выберите результат, чтобы задать его вручную, или верните автоматический режим";
+"feature_guide_karaoke_start_title" = "Двойное касание — включить караоке";
+"feature_guide_karaoke_start_detail" = "Дважды коснитесь в любом месте полного текста, чтобы включить караоке (скорость / цикл AB / цикл одной строки)";
+"feature_guide_karaoke_controls_title" = "Управление караоке";
+"feature_guide_karaoke_controls_detail" = "Коснитесь строки текста, чтобы перейти к ней; коснитесь AB, чтобы задать текущую строку началом, затем строку — концом (автоматически меняются местами, если конец раньше начала); панель также предлагает скорость и цикл строки";
+"feature_guide_karaoke_exit_title" = "Выход из караоке";
+"feature_guide_karaoke_exit_detail" = "Снова дважды коснитесь в любом месте; выход со страницы полного текста также завершает караоке";
+"feature_guide_order_modes_title" = "Четыре режима порядка";
+"feature_guide_order_modes_detail" = "Последовательно → Перемешать → Повторять всё → Повторять одну; касайтесь значка для переключения";
+"feature_guide_smart_source_title" = "Откуда берутся умные плейлисты";
+"feature_guide_smart_source_detail" = "Создаются автоматически из вашей медиатеки и истории: Недавно добавленные, Недавно прослушанные, Часто слушаемые, Десятилетия";
+"feature_guide_smart_where_title" = "Где их найти";
+"feature_guide_smart_where_detail" = "Закреплённые карточки умных плейлистов вверху страницы плейлистов";
+"feature_guide_eq_title" = "Эквалайзер EQ";
+"feature_guide_eq_detail" = "Настройки → Аудио → Графический эквалайзер, импорт пресетов Graphic EQ и ручная настройка";
+"feature_guide_dark_mode_title" = "Тёмная тема";
+"feature_guide_dark_mode_detail" = "Настройки → Оформление → Принудительная тёмная тема, чтобы переопределить системную";
+"feature_guide_import_title" = "Импорт музыкальных файлов";
+"feature_guide_import_detail" = "Поместите файлы в папку QQPlayer в приложении «Файлы» (iCloud Drive или на этом iPhone) или коснитесь «Открыть файлы» в медиатеке";
+
 
 /* Sleep Timer */
 "sleep_timer" = "Таймер сна";
@@ -281,6 +317,18 @@
 "sleep_timer_30_minutes" = "30 минут";
 "sleep_timer_45_minutes" = "45 минут";
 "sleep_timer_60_minutes" = "60 минут";
+/* Контекстные подсказки (пузыри при первом использовании) */
+"hint_dismiss" = "Закрыть";
+"hint_playback_title" = "Жесты страницы плеера";
+"hint_playback_line1" = "Коснитесь мини-текста или смахните влево, чтобы открыть полный экран текста";
+"hint_playback_line2" = "Смахните мини-текст вправо, чтобы найти / задать текст вручную";
+"hint_playback_line3" = "Потяните обложку вниз, чтобы закрыть плеер";
+"hint_full_lyrics_title" = "Полноэкранный текст";
+"hint_full_lyrics_line1" = "Дважды коснитесь в любом месте, чтобы включить караоке (скорость / цикл AB / цикл одной строки)";
+"hint_full_lyrics_line2" = "Смахните вправо, чтобы вернуться к плееру";
+"hint_search_title" = "Поиск текста";
+"hint_search_line1" = "Смахните влево, чтобы вернуться к плееру";
+
 "cancel_sleep_timer" = "Отменить таймер сна";
 
 /* Bulk Selection */
@@ -383,3 +431,9 @@
 
 "ai_playlist_created_title" = "Плейлист создан";
 "ai_playlist_created_message" = "Плейлист «%@» создан. Песен: %d.";
+
+/* Что нового */
+"whats_new_title" = "Что нового";
+"whats_new_item_hints" = "Подсказки при первом использовании: пузыри объясняют скрытые жесты при входе на страницу плеера / текста";
+"whats_new_item_guide" = "Справочник «Функции и жесты»: полное руководство в Настройках, доступно в любой момент";
+"whats_new_item_announcement" = "Анонс новинок: после каждого обновления новое показывается при запуске";

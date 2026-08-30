@@ -273,6 +273,42 @@
 /* Queue Actions */
 "play_next" = "Lire ensuite";
 "add_to_queue" = "Ajouter à la file";
+/* Guide des fonctions */
+"feature_guide" = "Fonctions et gestes";
+"feature_guide_section_player" = "Page de lecture";
+"feature_guide_section_lyrics" = "Paroles et karaoké";
+"feature_guide_section_controls" = "Commandes de lecture";
+"feature_guide_section_smart" = "Playlists intelligentes";
+"feature_guide_section_misc" = "Autres";
+"feature_guide_swipe_artwork_title" = "Balayer la pochette pour changer de morceau";
+"feature_guide_swipe_artwork_detail" = "Balayez la pochette vers la gauche ou la droite pour passer au morceau précédent / suivant";
+"feature_guide_pull_to_close_title" = "Tirer vers le bas pour fermer";
+"feature_guide_pull_to_close_detail" = "Faites glisser la pochette vers le bas pour refermer le lecteur";
+"feature_guide_expand_controls_title" = "Afficher plus de commandes";
+"feature_guide_expand_controls_detail" = "Balayez vers le haut sur la zone de commandes pour afficher plus de boutons (ordre de lecture / file / minuterie / paroles / AirPlay), balayez vers le bas pour masquer";
+"feature_guide_open_full_lyrics_title" = "Ouvrir les paroles plein écran";
+"feature_guide_open_full_lyrics_detail" = "Touchez les mini-paroles ou balayez-les vers la gauche";
+"feature_guide_search_lyrics_title" = "Rechercher des paroles spécifiques";
+"feature_guide_search_lyrics_detail" = "Balayez les mini-paroles vers la droite pour ouvrir la recherche ; choisissez un résultat pour l'attribuer manuellement, ou rétablissez l'automatique";
+"feature_guide_karaoke_start_title" = "Double-toucher pour lancer le karaoké";
+"feature_guide_karaoke_start_detail" = "Double-touchez n'importe où dans les paroles plein écran pour lancer le karaoké (vitesse / boucle AB / boucle sur une ligne)";
+"feature_guide_karaoke_controls_title" = "Commandes du karaoké";
+"feature_guide_karaoke_controls_detail" = "Touchez une ligne de paroles pour y accéder ; touchez AB pour définir la ligne courante comme début, puis touchez une ligne pour la fin (inversée automatiquement si antérieure au début) ; la barre offre aussi vitesse et boucle sur une ligne";
+"feature_guide_karaoke_exit_title" = "Quitter le karaoké";
+"feature_guide_karaoke_exit_detail" = "Double-touchez n'importe où pour quitter ; quitter la page de paroles plein écran le fait aussi automatiquement";
+"feature_guide_order_modes_title" = "Quatre modes d'ordre de lecture";
+"feature_guide_order_modes_detail" = "Séquentiel → Aléatoire → Répéter tout → Répéter un ; touchez l'icône pour parcourir les modes";
+"feature_guide_smart_source_title" = "D'où viennent les playlists intelligentes";
+"feature_guide_smart_source_detail" = "Générées automatiquement depuis votre bibliothèque et votre historique : Ajouts récents, Récemment écoutés, Plus écoutés, Décennies";
+"feature_guide_smart_where_title" = "Où les trouver";
+"feature_guide_smart_where_detail" = "Cartes de playlists intelligentes épinglées en haut de la page des playlists";
+"feature_guide_eq_title" = "Égaliseur EQ";
+"feature_guide_eq_detail" = "Réglages → Audio → Égaliseur graphique, avec import de préréglages Graphic EQ et réglage manuel";
+"feature_guide_dark_mode_title" = "Mode sombre";
+"feature_guide_dark_mode_detail" = "Réglages → Apparence → Forcer le mode sombre pour remplacer l'apparence du système";
+"feature_guide_import_title" = "Import de fichiers musicaux";
+"feature_guide_import_detail" = "Placez vos fichiers dans le dossier QQPlayer de l'app Fichiers (iCloud Drive ou sur mon iPhone), ou touchez Ouvrir des fichiers dans la bibliothèque";
+
 
 /* Sleep Timer */
 "sleep_timer" = "Minuterie de sommeil";
@@ -281,6 +317,18 @@
 "sleep_timer_30_minutes" = "30 minutes";
 "sleep_timer_45_minutes" = "45 minutes";
 "sleep_timer_60_minutes" = "60 minutes";
+/* Astuces contextuelles (bulles de première utilisation) */
+"hint_dismiss" = "Fermer";
+"hint_playback_title" = "Gestes de la page de lecture";
+"hint_playback_line1" = "Touchez ou balayez vers la gauche les mini-paroles pour ouvrir les paroles plein écran";
+"hint_playback_line2" = "Balayez vers la droite les mini-paroles pour rechercher / définir les paroles manuellement";
+"hint_playback_line3" = "Tirez vers le bas sur la pochette pour fermer le lecteur";
+"hint_full_lyrics_title" = "Paroles plein écran";
+"hint_full_lyrics_line1" = "Double-touchez n'importe où pour lancer le karaoké (vitesse / boucle AB / boucle sur une ligne)";
+"hint_full_lyrics_line2" = "Balayez vers la droite pour revenir au lecteur";
+"hint_search_title" = "Recherche de paroles";
+"hint_search_line1" = "Balayez vers la gauche pour revenir au lecteur";
+
 "cancel_sleep_timer" = "Annuler la minuterie";
 
 /* Bulk Selection */
@@ -386,3 +434,9 @@
 
 "ai_playlist_created_title" = "Playlist créée";
 "ai_playlist_created_message" = "« %@ » a été créée avec %d titres.";
+
+/* Nouveautés */
+"whats_new_title" = "Nouveautés";
+"whats_new_item_hints" = "Astuces de première utilisation : des bulles expliquent les gestes cachés quand vous entrez dans la lecture / les paroles";
+"whats_new_item_guide" = "Guide Fonctions et gestes : un manuel complet dans les Réglages, consultable à tout moment";
+"whats_new_item_announcement" = "Annonce des nouveautés : après chaque mise à jour, les nouveautés s'affichent au lancement";

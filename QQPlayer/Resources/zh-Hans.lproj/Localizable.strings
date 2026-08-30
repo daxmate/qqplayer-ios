@@ -287,6 +287,18 @@
 "sleep_timer_30_minutes" = "30 分钟";
 "sleep_timer_45_minutes" = "45 分钟";
 "sleep_timer_60_minutes" = "60 分钟";
+/* Contextual hints (首次提示气泡) */
+"hint_dismiss" = "关闭";
+"hint_playback_title" = "播放页手势";
+"hint_playback_line1" = "单击或左滑小歌词窗：进入全屏歌词";
+"hint_playback_line2" = "右滑小歌词窗：搜索 / 手动指定歌词";
+"hint_playback_line3" = "下拉封面：关闭播放页";
+"hint_full_lyrics_title" = "全屏歌词页";
+"hint_full_lyrics_line1" = "双击任意位置：开启跟唱（倍速 / AB / 单句循环）";
+"hint_full_lyrics_line2" = "向右滑：返回播放页";
+"hint_search_title" = "歌词搜索页";
+"hint_search_line1" = "向左滑：返回播放页";
+
 "cancel_sleep_timer" = "取消睡眠定时";
 
 /* Bulk Selection */
@@ -312,6 +324,42 @@
 
 "ai_playlist_created_title" = "播放列表已创建";
 "ai_playlist_created_message" = "已创建“%@”，包含 %d 首歌曲。";
+/* Feature guide (帮助中心) */
+"feature_guide" = "功能与手势";
+"feature_guide_section_player" = "播放页";
+"feature_guide_section_lyrics" = "歌词与跟唱";
+"feature_guide_section_controls" = "播放控制";
+"feature_guide_section_smart" = "智能歌单";
+"feature_guide_section_misc" = "其他";
+"feature_guide_swipe_artwork_title" = "横滑封面切歌";
+"feature_guide_swipe_artwork_detail" = "在封面上向左或向右滑动，切换上一首 / 下一首";
+"feature_guide_pull_to_close_title" = "下拉关闭播放页";
+"feature_guide_pull_to_close_detail" = "在封面上向下拖动，即可收起播放页";
+"feature_guide_expand_controls_title" = "展开更多控制按钮";
+"feature_guide_expand_controls_detail" = "在底部控制区向上滑动展开更多按钮（播放顺序 / 队列 / 定时 / 歌词 / 隔空播放），向下滑动收起";
+"feature_guide_open_full_lyrics_title" = "进入全屏歌词";
+"feature_guide_open_full_lyrics_detail" = "单击小歌词窗，或在小歌词窗上向左滑动";
+"feature_guide_search_lyrics_title" = "搜索指定歌词";
+"feature_guide_search_lyrics_detail" = "在小歌词窗上向右滑动，打开歌词搜索页；可搜索并手动指定歌词，也可恢复自动";
+"feature_guide_karaoke_start_title" = "双击开启跟唱";
+"feature_guide_karaoke_start_detail" = "在全屏歌词页任意位置双击，开启跟唱模式（倍速 / AB 循环 / 单句循环）";
+"feature_guide_karaoke_controls_title" = "跟唱模式操作";
+"feature_guide_karaoke_controls_detail" = "单击歌词行跳到该句；点 AB 按钮以当前句为起点，再点一个歌词行设为终点 B（终点早于起点自动交换）；控制条还可调倍速、开单句循环";
+"feature_guide_karaoke_exit_title" = "退出跟唱";
+"feature_guide_karaoke_exit_detail" = "再次双击任意位置退出；离开全屏歌词页也会自动退出";
+"feature_guide_order_modes_title" = "播放顺序四态";
+"feature_guide_order_modes_detail" = "顺序播放 → 随机播放 → 循环列表 → 单曲循环，点击图标循环切换";
+"feature_guide_smart_source_title" = "自动歌单从何而来";
+"feature_guide_smart_source_detail" = "基于你的曲库与播放历史自动生成：最近添加、最近播放、常听排行、年代";
+"feature_guide_smart_where_title" = "在哪里查看";
+"feature_guide_smart_where_detail" = "播放列表页顶部常驻自动歌单卡片，点击进入";
+"feature_guide_eq_title" = "EQ 均衡器";
+"feature_guide_eq_detail" = "设置 → 音频引擎与解码 → 图示均衡器，支持 Graphic EQ 预设导入与手动调节";
+"feature_guide_dark_mode_title" = "深色模式开关";
+"feature_guide_dark_mode_detail" = "设置 → 外观 → 强制深色模式，可覆盖系统外观";
+"feature_guide_import_title" = "文件导入";
+"feature_guide_import_detail" = "将音乐文件放入 iOS「文件」App 的 QQPlayer 文件夹（iCloud 云盘或本机），或在媒体库点击「打开文件」直接导入";
+
 
 /* 播放顺序 */
 "play_order_sequential" = "顺序播放";
@@ -440,3 +488,9 @@
 "Saved" = "已保存";
 "Save" = "保存";
 "Save mix as playlist" = "将合集保存为播放列表";
+
+/* What's New (新功能弹窗) */
+"whats_new_title" = "新功能";
+"whats_new_item_hints" = "首次使用提示：进入播放页 / 歌词页时，自动用气泡教你隐藏手势";
+"whats_new_item_guide" = "功能与手势指南：设置中新增完整操作手册，随时可查";
+"whats_new_item_announcement" = "新功能通告：每次更新后，启动时展示本版新增内容";

@@ -22,6 +22,17 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             Form {
+                // 功能与手势：帮助中心入口（置顶）
+                Section {
+                    NavigationLink(destination: FeatureGuideView()) {
+                        HStack {
+                            Image(systemName: "questionmark.circle.fill")
+                                .foregroundColor(.blue)
+                            Text(Localized.featureGuide)
+                        }
+                    }
+                }
+
                 Section(Localized.appearance) {
                     Toggle(Localized.minimalistLibraryIcons, isOn: $deleteSettings.minimalistIcons)
                         .onChange(of: deleteSettings.minimalistIcons) { _, _ in

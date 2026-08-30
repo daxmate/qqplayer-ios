@@ -285,6 +285,42 @@
 /* Queue Actions */
 "play_next" = "Play Next";
 "add_to_queue" = "Add to Queue";
+/* Feature guide */
+"feature_guide" = "Features & Gestures";
+"feature_guide_section_player" = "Player Page";
+"feature_guide_section_lyrics" = "Lyrics & Karaoke";
+"feature_guide_section_controls" = "Playback Controls";
+"feature_guide_section_smart" = "Smart Playlists";
+"feature_guide_section_misc" = "Other";
+"feature_guide_swipe_artwork_title" = "Swipe the artwork to change tracks";
+"feature_guide_swipe_artwork_detail" = "Swipe left or right on the artwork to go to the previous / next track";
+"feature_guide_pull_to_close_title" = "Pull down to close the player";
+"feature_guide_pull_to_close_detail" = "Drag down on the artwork to dismiss the player";
+"feature_guide_expand_controls_title" = "Expand more controls";
+"feature_guide_expand_controls_detail" = "Swipe up on the controls area to reveal more buttons (play order / queue / sleep timer / lyrics / AirPlay), swipe down to collapse";
+"feature_guide_open_full_lyrics_title" = "Open full-screen lyrics";
+"feature_guide_open_full_lyrics_detail" = "Tap the mini lyrics, or swipe left on it";
+"feature_guide_search_lyrics_title" = "Search for specific lyrics";
+"feature_guide_search_lyrics_detail" = "Swipe right on the mini lyrics to open lyrics search; pick a result to assign it manually, or restore automatic";
+"feature_guide_karaoke_start_title" = "Double-tap to start karaoke";
+"feature_guide_karaoke_start_detail" = "Double-tap anywhere in full-screen lyrics to start karaoke (speed / AB loop / single-line loop)";
+"feature_guide_karaoke_controls_title" = "Karaoke controls";
+"feature_guide_karaoke_controls_detail" = "Tap a lyric line to jump to it; tap AB to set the current line as the start, then tap a line to set the end (auto-swapped if earlier than the start); the bar also offers speed and single-line loop";
+"feature_guide_karaoke_exit_title" = "Exit karaoke";
+"feature_guide_karaoke_exit_detail" = "Double-tap anywhere again to exit; leaving the full-screen lyrics page also exits automatically";
+"feature_guide_order_modes_title" = "Four play-order modes";
+"feature_guide_order_modes_detail" = "Sequential → Shuffle → Repeat All → Repeat One; tap the icon to cycle";
+"feature_guide_smart_source_title" = "Where smart playlists come from";
+"feature_guide_smart_source_detail" = "Generated automatically from your library and play history: Recently Added, Recently Played, Top Played, Decades";
+"feature_guide_smart_where_title" = "Where to find them";
+"feature_guide_smart_where_detail" = "Pinned smart playlist cards at the top of the playlists page";
+"feature_guide_eq_title" = "EQ Equalizer";
+"feature_guide_eq_detail" = "Settings → Audio → Graphic Equalizer, with Graphic EQ preset import and manual adjustment";
+"feature_guide_dark_mode_title" = "Dark mode toggle";
+"feature_guide_dark_mode_detail" = "Settings → Appearance → Force Dark Mode to override the system appearance";
+"feature_guide_import_title" = "Importing music files";
+"feature_guide_import_detail" = "Put music files into the QQPlayer folder in the iOS Files app (iCloud Drive or On My iPhone), or tap Open Files in the library";
+
 
 /* Sleep Timer */
 "sleep_timer" = "Sleep Timer";
@@ -293,6 +329,18 @@
 "sleep_timer_30_minutes" = "30 minutes";
 "sleep_timer_45_minutes" = "45 minutes";
 "sleep_timer_60_minutes" = "60 minutes";
+/* Contextual hints (first-use bubbles) */
+"hint_dismiss" = "Dismiss";
+"hint_playback_title" = "Player Page Gestures";
+"hint_playback_line1" = "Tap or swipe left on the mini lyrics to open full-screen lyrics";
+"hint_playback_line2" = "Swipe right on the mini lyrics to search / assign lyrics manually";
+"hint_playback_line3" = "Pull down on the artwork to close the player";
+"hint_full_lyrics_title" = "Full-Screen Lyrics";
+"hint_full_lyrics_line1" = "Double-tap anywhere to start karaoke (speed / AB loop / single-line loop)";
+"hint_full_lyrics_line2" = "Swipe right to return to the player";
+"hint_search_title" = "Lyrics Search";
+"hint_search_line1" = "Swipe left to return to the player";
+
 "cancel_sleep_timer" = "Cancel Sleep Timer";
 
 /* Bulk Selection */
@@ -404,3 +452,9 @@
 "play_order_shuffle" = "Shuffle";
 "play_order_repeat_all" = "Repeat All";
 "play_order_repeat_one" = "Repeat One";
+
+/* What's New */
+"whats_new_title" = "What's New";
+"whats_new_item_hints" = "First-use hints: bubbles teach hidden gestures when you enter the player / lyrics pages";
+"whats_new_item_guide" = "Features & Gestures guide: a full manual in Settings, available anytime";
+"whats_new_item_announcement" = "What's New popup: after each update, new content is shown at launch";
