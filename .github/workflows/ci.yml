@@ -38,9 +38,11 @@ jobs:
             build/DerivedData
           # v2: 仓库改名 qqplayer-ios → qqplayer-swift 后 runner 工作目录路径变化，旧缓存内 SPM
           # artifacts 绝对路径指向旧目录导致 "no XCFramework found"，bump key 强制缓存重建。
+          # 注意 restore-keys 必须同步带 v2 前缀：v1 旧缓存的 artifacts 绝对路径已失效，
+          # 若被 restore-keys 前缀命中会恢复出坏缓存，照样 no XCFramework found。
           key: ${{ runner.os }}-spm-v2-${{ hashFiles('QQPlayer.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
           restore-keys: |
-            ${{ runner.os }}-spm-
+            ${{ runner.os }}-spm-v2-
 
       # destination 动态取第一个可用 iPhone 模拟器：macos-latest runner 的 Xcode/模拟器型号随系统镜像
       # 更新而变（iPhone 16/17 系列都可能），写死型号会随镜像升级失配；动态选取在任何镜像上都成立。
