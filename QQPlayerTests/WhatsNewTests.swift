@@ -49,8 +49,8 @@ struct WhatsNewTests {
         let store = makeStore()
         store.resetForTesting()
 
-        // 上个版本已读（如 1.2.3），当前版本 1.2.4 (59) → 应弹
-        store.markSeen("1.2.3 (58)")
+        // 上个版本已读（构造任意旧版本号），当前版本 → 应弹
+        store.markSeen("0.9.0 (50)")
         #expect(store.shouldShowCurrent() == true)
 
         // 注入任意"新版本号"同样触发
@@ -66,10 +66,12 @@ struct WhatsNewTests {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removeObject(forKey: "whatsnew.lastSeenVersion")
 
-        WhatsNewStore(defaults: defaults).markSeen("1.2.4 (59)")
+        // 已读当前版本 → 不再弹（用当前版本号，避免硬编码随发版失效）
+        let current = WhatsNewContent.currentVersion
+        WhatsNewStore(defaults: defaults).markSeen(current)
 
         let freshStore = WhatsNewStore(defaults: defaults)
-        #expect(freshStore.lastSeenVersion() == "1.2.4 (59)")
+        #expect(freshStore.lastSeenVersion() == current)
         #expect(freshStore.shouldShowCurrent() == false)
     }
 }
