@@ -394,11 +394,119 @@
     }
 
 #else
+    import AVFoundation
     import Foundation
 
     extension PlayerEngine {
-        // macOS: no background execution limits, so no background monitoring and
-        // no UIKit background task. Gapless scheduling will be ported with the
-        // macOS playback batch.
+        // macOS native scheduling: no background execution limits, so no
+        // background monitoring and no UIKit background task. Gapless scheduling
+        // will be ported with the SFB macOS batch.
+
+        @discardableResult
+        func scheduleSegment(from startFrame: AVAudioFramePosition, file: AVAudioFile, track: Track? = nil, trackIndex: Int? = nil) -> Bool {
+            guard audioEngine.isRunning else {
+                print("❌ macOS scheduleSegment: audio engine is not running")
+                return false
+            }
+
+            guard startFrame >= 0 && startFrame < file.length else {
+                print("❌ macOS scheduleSegment: invalid startFrame \(startFrame), file length \(file.length)")
+                return false
+            }
+
+            let remaining = file.length - startFrame
+            guard remaining > 0 else {
+                print("❌ macOS scheduleSegment: no remaining frames")
+                return false
+            }
+            guard remaining <= AVAudioFrameCount.max else {
+                print("❌ macOS scheduleSegment: remaining exceeds AVAudioFrameCount.max")
+                return false
+            }
+
+            let scheduledGeneration = scheduleGeneration
+            let scheduledTrackId = track?.stableId
+
+            playerNode.scheduleSegment(
+                file,
+                startingFrame: startFrame,
+                frameCount: AVAudioFrameCount(remaining),
+                at: nil,
+                completionCallbackType: .dataPlayedBack
+            ) { [weak self] _ in
+                guard let self else { return }
+                Task { @MainActor [weak self] in
+                    await self?.handleMacSegmentFinished(
+                        generation: scheduledGeneration,
+                        trackStableId: scheduledTrackId
+                    )
+                }
+            }
+            return true
+        }
+
+        private func handleMacSegmentFinished(generation: UInt64, trackStableId: String?) async {
+            guard generation == scheduleGeneration, isPlaying else { return }
+            if let trackStableId, trackStableId != currentTrack?.stableId {
+                return
+            }
+            await handleTrackEnd()
+        }
+
+        func currentNodeSampleTime() -> AVAudioFramePosition? {
+            guard audioEngine.attachedNodes.contains(playerNode),
+                  audioEngine.isRunning,
+                  let nodeTime = playerNode.lastRenderTime,
+                  let playerTime = playerNode.playerTime(forNodeTime: nodeTime) else {
+                return nil
+            }
+            return playerTime.sampleTime
+        }
+
+        func currentTimeForCurrentNativeFile() -> TimeInterval {
+            guard let audioFile = audioFile,
+                  let currentSampleTime = currentNodeSampleTime() else {
+                return playbackTime
+            }
+
+            let relativeSampleTime = max(0, currentSampleTime - nodeTimelineStartSampleTime)
+            let time = seekTimeOffset + Double(relativeSampleTime) / audioFile.processingFormat.sampleRate
+            let clamped = min(max(time, 0), duration)
+            lastKnownPlaybackPosition = clamped
+            lastKnownPlaybackPositionUpdatedAt = Date()
+            return clamped
+        }
+
+        func handleTrackEnd() async {
+            guard !isLoadingTrack else { return }
+
+            if isLoopingSong, let t = currentTrack {
+                let loaded = await loadTrack(t)
+                if loaded { play() }
+                return
+            }
+
+            if currentIndex < playbackQueue.count - 1 {
+                currentIndex += 1
+                let next = playbackQueue[currentIndex]
+                let loaded = await loadTrack(next)
+                if loaded { play() }
+                return
+            }
+
+            if isRepeating, !playbackQueue.isEmpty {
+                currentIndex = 0
+                let loaded = await loadTrack(playbackQueue[0])
+                if loaded { play() }
+                return
+            }
+
+            // End of queue: stop cleanly.
+            isPlaying = false
+            playbackState = .stopped
+            stopPlaybackTimer()
+            playerNode.stop()
+            updateNowPlayingInfoEnhanced()
+        }
     }
 #endif

@@ -933,26 +933,146 @@
 
 #else
     import Foundation
+    import MediaPlayer
 
     extension PlayerEngine {
-        // macOS stubs: Now Playing / remote commands / widget integration arrive
-        // with the macOS UI batch. MediaPlayer works on macOS; these are stubbed
-        // so the shared Core compiles for the skeleton.
+        // macOS Now Playing / media keys: MPRemoteCommandCenter + MPNowPlayingInfoCenter
+        // work on macOS (verified by the desktop shell, main.swift 834-918). The
+        // macOS playback timer drives elapsed time; WidgetKit stays iOS-only.
 
         func updateWidgetData() {
             // WidgetKit is iOS-only in this app; nothing to refresh on macOS.
         }
 
+        func ensureRemoteCommandsSetup() {
+            guard !hasSetupRemoteCommands else { return }
+            hasSetupRemoteCommands = true
+            setupMacRemoteCommands()
+        }
+
+        private func setupMacRemoteCommands() {
+            let cc = MPRemoteCommandCenter.shared()
+
+            cc.playCommand.isEnabled = true
+            cc.playCommand.addTarget { [weak self] _ in
+                Task { @MainActor in
+                    self?.play()
+                }
+                return .success
+            }
+
+            cc.pauseCommand.isEnabled = true
+            cc.pauseCommand.addTarget { [weak self] _ in
+                Task { @MainActor in
+                    self?.pause(fromControlCenter: true)
+                }
+                return .success
+            }
+
+            cc.togglePlayPauseCommand.isEnabled = true
+            cc.togglePlayPauseCommand.addTarget { [weak self] _ in
+                Task { @MainActor in
+                    if self?.isPlaying == true {
+                        self?.pause(fromControlCenter: true)
+                    } else {
+                        self?.play()
+                    }
+                }
+                return .success
+            }
+
+            cc.nextTrackCommand.isEnabled = true
+            cc.nextTrackCommand.addTarget { [weak self] _ in
+                Task { @MainActor in
+                    let shouldAutoplay = self?.isPlaying ?? false
+                    await self?.nextTrack(autoplay: shouldAutoplay)
+                }
+                return .success
+            }
+
+            cc.previousTrackCommand.isEnabled = true
+            cc.previousTrackCommand.addTarget { [weak self] _ in
+                Task { @MainActor in
+                    let shouldAutoplay = self?.isPlaying ?? false
+                    await self?.previousTrack(autoplay: shouldAutoplay)
+                }
+                return .success
+            }
+
+            cc.changePlaybackPositionCommand.isEnabled = true
+            cc.changePlaybackPositionCommand.addTarget { [weak self] event in
+                guard let e = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
+                let positionTime = e.positionTime
+                Task { @MainActor in
+                    await self?.seek(to: positionTime)
+                }
+                return .success
+            }
+        }
+
         func updateNowPlayingInfoEnhanced() {
-            // Now Playing info will be wired up with the macOS playback batch.
+            guard let currentTrack else {
+                MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+                return
+            }
+
+            var info: [String: Any] = [
+                MPMediaItemPropertyTitle: currentTrack.title,
+                MPMediaItemPropertyPlaybackDuration: duration,
+                MPNowPlayingInfoPropertyElapsedPlaybackTime: playbackTime,
+                MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
+            ]
+
+            if let artistName = try? DatabaseManager.shared.getArtistDisplayName(
+                forTrackStableId: currentTrack.stableId,
+                fallbackArtistId: currentTrack.artistId
+            ) {
+                info[MPMediaItemPropertyArtist] = artistName
+            }
+
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+        }
+
+        func updateNowPlayingElapsedTime() {
+            guard var info = MPNowPlayingInfoCenter.default().nowPlayingInfo else { return }
+            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = playbackTime
+            info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         }
 
         func startPlaybackTimer() {
-            // UI progress timer arrives with the macOS playback batch.
+            stopPlaybackTimer()
+            // Four UI updates per second are smooth enough for elapsed-time labels.
+            playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+                Task { @MainActor in
+                    await self?.updateMacPlaybackTime()
+                }
+            }
+        }
+
+        private func updateMacPlaybackTime() async {
+            guard audioFile != nil,
+                  audioEngine.attachedNodes.contains(playerNode),
+                  audioEngine.isRunning,
+                  playerNode.lastRenderTime != nil else {
+                return
+            }
+
+            let calculatedTime = currentTimeForCurrentNativeFile()
+            if isPlaying {
+                playbackTime = calculatedTime
+                playbackTimeUpdatedAt = Date()
+            }
+
+            if abs(playbackTime - lastControlCenterUpdate) >= 0.5 {
+                lastControlCenterUpdate = playbackTime
+                updateNowPlayingElapsedTime()
+            }
         }
 
         func stopPlaybackTimer() {
-            // UI progress timer arrives with the macOS playback batch.
+            playbackTimer?.invalidate()
+            playbackTimer = nil
         }
 
         func nowPlayingElapsedTime() -> TimeInterval {

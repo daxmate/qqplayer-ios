@@ -826,27 +826,194 @@
     }
 
 #else
+    import AVFoundation
     import Foundation
 
     extension PlayerEngine {
-        // macOS stubs: playback control (loadTrack/play/pause/seek) lands with the
-        // macOS playback batch. Only symbols referenced by shared Core compile.
+        // macOS native playback chain: AVAudioEngine + AVAudioPlayerNode.
+        // SFBAudioEngine formats (Opus/OGG/DSD) land with the SFB macOS batch.
 
+        func setPlaybackRate(_ rate: Double) {
+            currentPlaybackRate = rate
+            timePitchNode.rate = Float(rate)
+        }
+
+        @discardableResult
         func loadTrack(_ track: Track, preservePlaybackTime: Bool = false) async -> Bool {
-            print("⚠️ loadTrack: playback not implemented on macOS yet")
-            return false
+            loadGeneration &+= 1
+            let generation = loadGeneration
+
+            currentLoadTask?.cancel()
+            let task = Task { @MainActor [weak self] in
+                guard let self else { return false }
+                return await self.performMacLoadTrack(track, preservePlaybackTime: preservePlaybackTime, generation: generation)
+            }
+            currentLoadTask = task
+
+            let loaded = await task.value
+            if loadGeneration == generation {
+                currentLoadTask = nil
+            }
+            return loaded
+        }
+
+        private func isCurrentLoad(_ generation: UInt64) -> Bool {
+            loadGeneration == generation && !Task.isCancelled
+        }
+
+        private func performMacLoadTrack(_ track: Track, preservePlaybackTime: Bool, generation: UInt64) async -> Bool {
+            let url = URL(fileURLWithPath: track.path)
+            print("📀 macOS loadTrack: \(track.title) (\(url.lastPathComponent))")
+
+            isLoadingTrack = true
+            playbackState = .loading
+
+            // Play history: settle the outgoing session before tearing down.
+            PlayHistoryRecorder.shared.playbackEnded(track: currentTrack, at: nowPlayingElapsedTime())
+
+            // Stop current playback and clean up.
+            playerNode.stop()
+            if audioEngine.isRunning {
+                audioEngine.pause()
+            }
+            audioFile = nil
+            if !preservePlaybackTime {
+                seekTimeOffset = 0
+                playbackTime = 0
+                lastControlCenterUpdate = 0
+            }
+            nodeTimelineStartSampleTime = 0
+
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                print("❌ macOS loadTrack: file not found \(url.path)")
+                playbackState = .stopped
+                isLoadingTrack = false
+                return false
+            }
+
+            // SFB-only formats are not playable on macOS until the SFB batch.
+            if SFBAudioEngineManager.canHandle(url: url) {
+                print("⚠️ macOS loadTrack: \(url.lastPathComponent) needs SFBAudioEngine (Opus/OGG/DSD) — macOS SFB batch pending")
+                playbackState = .stopped
+                isLoadingTrack = false
+                return false
+            }
+
+            do {
+                let file = try AVAudioFile(forReading: url)
+                guard isCurrentLoad(generation) else { return false }
+                audioFile = file
+                duration = Double(file.length) / file.processingFormat.sampleRate
+                currentTrack = track
+                playbackState = .stopped
+                isLoadingTrack = false
+                return true
+            } catch {
+                print("❌ macOS loadTrack failed: \(error)")
+                if isCurrentLoad(generation) {
+                    playbackState = .stopped
+                    isLoadingTrack = false
+                    audioFile = nil
+                }
+                return false
+            }
         }
 
         func play() {
-            print("⚠️ play: playback not implemented on macOS yet")
+            guard let audioFile = audioFile, !isLoadingTrack, playbackState != .loading else {
+                print("⚠️ macOS play skipped: audioFile=\(audioFile != nil) state=\(playbackState)")
+                return
+            }
+
+            ensureMacAudioEngineSetup(with: audioFile.processingFormat)
+
+            if !audioEngine.isRunning {
+                do {
+                    try audioEngine.start()
+                } catch {
+                    print("❌ macOS audioEngine start failed: \(error)")
+                    return
+                }
+            }
+
+            let startFrame = AVAudioFramePosition(playbackTime * audioFile.processingFormat.sampleRate)
+            scheduleSegment(from: startFrame, file: audioFile, track: currentTrack, trackIndex: currentIndex)
+
+            playerNode.play()
+            isPlaying = true
+            playbackState = .playing
+            startPlaybackTimer()
+            PlayHistoryRecorder.shared.playbackBegan(track: currentTrack, at: playbackTime)
+            updateNowPlayingInfoEnhanced()
+            print("✅ macOS playback started: \(currentTrack?.title ?? "")")
+        }
+
+        func pause(fromControlCenter: Bool = false) {
+            guard audioFile != nil else { return }
+
+            let currentPosition = currentTimeForCurrentNativeFile()
+            playbackTime = currentPosition
+            seekTimeOffset = currentPosition
+
+            if audioEngine.isRunning {
+                audioEngine.pause()
+            }
+            isPlaying = false
+            playbackState = .paused
+            stopPlaybackTimer()
+            PlayHistoryRecorder.shared.playbackPaused(track: currentTrack, at: playbackTime)
+            updateNowPlayingInfoEnhanced()
+            print("⏸️ macOS paused at \(playbackTime)s")
         }
 
         func seek(to time: TimeInterval) async {
-            // Not implemented on macOS yet.
+            guard let audioFile = audioFile else { return }
+            let clamped = min(max(time, 0), duration)
+            let wasPlaying = isPlaying
+
+            playerNode.stop()
+            seekTimeOffset = clamped
+            playbackTime = clamped
+            nodeTimelineStartSampleTime = 0
+
+            if !audioEngine.isRunning {
+                do {
+                    try audioEngine.start()
+                } catch {
+                    print("❌ macOS seek: engine start failed \(error)")
+                    return
+                }
+            }
+
+            let startFrame = AVAudioFramePosition(clamped * audioFile.processingFormat.sampleRate)
+            scheduleSegment(from: startFrame, file: audioFile, track: currentTrack, trackIndex: currentIndex)
+            if wasPlaying {
+                playerNode.play()
+            }
+            lastKnownPlaybackPosition = clamped
+            lastKnownPlaybackPositionUpdatedAt = Date()
+            updateNowPlayingInfoEnhanced()
+            print("✅ macOS seek to \(clamped)s")
         }
 
         func cancelPendingCompletions() {
-            // Not implemented on macOS yet.
+            scheduleGeneration &+= 1
+        }
+
+        // MARK: - macOS Engine Graph
+
+        private func ensureMacAudioEngineSetup(with format: AVAudioFormat?) {
+            if !audioEngine.attachedNodes.contains(playerNode) {
+                audioEngine.attach(playerNode)
+            }
+            if !audioEngine.attachedNodes.contains(timePitchNode) {
+                audioEngine.attach(timePitchNode)
+            }
+            // playerNode → timePitch（倍速）→ mainMixer。AVAudioEngine owns the
+            // mainMixer → outputNode connection and negotiates the hardware format.
+            audioEngine.connect(playerNode, to: timePitchNode, format: format)
+            audioEngine.connect(timePitchNode, to: audioEngine.mainMixerNode, format: format)
+            audioEngine.prepare()
         }
     }
 #endif

@@ -11,8 +11,9 @@ import SwiftUI
 struct QQPlayerMacApp: App {
     var body: some Scene {
         WindowGroup {
-            Text("QQPlayer macOS")
-                .frame(minWidth: 800, minHeight: 600)
+            MacLibraryView()
         }
+        .windowStyle(.titleBar)
+        .windowToolbarStyle(.unified)
     }
 }
