@@ -21,7 +21,7 @@ struct WhatsNewItem: Codable, Identifiable {
 
 enum WhatsNewContent {
     /// 当前版本通告（id 与 build 号对齐：MARKETING_VERSION + CURRENT_PROJECT_VERSION）
-    static let currentVersion = "1.2.4 (59)"
+    static let currentVersion = "1.0.0 (60)"
 
     /// 全部版本通告，从新到旧。后续版本由 maintainer 在发版时追加。
     static let all: [WhatsNewItem] = [
