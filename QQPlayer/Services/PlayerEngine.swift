@@ -39,6 +39,10 @@ class PlayerEngine: NSObject, ObservableObject {
         get { progress.playbackTime }
         set { progress.playbackTime = newValue }
     }
+    /// 中断诊断（2026-08-30）：playbackTime 最后一次由前台 UI timer 刷新的时刻。
+    /// 后台/锁屏时 timer 不跑，此时间戳与 Date() 的间隔 = playbackTime 的"冻结时长"，
+    /// 用于判断中断 .began 保存的位置是否是过期的冻结值（从头播根因排查）。
+    private var playbackTimeUpdatedAt = Date()
     @Published var duration: TimeInterval = 0
     @Published var playbackState: PlaybackState = .stopped
     @Published var playbackQueue: [Track] = []
@@ -355,9 +359,16 @@ class PlayerEngine: NSObject, ObservableObject {
             let savedPosition = wasPlaying ? nowPlayingElapsedTime() : playbackTime
             // 中断诊断（2026-08-29 中断后从头播排查）：记录保存位置时的引擎状态，
             // 判断 savedPosition 是否走了 fallback（引擎已停导致 currentNodeSampleTime 为 nil）
-            print("🔍 [intr] .began wasPlaying=\(wasPlaying) savedPosition=\(savedPosition)s "
+            let sampleTimeValid = (currentNodeSampleTime() != nil)
+            let appState = UIApplication.shared.applicationState
+            let frozenAge = Date().timeIntervalSince(playbackTimeUpdatedAt)
+            let diagLine = "🔍 [intr] .began wasPlaying=\(wasPlaying) savedPosition=\(savedPosition)s "
                 + "engineRunning=\(audioEngine.isRunning) usingSFB=\(usingSFBEngine) "
-                + "sampleTimeValid=\((currentNodeSampleTime() != nil))")
+                + "sampleTimeValid=\(sampleTimeValid) audioFile=\(audioFile != nil) "
+                + "appState=\(appState.rawValue) playbackTime=\(playbackTime)s "
+                + "playbackTimeAge=\(String(format: "%.1f", frozenAge))s"
+            print(diagLine)
+            InterruptionDiagnostics.log(diagLine)
             wasPlayingBeforeInterruption = wasPlaying
 
             if isPlaying {
@@ -439,6 +450,20 @@ class PlayerEngine: NSObject, ObservableObject {
                 && playbackState == .paused
                 && !outputDeviceBecameUnavailable
 
+            // 中断诊断（2026-08-30）：恢复决策全因素落盘——确认 play() 用的 playbackTime
+            // 是否被重置/回退（从头播根因排查），以及为何自动恢复/为何不恢复
+            let diagState = String(describing: playbackState)
+            let diagDeviceUnavailable = outputDeviceBecameUnavailable
+            let diagAudioFile = audioFile != nil
+            let resumeDiag = "🔍 [intr] .ended decision: shouldResume=\(shouldResume) "
+                + "wasPlayingBefore=\(wasPlayingBeforeInterruption) "
+                + "state=\(diagState) deviceUnavailable=\(diagDeviceUnavailable) "
+                + "resumeAllowed=\(resumeAllowed) playbackTime=\(playbackTime)s "
+                + "seekOffset=\(seekTimeOffset)s audioFile=\(diagAudioFile) "
+                + "usingSFB=\(usingSFBEngine) isPlaying=\(isPlaying)"
+            print(resumeDiag)
+            InterruptionDiagnostics.log(resumeDiag)
+
             // Consume the flags so they can never leak into a later
             // interruption and trigger a phantom resume.
             wasPlayingBeforeInterruption = false
@@ -448,7 +473,9 @@ class PlayerEngine: NSObject, ObservableObject {
                 print("▶️ Auto-resuming playback after interruption (was playing before)")
                 // 中断诊断（2026-08-29）：恢复前快照，确认 play() 用的 playbackTime 是否被
                 // 重置/回退（从头播根因排查）
-                print("🔍 [intr] .ended resume: playbackTime=\(playbackTime)s seekOffset=\(seekTimeOffset)s audioFile=\(audioFile != nil) usingSFB=\(usingSFBEngine) isPlaying=\(isPlaying) state=\(playbackState)")
+                let resumeSnapshot = "🔍 [intr] .ended resume: playbackTime=\(playbackTime)s seekOffset=\(seekTimeOffset)s audioFile=\(audioFile != nil) usingSFB=\(usingSFBEngine) isPlaying=\(isPlaying) state=\(playbackState)"
+                print(resumeSnapshot)
+                InterruptionDiagnostics.log(resumeSnapshot)
                 play()
             } else {
                 print("⏸️ Not auto-resuming - user must manually resume")
@@ -1449,9 +1476,11 @@ class PlayerEngine: NSObject, ObservableObject {
             } else {
                 // Actually starting from beginning
                 // 中断诊断（2026-08-29）：从头播路径——记录触发条件（playbackTime<=1 或 startFrame 越界）
-                print("🔍 [intr] PLAY FROM BEGINNING: playbackTime=\(playbackTime)s "
+                let fromBeginningDiag = "🔍 [intr] PLAY FROM BEGINNING: playbackTime=\(playbackTime)s "
                     + "currentPosition=\(currentPosition)s startFrame=\(startFrame) "
-                    + "fileLength=\(audioFile.length) sampleRate=\(audioFile.processingFormat.sampleRate)")
+                    + "fileLength=\(audioFile.length) sampleRate=\(audioFile.processingFormat.sampleRate)"
+                print(fromBeginningDiag)
+                InterruptionDiagnostics.log(fromBeginningDiag)
                 seekTimeOffset = 0
                 playbackTime = 0
                 nodeTimelineStartSampleTime = 0
@@ -1971,8 +2000,10 @@ class PlayerEngine: NSObject, ObservableObject {
               let currentSampleTime = currentNodeSampleTime() else {
             // 中断诊断（2026-08-29）：此处是可疑 fallback——引擎已停/节点无效时退回
             // 冻结的 playbackTime（后台 UI timer 不跑，锁屏早于播放开始则其值为 0）
-            print("🔍 [intr] currentTime fallback to playbackTime=\(playbackTime)s "
-                + "(audioFile=\(audioFile != nil) sampleTime=nil engineRunning=\(audioEngine.isRunning))")
+            let fallbackDiag = "🔍 [intr] currentTime fallback to playbackTime=\(playbackTime)s "
+                + "(audioFile=\(audioFile != nil) sampleTime=nil engineRunning=\(audioEngine.isRunning))"
+            print(fallbackDiag)
+            InterruptionDiagnostics.log(fallbackDiag)
             return playbackTime
         }
 
@@ -2478,6 +2509,7 @@ class PlayerEngine: NSObject, ObservableObject {
         // Handle SFBAudioEngine timing
         if usingSFBEngine {
             playbackTime = sfbAudioManager.currentTime
+            playbackTimeUpdatedAt = Date()
 
             // Check for completion
             if playbackTime >= duration && duration > 0 {
@@ -2503,6 +2535,7 @@ class PlayerEngine: NSObject, ObservableObject {
         // Only update playback time if we're actually playing (prevents drift during pause/resume)
         if isPlaying {
             playbackTime = calculatedTime
+            playbackTimeUpdatedAt = Date()
         }
 
         // Remove this duplicate detection - it's handled by checkIfTrackEnded()
