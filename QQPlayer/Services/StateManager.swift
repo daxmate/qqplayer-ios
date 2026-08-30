@@ -531,19 +531,6 @@ class StateManager: @unchecked Sendable {
 
 // MARK: - Player State Persistence
 
-struct PlayerState: Codable {
-    let currentTrackStableId: String?
-    let playbackTime: TimeInterval
-    let isPlaying: Bool
-    let queueTrackIds: [String]
-    let currentIndex: Int
-    let isRepeating: Bool
-    let isShuffled: Bool
-    let isLoopingSong: Bool
-    let originalQueueTrackIds: [String]
-    let lastSavedAt: Date
-}
-
 extension StateManager {
     func savePlayerState(_ playerState: PlayerState) throws {
         print("💾 StateManager: Saving player state - track: \(playerState.currentTrackStableId ?? "nil"), time: \(playerState.playbackTime)")
@@ -665,10 +652,4 @@ extension StateManager {
             return nil
         }
     }
-}
-
-enum StateManagerError: Error {
-    case iCloudNotAvailable
-    case fileNotFound
-    case invalidData
 }
