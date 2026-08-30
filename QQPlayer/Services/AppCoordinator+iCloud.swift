@@ -10,6 +10,11 @@ import UIKit
 import WidgetKit
 
 extension AppCoordinator {
+    /// iCloud 容器内 App 文件夹名（品牌 ShadowMate；旧版为 QQPlayer，启动时自动迁移）
+    nonisolated static let iCloudFolderName = "ShadowMate"
+    nonisolated static let legacyICloudFolderName = "QQPlayer"
+    nonisolated static let iCloudFolderMigratedKey = "iCloudFolderMigratedToShadowMate"
+
     // url(forUbiquityContainerIdentifier:) blocks while iCloud sets the
     // container up - seconds on a first install - and Apple's documentation is
     // explicit that it must not be called on the main thread. This whole check
@@ -35,9 +40,11 @@ extension AppCoordinator {
         print("NSUbiquitousContainers:",
               Bundle.main.object(forInfoDictionaryKey: "NSUbiquitousContainers") ?? "nil")
 
-        // Try to create the app folder
+        // Try to create the app folder（先迁移旧版 QQPlayer 文件夹，再创建/检测新名）
         do {
-            let appFolderURL = containerURL.appendingPathComponent("QQPlayer", isDirectory: true)
+            migrateLegacyICloudFolderIfNeeded(containerURL: containerURL)
+
+            let appFolderURL = containerURL.appendingPathComponent(Self.iCloudFolderName, isDirectory: true)
 
             if !FileManager.default.fileExists(atPath: appFolderURL.path) {
                 try FileManager.default.createDirectory(at: appFolderURL,
@@ -53,6 +60,35 @@ extension AppCoordinator {
         } catch {
             writeICloudDiagnostic("createDirectory error: \(error)")
             return .error(error)
+        }
+    }
+
+    /// 旧版 QQPlayer 文件夹 → ShadowMate 一次性迁移。iCloud 容器内 moveItem
+    /// 只动元数据（不下载/上传文件内容），云端文件原位保留，迁移安全。
+    /// 失败不标记，下次启动重试；无旧文件夹直接标记完成。
+    nonisolated func migrateLegacyICloudFolderIfNeeded(containerURL: URL) {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: Self.iCloudFolderMigratedKey) else { return }
+
+        let legacyURL = containerURL.appendingPathComponent(Self.legacyICloudFolderName, isDirectory: true)
+        let newURL = containerURL.appendingPathComponent(Self.iCloudFolderName, isDirectory: true)
+
+        guard FileManager.default.fileExists(atPath: legacyURL.path) else {
+            defaults.set(true, forKey: Self.iCloudFolderMigratedKey)
+            return
+        }
+        // 目标已存在（新文件夹已被创建过）：视为迁移完成，避免 moveItem 冲突
+        guard !FileManager.default.fileExists(atPath: newURL.path) else {
+            defaults.set(true, forKey: Self.iCloudFolderMigratedKey)
+            writeICloudDiagnostic("migrate: target exists, mark migrated")
+            return
+        }
+        do {
+            try FileManager.default.moveItem(at: legacyURL, to: newURL)
+            defaults.set(true, forKey: Self.iCloudFolderMigratedKey)
+            writeICloudDiagnostic("migrated legacy folder QQPlayer → ShadowMate")
+        } catch {
+            writeICloudDiagnostic("migrate legacy folder failed: \(error)")
         }
     }
 

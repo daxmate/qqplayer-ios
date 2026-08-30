@@ -23,7 +23,7 @@
 "songs_count_plural" = "%d songs";
 "created_date" = "Created %@";
 "no_songs_found" = "No songs found";
-"your_music_will_appear_here" = "To add your music:\n\n1. Open the Files app (or tap 'Add Songs')\n2. Choose either:\n   • iCloud Drive → QQPlayer folder\n   • On My iPhone → QQPlayer\n3. Drag your music files into either location";
+"your_music_will_appear_here" = "To add your music:\n\n1. Open the Files app (or tap 'Add Songs')\n2. Choose either:\n   • iCloud Drive → ShadowMate folder\n   • On My iPhone → ShadowMate\n3. Drag your music files into either location";
 "create_first_playlist" = "Create your first playlist to get started";
 
 /* Smart playlists (automatic playlists) */
@@ -103,7 +103,7 @@
 "force_dark_mode" = "Force Dark Mode";
 "version" = "Version";
 "app_name" = "App Name";
-"qqplayer" = "QQPlayer";
+"qqplayer" = "ShadowMate";
 "github_repository" = "GitHub Repository";
 "use_simple_icons" = "Use simple icons without colored backgrounds in the library sections.";
 "override_system_appearance" = "Override system appearance and force the app to use dark mode.";
@@ -141,7 +141,7 @@
 "icloud_connection_required" = "iCloud Connection Required";
 
 /* Tutorial/Onboarding */
-"welcome_to_qqplayer" = "Welcome to QQPlayer";
+"welcome_to_qqplayer" = "Welcome to ShadowMate";
 "sign_in_to_apple_id" = "Sign in to Apple ID";
 "sign_in_message" = "To sync your music and favorites across devices, please make sure you're signed in to your Apple ID.";
 "if_signed_in_continue" = "If you're signed in, you can continue";
@@ -152,7 +152,7 @@
 "how_to_add_music" = "You can add music files to either iCloud Drive (syncs across devices) or locally (this device only):";
 "open_files_app" = "Open Files App";
 "navigate_to_icloud_drive" = "Navigate to iCloud Drive";
-"find_qqplayer_folder" = "Find QQPlayer Folder";
+"find_qqplayer_folder" = "Find ShadowMate Folder";
 "add_your_music_instruction" = "Add Your Music";
 
 /* Tutorial Status Messages */
@@ -166,7 +166,7 @@
 /* Tutorial Instructions */
 "find_open_files_app" = "Find and open the Files app on your device";
 "tap_icloud_drive_sidebar" = "Choose 'iCloud Drive' or 'On My iPhone' in the sidebar";
-"look_for_qqplayer_folder" = "Find the 'QQPlayer' folder and open it";
+"look_for_qqplayer_folder" = "Find the 'ShadowMate' folder and open it";
 "copy_music_files" = "Copy your FLAC or MP3 files into this folder";
 
 /* Library Processing */
@@ -331,7 +331,7 @@
 "feature_guide_dark_mode_title" = "Dark mode toggle";
 "feature_guide_dark_mode_detail" = "Settings → Appearance → Force Dark Mode to override the system appearance";
 "feature_guide_import_title" = "Importing music files";
-"feature_guide_import_detail" = "Put music files into the QQPlayer folder in the iOS Files app (iCloud Drive or On My iPhone), or tap Open Files in the library";
+"feature_guide_import_detail" = "Put music files into the ShadowMate folder in the iOS Files app (iCloud Drive or On My iPhone), or tap Open Files in the library";
 
 
 /* Sleep Timer */
@@ -377,17 +377,17 @@
 "Resumes playing your music where you left off." = "Resumes playing your music where you left off.";
 "Audio" = "Audio";
 "Play Music" = "Play Music";
-"Plays a song, album, artist or playlist from your QQPlayer library." = "Plays a song, album, artist or playlist from your QQPlayer library.";
+"Plays a song, album, artist or playlist from your QQPlayer library." = "Plays a song, album, artist or playlist from your ShadowMate library.";
 "Playback" = "Playback";
 "Add to Playlist" = "Add to Playlist";
 "Generate Mix" = "Generate Mix";
-"Builds a mix from your QQPlayer library matching a mood or description and starts playing it." = "Builds a mix from your QQPlayer library matching a mood or description and starts playing it.";
+"Builds a mix from your QQPlayer library matching a mood or description and starts playing it." = "Builds a mix from your ShadowMate library matching a mood or description and starts playing it.";
 "Toggle Favorite" = "Toggle Favorite";
 "Favorite Current Song" = "Favorite Current Song";
-"Adds the currently playing QQPlayer song to Liked Songs." = "Adds the currently playing QQPlayer song to Liked Songs.";
+"Adds the currently playing QQPlayer song to Liked Songs." = "Adds the currently playing ShadowMate song to Liked Songs.";
 "%@ is already in your Liked Songs." = "%@ is already in your Liked Songs.";
 "Added %@ to your Liked Songs." = "Added %@ to your Liked Songs.";
-"There isn't a song playing in QQPlayer right now." = "There isn't a song playing in QQPlayer right now.";
+"There isn't a song playing in QQPlayer right now." = "There isn't a song playing in ShadowMate right now.";
 "Add to Queue" = "Add to Queue";
 "Play Playlist" = "Play Playlist";
 "Save Mix as Playlist" = "Save Mix as Playlist";
@@ -411,7 +411,7 @@
 "Now playing" = "Now playing";
 
 /* Errors */
-"There's no music in your QQPlayer library yet." = "There's no music in your QQPlayer library yet.";
+"There's no music in your QQPlayer library yet." = "There's no music in your ShadowMate library yet.";
 "No matching music was found in your library." = "No matching music was found in your library.";
 "You can only take that action on individual songs." = "You can only take that action on individual songs.";
 "That song is already in this playlist." = "That song is already in this playlist.";

@@ -1,14 +1,14 @@
-# QQPlayer (iOS)
+# ShadowMate (iOS)
 
 > **fork 声明**：本项目基于 [Cosmos Music Player](https://github.com/clquwu/Cosmos-Music-Player)（GPL-3.0，作者 Raphael Boullay Le Fur）二次开发，详见 [NOTICE.md](NOTICE.md)。本仓库整体以 GPL-3.0 发布。
 
 ---
 
-# QQPlayer 🎵
+# ShadowMate 🎵
 
 ---
 
-QQPlayer 是一款高品质音乐播放器，同时支持 iCloud Drive 同步与本地存储，让用户可以灵活地管理自己的音乐。应用专为 iOS 与 Apple 生态打造，完整支持 CarPlay。
+ShadowMate 是一款高品质音乐播放器，同时支持 iCloud Drive 同步与本地存储，让用户可以灵活地管理自己的音乐。应用专为 iOS 与 Apple 生态打造，完整支持 CarPlay。
 
 一款为 iOS 打造的发烧级音乐播放器，支持 FLAC、WAV、M4A、MP3、Opus、OGG、DSD、DSF 等格式，具备 Apple CarPlay、DSD 播放（DoP 与 PCM 转换）、双存储方案（iCloud / 本地）、歌单管理、歌手信息整合、图形均衡器与多语言支持等高级特性。
 

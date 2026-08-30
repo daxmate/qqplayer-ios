@@ -177,7 +177,7 @@ class TutorialViewModel: ObservableObject {
 
         // Try to check if the container is actually writable
         do {
-            let testFolderURL = containerURL.appendingPathComponent("QQPlayer", isDirectory: true)
+            let testFolderURL = containerURL.appendingPathComponent(AppCoordinator.iCloudFolderName, isDirectory: true)
 
             // Try to create the app folder (this is what our app would do anyway)
             if !FileManager.default.fileExists(atPath: testFolderURL.path) {
