@@ -186,6 +186,18 @@
 "enable_equalizer" = "Activer l'Égaliseur";
 "enable_disable_eq_description" = "Activer ou désactiver l'égaliseur graphique";
 
+/* Common EQ Presets */
+"preset_common" = "Préréglages Courants";
+"preset_flat" = "Plat";
+"preset_pop" = "Pop";
+"preset_rock" = "Rock";
+"preset_jazz" = "Jazz";
+"preset_classical" = "Classique";
+"preset_bass" = "Boost des Basses";
+"preset_vocal" = "Vocal";
+"preset_custom" = "Personnalisé";
+"eq_custom_title" = "Égaliseur 10 Bandes Personnalisé";
+
 /* Manual EQ Presets */
 "manual_eq_presets" = "Préréglages Manuels 16 Bandes";
 "no_manual_presets_created" = "Aucun préréglage manuel créé";

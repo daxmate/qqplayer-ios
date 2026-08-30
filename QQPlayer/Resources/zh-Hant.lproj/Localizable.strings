@@ -329,6 +329,18 @@
 
 "enable_disable_eq_description" = "開啟或關閉全局圖形等化器";
 
+/* Common EQ Presets */
+"preset_common" = "常用預設";
+"preset_flat" = "平坦";
+"preset_pop" = "流行";
+"preset_rock" = "搖滾";
+"preset_jazz" = "爵士";
+"preset_classical" = "古典";
+"preset_bass" = "低音增強";
+"preset_vocal" = "人聲";
+"preset_custom" = "自訂";
+"eq_custom_title" = "自訂 10 段 EQ";
+
 /* Manual EQ Presets */
 "manual_eq_presets" = "手動 16 段 EQ 預設";
 

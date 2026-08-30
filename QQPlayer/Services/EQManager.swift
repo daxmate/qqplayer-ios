@@ -42,6 +42,9 @@ class EQManager: ObservableObject {
 
     @Published var availablePresets: [EQPreset] = []
 
+    /// 当前选中的内置预设 key（nil = 未使用内置预设；"custom" = 自定义 10 段）
+    @Published var activeBuiltinKey: String?
+
     // Runtime EQ data used by both AVAudioEngine and SFBAudioEngine backends
     private var eqFrequencies: [Double] = []
     private var eqGains: [Double] = []
@@ -205,6 +208,13 @@ class EQManager: ObservableObject {
 
     private func applyEQSettings() {
         let eqNode = self.eqNode
+
+        // 内置预设（常用预设 / 自定义 10 段）激活时直接应用运行时数据，
+        // 不走 DB preset 加载路径（activeBuiltinKey 默认 nil，现有行为零变化）
+        if activeBuiltinKey != nil {
+            applyBuiltinEQData()
+            return
+        }
 
         if !isEnabled || currentPreset == nil {
             eqNode?.bands.forEach { $0.bypass = true }
@@ -392,12 +402,15 @@ class EQManager: ObservableObject {
                     await MainActor.run {
                         self.isEnabled = settings.isEnabled
                         self.globalGain = settings.globalGain
-                        if let activePresetId = settings.activePresetId {
-                            // Load the active preset
-                            Task {
-                                if let preset = try? await self.databaseManager.getEQPreset(id: activePresetId) {
-                                    await MainActor.run {
-                                        self.currentPreset = preset
+                        // 内置预设优先恢复（UserDefaults 持久化）；恢复成功则跳过 DB preset 恢复
+                        if !self.restoreBuiltinPresetIfNeeded() {
+                            if let activePresetId = settings.activePresetId {
+                                // Load the active preset
+                                Task {
+                                    if let preset = try? await self.databaseManager.getEQPreset(id: activePresetId) {
+                                        await MainActor.run {
+                                            self.currentPreset = preset
+                                        }
                                     }
                                 }
                             }
@@ -522,5 +535,125 @@ class EQManager: ObservableObject {
         }
 
         return (frequencies, gains)
+    }
+}
+
+// MARK: - Builtin Presets (常用预设 + 自定义 10 段)
+
+@MainActor
+extension EQManager {
+    /// UserDefaults key：当前选中的内置预设 key（含 "custom"）
+    static let builtinPresetUserDefaultsKey = "qqplayer.eq.activeBuiltinKey"
+    /// UserDefaults key：自定义 10 段增益（JSON 编码的 [Double]）
+    static let builtinCustomGainsUserDefaultsKey = "qqplayer.eq.customGains"
+
+    /// 应用内置预设（7 个常用预设之一）。
+    /// 设置运行时数据 + activeBuiltinKey，currentPreset 置 nil（与 DB 预设互斥）。
+    func applyBuiltinPreset(_ key: String) {
+        guard let preset = BuiltinEQPresets.preset(for: key) else { return }
+        let gains = preset.gains
+        applyBuiltinData(
+            frequencies: BuiltinEQPresets.bands10,
+            gains: gains,
+            key: key
+        )
+        UserDefaults.standard.set(key, forKey: Self.builtinPresetUserDefaultsKey)
+    }
+
+    /// 应用自定义 10 段增益（滑杆编辑器实时调用），key 记为 "custom"。
+    func applyCustomEQGains(_ gains: [Double]) {
+        let clamped = gains.map { max(-12.0, min(12.0, $0)) }
+        applyBuiltinData(
+            frequencies: BuiltinEQPresets.bands10,
+            gains: clamped,
+            key: BuiltinEQPresets.customKey
+        )
+        UserDefaults.standard.set(BuiltinEQPresets.customKey, forKey: Self.builtinPresetUserDefaultsKey)
+        if let data = try? JSONEncoder().encode(clamped) {
+            UserDefaults.standard.set(data, forKey: Self.builtinCustomGainsUserDefaultsKey)
+        }
+    }
+
+    /// 清除内置预设选中态（应用 DB 预设前由 UI 层调用）。
+    func clearBuiltin() {
+        guard activeBuiltinKey != nil else { return }
+        activeBuiltinKey = nil
+        UserDefaults.standard.removeObject(forKey: Self.builtinPresetUserDefaultsKey)
+        UserDefaults.standard.removeObject(forKey: Self.builtinCustomGainsUserDefaultsKey)
+    }
+
+    // MARK: - Private
+
+    private func applyBuiltinData(frequencies: [Double], gains: [Double], key: String) {
+        eqFrequencies = frequencies
+        eqGains = gains
+        eqBandwidths = Array(repeating: 1.0, count: frequencies.count)
+        activeBuiltinKey = key
+        if currentPreset != nil {
+            currentPreset = nil
+        }
+        applyEQSettings()
+        saveSettings()
+    }
+
+    /// 内置预设激活时的应用路径：直接用运行时数据配置节点 + SFB。
+    /// EQ 关闭时与现有逻辑一致（全部 bypass）。
+    private func applyBuiltinEQData() {
+        let eqNode = self.eqNode
+
+        if !isEnabled {
+            eqNode?.bands.forEach { $0.bypass = true }
+            eqNode?.globalGain = 0.0
+            SFBAudioEngineManager.shared.updateEQSettings()
+            print("🚫 EQ disabled - all bands bypassed")
+            return
+        }
+
+        if eqNode != nil {
+            configureEQBands()
+            print("✅ Applied builtin EQ '\(activeBuiltinKey ?? "?")' with \(eqFrequencies.count) bands")
+        } else {
+            print("ℹ️ Stored \(eqFrequencies.count) builtin EQ bands for SFBAudioEngine")
+        }
+
+        applyGlobalGain()
+    }
+
+    /// 从 UserDefaults 恢复内置预设；成功返回 true（调用方跳过 DB preset 恢复）。
+    /// flat 等预设数据来自静态表；custom 从持久化增益恢复；无 key 或数据非法返回 false。
+    @discardableResult
+    private func restoreBuiltinPresetIfNeeded() -> Bool {
+        guard let key = UserDefaults.standard.string(forKey: Self.builtinPresetUserDefaultsKey) else {
+            return false
+        }
+
+        let storedCustomGains: [Double]?
+        if key == BuiltinEQPresets.customKey {
+            if let data = UserDefaults.standard.data(forKey: Self.builtinCustomGainsUserDefaultsKey),
+               let decoded = try? JSONDecoder().decode([Double].self, from: data) {
+                storedCustomGains = decoded
+            } else {
+                storedCustomGains = nil
+            }
+        } else {
+            storedCustomGains = nil
+        }
+
+        guard let gains = BuiltinEQPresets.gains(for: key, storedCustomGains: storedCustomGains),
+              gains.count == BuiltinEQPresets.bands10.count else {
+            // 非法/失效 key：清掉脏数据，退回 DB preset 恢复
+            UserDefaults.standard.removeObject(forKey: Self.builtinPresetUserDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: Self.builtinCustomGainsUserDefaultsKey)
+            return false
+        }
+
+        eqFrequencies = BuiltinEQPresets.bands10
+        eqGains = gains
+        eqBandwidths = Array(repeating: 1.0, count: BuiltinEQPresets.bands10.count)
+        activeBuiltinKey = key
+        // loadSettings 阶段 currentPreset 尚未恢复，必为 nil，不会触发 didSet 重入
+        currentPreset = nil
+        applyEQSettings()
+        return true
     }
 }

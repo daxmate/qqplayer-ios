@@ -198,6 +198,18 @@
 "enable_equalizer" = "Enable Equalizer";
 "enable_disable_eq_description" = "Enable or disable the graphic equalizer";
 
+/* Common EQ Presets */
+"preset_common" = "Common Presets";
+"preset_flat" = "Flat";
+"preset_pop" = "Pop";
+"preset_rock" = "Rock";
+"preset_jazz" = "Jazz";
+"preset_classical" = "Classical";
+"preset_bass" = "Bass Boost";
+"preset_vocal" = "Vocal";
+"preset_custom" = "Custom";
+"eq_custom_title" = "Custom 10-Band EQ";
+
 /* Manual EQ Presets */
 "manual_eq_presets" = "Manual 16-Band Presets";
 "no_manual_presets_created" = "No manual presets created";

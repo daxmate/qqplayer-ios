@@ -186,6 +186,18 @@
 "enable_equalizer" = "Включить эквалайзер";
 "enable_disable_eq_description" = "Включить или отключить графический эквалайзер";
 
+/* Common EQ Presets */
+"preset_common" = "Популярные пресеты";
+"preset_flat" = "Плоский";
+"preset_pop" = "Поп";
+"preset_rock" = "Рок";
+"preset_jazz" = "Джаз";
+"preset_classical" = "Классика";
+"preset_bass" = "Усиление баса";
+"preset_vocal" = "Вокал";
+"preset_custom" = "Свой";
+"eq_custom_title" = "Свой 10-полосный эквалайзер";
+
 /* Manual EQ Presets */
 "manual_eq_presets" = "Ручные 16-полосные пресеты";
 "no_manual_presets_created" = "Ручные пресеты не созданы";

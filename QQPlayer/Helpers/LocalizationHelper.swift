@@ -244,6 +244,11 @@ struct Localized {
 
     // Manual EQ Presets
     static let manualEQPresets = "manual_eq_presets".localized
+
+    // Common Presets (常用预设)
+    static let presetCommon = "preset_common".localized
+    static let presetCustom = "preset_custom".localized
+    static let eqCustomTitle = "eq_custom_title".localized
     static let noManualPresetsCreated = "no_manual_presets_created".localized
     static let createManualEQDescription = "create_manual_eq_description".localized
     static let createManual16BandEQ = "create_manual_16band_eq".localized

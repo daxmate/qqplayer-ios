@@ -14,6 +14,7 @@ struct EQSettingsView: View {
     @State private var showingImport = false
     @State private var showingCreateManual = false
     @State private var showingEditManual = false
+    @State private var showingCustomEQ = false
     /// 删除/导出失败提示（原实现只 print 无用户反馈）
     @State private var actionError: String?
 
@@ -35,7 +36,16 @@ struct EQSettingsView: View {
                     .foregroundColor(.secondary)
             }
 
-            // Manual Parametric Presets
+            // Common Presets (常用预设)
+            Section(Localized.presetCommon) {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                    ForEach(BuiltinEQPresets.all, id: \.key) { preset in
+                        builtinPresetButton(key: preset.key, title: preset.localizedName)
+                    }
+                    builtinPresetButton(key: BuiltinEQPresets.customKey, title: Localized.presetCustom)
+                }
+                .padding(.vertical, 4)
+            }
             Section(Localized.manualEQPresets) {
                 if eqManager.availablePresets.contains(where: { $0.presetType == .manual }) {
                     ForEach(eqManager.availablePresets.filter { $0.presetType == .manual }) { preset in
@@ -59,6 +69,7 @@ struct EQSettingsView: View {
                         }
                         .contentShape(Rectangle())
                         .onTapGesture {
+                            eqManager.clearBuiltin()
                             eqManager.currentPreset = preset
                             showingEditManual = true
                         }
@@ -68,6 +79,7 @@ struct EQSettingsView: View {
                             }
 
                             Button(Localized.eqEdit) {
+                                eqManager.clearBuiltin()
                                 eqManager.currentPreset = preset
                                 showingEditManual = true
                             }
@@ -121,6 +133,7 @@ struct EQSettingsView: View {
                         }
                         .contentShape(Rectangle())
                         .onTapGesture {
+                            eqManager.clearBuiltin()
                             eqManager.currentPreset = preset
                         }
                         .swipeActions(edge: .trailing) {
@@ -209,6 +222,9 @@ struct EQSettingsView: View {
                 ManualEQEditorView(preset: preset)
             }
         }
+        .sheet(isPresented: $showingCustomEQ) {
+            GraphicEQ10BandEditorView()
+        }
         .alert(Localized.eqError, isPresented: Binding(
             get: { actionError != nil },
             set: { if !$0 { actionError = nil } }
@@ -220,6 +236,26 @@ struct EQSettingsView: View {
     }
 
     // MARK: - Helper Methods
+
+    private func builtinPresetButton(key: String, title: String) -> some View {
+        let isSelected = eqManager.activeBuiltinKey == key
+        return Button {
+            if key == BuiltinEQPresets.customKey {
+                showingCustomEQ = true
+            } else {
+                eqManager.applyBuiltinPreset(key)
+            }
+        } label: {
+            Text(title)
+                .font(.subheadline)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(isSelected ? Color.blue : Color(.systemGray6))
+                .foregroundColor(isSelected ? .white : .primary)
+                .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+    }
 
     private func deletePreset(_ preset: EQPreset) {
         Task {

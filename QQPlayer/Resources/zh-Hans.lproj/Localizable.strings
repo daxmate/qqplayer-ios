@@ -192,6 +192,18 @@
 "enable_equalizer" = "启用均衡器";
 "enable_disable_eq_description" = "开启或关闭全局图示均衡器";
 
+/* Common EQ Presets */
+"preset_common" = "常用预设";
+"preset_flat" = "平坦";
+"preset_pop" = "流行";
+"preset_rock" = "摇滚";
+"preset_jazz" = "爵士";
+"preset_classical" = "古典";
+"preset_bass" = "低音增强";
+"preset_vocal" = "人声";
+"preset_custom" = "自定义";
+"eq_custom_title" = "自定义 10 段 EQ";
+
 /* Manual EQ Presets */
 "manual_eq_presets" = "手动 16 段 EQ 预设";
 "no_manual_presets_created" = "暂无手动创建的预设";
