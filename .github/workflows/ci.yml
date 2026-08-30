@@ -36,7 +36,9 @@ jobs:
           path: |
             ~/Library/Caches/org.swift.swiftpm
             build/DerivedData
-          key: ${{ runner.os }}-spm-${{ hashFiles('QQPlayer.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          # v2: 仓库改名 qqplayer-ios → qqplayer-swift 后 runner 工作目录路径变化，旧缓存内 SPM
+          # artifacts 绝对路径指向旧目录导致 "no XCFramework found"，bump key 强制缓存重建。
+          key: ${{ runner.os }}-spm-v2-${{ hashFiles('QQPlayer.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-spm-
 
