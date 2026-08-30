@@ -263,7 +263,7 @@ struct KaraokeControllerTests {
 
     @Test("enterABLoop：A 点取不到（行无时间戳/越界）返回 false 不进入；正常行返回 true")
     func enterABLoopRejectsInvalidStart() async {
-        let fake = await makeFake(expireJumpQuiet: false)
+        _ = await makeFake(expireJumpQuiet: false)
         let kc = KaraokeController.shared
         kc.setKaraokeOn(true)
         kc.setLyrics([
@@ -371,7 +371,7 @@ struct KaraokeControllerTests {
 
     @Test("单句循环与 AB 互斥：开单句清 AB；进 AB 关单句")
     func singleLineLoopAndABMutuallyExclusive() async {
-        let fake = await makeFake(expireJumpQuiet: false)
+        _ = await makeFake(expireJumpQuiet: false)
         let kc = KaraokeController.shared
         kc.setKaraokeOn(true)
         kc.setLyrics(makeLines(0, 5, 9))
@@ -413,7 +413,7 @@ struct KaraokeControllerTests {
 
     @Test("resetForNewTrack：保留跟唱/速度/单句循环，仅清 AB")
     func resetForNewTrackKeepsState() async {
-        let fake = await makeFake(expireJumpQuiet: false)
+        _ = await makeFake(expireJumpQuiet: false)
         let kc = KaraokeController.shared
         kc.setKaraokeOn(true)
         kc.setLyrics(makeLines(0, 5, 9))

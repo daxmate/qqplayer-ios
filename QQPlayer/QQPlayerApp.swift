@@ -40,51 +40,50 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
             return
         }
-        #if targetEnvironment(simulator)
-            return
+        #if !targetEnvironment(simulator)
+
+            // Donate vocabulary on every OS version: Siri keeps routing by-name
+            // media requests through the legacy SiriKit extension even on iOS 27
+            // with assistant schemas registered, so the old recognizer still
+            // needs playlist/artist names.
+            DispatchQueue.global(qos: .userInitiated).async {
+                // Set up vocabulary for playlists, artists, and albums
+                Task { @MainActor in
+                    do {
+                        // Playlist vocabulary
+                        let playlists = try AppCoordinator.shared.databaseManager.getAllPlaylists()
+                        var playlistVocabulary = playlists.map { $0.title }
+
+                        // Add French playlist generic terms to help recognition
+                        playlistVocabulary.append(contentsOf: [
+                            "ma playlist", "ma liste de lecture", "mes playlists",
+                            "liste de lecture", "playlist", "playlists",
+                            "Liked Songs", "Favorites", "Favourites", "Favoris",
+                        ])
+
+                        let playlistNames = NSOrderedSet(array: playlistVocabulary)
+                        INVocabulary.shared().setVocabularyStrings(playlistNames, of: .mediaPlaylistTitle)
+                        print("✅ Set up vocabulary for \(playlistNames.count) playlist terms")
+
+                    } catch {
+                        print("❌ Failed to set up vocabulary: \\(error)")
+                    }
+                }
+
+                // Create media user context
+                let context = INMediaUserContext()
+                Task { @MainActor in
+                    do {
+                        let trackCount = try AppCoordinator.shared.databaseManager.getAllTracks().count
+                        context.numberOfLibraryItems = trackCount
+                        context.subscriptionStatus = .notSubscribed // Since this is a local music app
+                        context.becomeCurrent()
+                    } catch {
+                        print("❌ Failed to set up media context: \\(error)")
+                    }
+                }
+            }
         #endif
-
-        // Donate vocabulary on every OS version: Siri keeps routing by-name
-        // media requests through the legacy SiriKit extension even on iOS 27
-        // with assistant schemas registered, so the old recognizer still
-        // needs playlist/artist names.
-        DispatchQueue.global(qos: .userInitiated).async {
-            // Set up vocabulary for playlists, artists, and albums
-            Task { @MainActor in
-                do {
-                    // Playlist vocabulary
-                    let playlists = try AppCoordinator.shared.databaseManager.getAllPlaylists()
-                    var playlistVocabulary = playlists.map { $0.title }
-
-                    // Add French playlist generic terms to help recognition
-                    playlistVocabulary.append(contentsOf: [
-                        "ma playlist", "ma liste de lecture", "mes playlists",
-                        "liste de lecture", "playlist", "playlists",
-                        "Liked Songs", "Favorites", "Favourites", "Favoris",
-                    ])
-
-                    let playlistNames = NSOrderedSet(array: playlistVocabulary)
-                    INVocabulary.shared().setVocabularyStrings(playlistNames, of: .mediaPlaylistTitle)
-                    print("✅ Set up vocabulary for \(playlistNames.count) playlist terms")
-
-                } catch {
-                    print("❌ Failed to set up vocabulary: \\(error)")
-                }
-            }
-
-            // Create media user context
-            let context = INMediaUserContext()
-            Task { @MainActor in
-                do {
-                    let trackCount = try AppCoordinator.shared.databaseManager.getAllTracks().count
-                    context.numberOfLibraryItems = trackCount
-                    context.subscriptionStatus = .notSubscribed // Since this is a local music app
-                    context.becomeCurrent()
-                } catch {
-                    print("❌ Failed to set up media context: \\(error)")
-                }
-            }
-        }
     }
 }
 

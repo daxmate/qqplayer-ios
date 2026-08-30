@@ -126,20 +126,17 @@ struct BulkPlaylistSelectionView: View {
     }
 
     private func addToPlaylist(_ playlist: Playlist) {
-        do {
-            guard let playlistId = playlist.id else {
-                print("Error: Playlist has no ID")
-                return
-            }
-
-            for trackId in trackIds {
-                try? appCoordinator.addToPlaylist(playlistId: playlistId, trackStableId: trackId)
-            }
-
-            onComplete()
-            dismiss()
-        } catch {
-            print("Failed to add to playlist: \(error)")
+        guard let playlistId = playlist.id else {
+            print("Error: Playlist has no ID")
+            return
         }
+
+        // 循环内已是 try?，无抛错操作 → 去掉 do/catch（2026-08-30 警告清理）
+        for trackId in trackIds {
+            try? appCoordinator.addToPlaylist(playlistId: playlistId, trackStableId: trackId)
+        }
+
+        onComplete()
+        dismiss()
     }
 }

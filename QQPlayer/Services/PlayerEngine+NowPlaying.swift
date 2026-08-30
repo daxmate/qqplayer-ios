@@ -434,13 +434,18 @@ extension PlayerEngine {
                             continuation.resume(returning: nil)
                         }
                     } else if fileExtension == "flac" {
-                        if let art = self.loadArtworkFromAVAsset(url: url) ?? self.loadArtworkFromFLACMetadata(url: url) {
+                        Task {
+                            // 2026-08-30 警告清理：loadArtworkFromAVAsset 已 async 化，
+                            // continuation 不能在 Task 外同步 resume
+                            let avArt = await self.loadArtworkFromAVAsset(url: url)
+                            let art = avArt ?? self.loadArtworkFromFLACMetadata(url: url)
                             continuation.resume(returning: art)
-                        } else {
-                            continuation.resume(returning: nil)
                         }
                     } else {
-                        continuation.resume(returning: self.loadArtworkFromAVAsset(url: url))
+                        Task {
+                            let art = await self.loadArtworkFromAVAsset(url: url)
+                            continuation.resume(returning: art)
+                        }
                     }
                 }
             }
@@ -467,16 +472,15 @@ extension PlayerEngine {
         }
     }
 
-    private nonisolated func loadArtworkFromAVAsset(url: URL) -> MPMediaItemArtwork? {
+    private nonisolated func loadArtworkFromAVAsset(url: URL) async -> MPMediaItemArtwork? {
+        // 2026-08-30 警告清理：commonMetadata/dataValue 已弃用（iOS 16），迁移到异步 load API
         do {
-            let asset = AVAsset(url: url)
-
-            // Use synchronous metadata loading for compatibility
-            let commonMetadata = asset.commonMetadata
+            let asset = AVURLAsset(url: url)
+            let commonMetadata = try await asset.load(.commonMetadata)
 
             for metadataItem in commonMetadata {
                 if metadataItem.commonKey == .commonKeyArtwork,
-                   let data = metadataItem.dataValue,
+                   let data = try await metadataItem.load(.dataValue),
                    let originalImage = UIImage(data: data) {
                     print("🎨 Found artwork in AVAsset metadata (size: \(Int(originalImage.size.width))x\(Int(originalImage.size.height)))")
 
@@ -496,7 +500,9 @@ extension PlayerEngine {
 
             print("⚠️ No artwork found in AVAsset metadata")
             return nil
-
+        } catch {
+            print("⚠️ Failed to load artwork from AVAsset: \(error.localizedDescription)")
+            return nil
         }
     }
 
@@ -644,7 +650,10 @@ extension PlayerEngine {
     /// Uses MediaPlayer's image-backed initializer so MediaRemote never calls
     /// back into an app-owned Swift closure from its private artwork queue.
     private nonisolated func makeMediaItemArtwork(from image: UIImage) -> MPMediaItemArtwork {
-        return MPMediaItemArtwork(image: image)
+        // 2026-08-30 警告清理：MPMediaItemArtwork(image:) 已弃用（iOS 10）。改用
+        // boundsSize:requestHandler:。handler 仅返回捕获的 image（纯函数，不触碰
+        // actor 隔离状态），MediaRemote 在私有队列调用它也是安全的。
+        return MPMediaItemArtwork(boundsSize: image.size) { _ in image }
     }
 
     private nonisolated func loadArtworkFromSFBAudioEngine(url: URL) -> MPMediaItemArtwork? {

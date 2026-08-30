@@ -246,7 +246,7 @@ class PlayerEngine: NSObject, ObservableObject {
 
         let halfWindow = maxPersistedQueueSize / 2
         var start = max(0, currentIndex - halfWindow)
-        var end = min(trackIds.count, start + maxPersistedQueueSize)
+        let end = min(trackIds.count, start + maxPersistedQueueSize)
         start = max(0, end - maxPersistedQueueSize)
 
         let cappedTrackIds = Array(trackIds[start ..< end])

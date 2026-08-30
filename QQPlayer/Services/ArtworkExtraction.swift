@@ -143,26 +143,27 @@ extension ArtworkManager {
     // MARK: - M4A/AAC Artwork Extraction
 
     private nonisolated func extractM4AArtwork(from url: URL) async -> UIImage? {
-        return await withCheckedContinuation { continuation in
-            Task {
-                do {
-                    let asset = AVAsset(url: url)
-                    let commonMetadata = asset.commonMetadata
+        // 2026-08-30 警告清理：AVAsset.commonMetadata/dataValue 已弃用（iOS 16），
+        // 迁移到 load(.commonMetadata)/load(.dataValue)；顺带去掉 withCheckedContinuation
+        // 样板（原实现在 do 抛错时不 resume，continuation 永久挂起）。
+        do {
+            let asset = AVURLAsset(url: url)
+            let commonMetadata = try await asset.load(.commonMetadata)
 
-                    for item in commonMetadata {
-                        if item.commonKey == .commonKeyArtwork,
-                           let data = item.dataValue,
-                           let image = UIImage(data: data) {
-                            print("🎨 Extracted M4A artwork: \(url.lastPathComponent)")
-                            continuation.resume(returning: image)
-                            return
-                        }
-                    }
-
-                    print("⚠️ No artwork found in M4A file: \(url.lastPathComponent)")
-                    continuation.resume(returning: nil)
+            for item in commonMetadata {
+                if item.commonKey == .commonKeyArtwork,
+                   let data = try await item.load(.dataValue),
+                   let image = UIImage(data: data) {
+                    print("🎨 Extracted M4A artwork: \(url.lastPathComponent)")
+                    return image
                 }
             }
+
+            print("⚠️ No artwork found in M4A file: \(url.lastPathComponent)")
+            return nil
+        } catch {
+            print("⚠️ Failed to load M4A artwork: \(error.localizedDescription)")
+            return nil
         }
     }
 

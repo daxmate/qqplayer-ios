@@ -313,9 +313,9 @@ extension AudioMetadataParser {
         var title: String?
         var artist: String?
         var album: String?
-        var albumArtist: String?
-        var trackNumber: Int?
-        var discNumber: Int?
+        let albumArtist: String? = nil
+        let trackNumber: Int? = nil
+        let discNumber: Int? = nil
         var year: Int?
         var hasEmbeddedArt = false
 

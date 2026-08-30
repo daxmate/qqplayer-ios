@@ -31,7 +31,7 @@ class EnvironmentLoader: @unchecked Sendable {
     }
 
     private func loadFromFile(path: String) {
-        guard let content = try? String(contentsOfFile: path) else {
+        guard let content = try? String(contentsOfFile: path, encoding: .utf8) else {
             print("📄 EnvironmentLoader: Could not read .env file at \(path)")
             return
         }

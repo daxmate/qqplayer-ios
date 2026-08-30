@@ -88,7 +88,7 @@ struct PlaylistTrackRowView: View {
 
             // MARK: - Menu / Action Area
             // Show delete button in edit mode, otherwise menu
-            if isEditMode, let playlist = playlist {
+            if isEditMode, playlist != nil {
                 Button(action: {
                     removeFromPlaylist()
                 }) {

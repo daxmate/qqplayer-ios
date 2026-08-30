@@ -182,7 +182,7 @@ struct SearchView: View {
                             results: searchResults,
                             selectedCategory: selectedCategory,
                             allTracks: allTracks,
-                            onDismiss: { await dismiss() },
+                            onDismiss: { dismiss() },
                             onNavigateToArtist: onNavigateToArtist,
                             onNavigateToAlbum: onNavigateToAlbum,
                             onNavigateToPlaylist: onNavigateToPlaylist
@@ -201,7 +201,7 @@ struct SearchView: View {
                     }
                 }
             }
-            .onChange(of: searchText) { newValue in
+            .onChange(of: searchText) { _, newValue in
                 // Cancel any existing debounce task
                 debounceTask?.cancel()
 

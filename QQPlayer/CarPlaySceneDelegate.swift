@@ -45,6 +45,9 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         setupPlayerStateObserver()
     }
 
+    // CPTemplateApplicationSceneDelegate 的正式实现（didDisconnect）。编译器
+    // "nearly matches didSelect" 是启发式误报——签名与协议一致，系统按
+    // didDisconnect 语义调用（CarPlay 断开时清理状态）。勿改签名。（2026-08-30 警告清理）
     func templateApplicationScene(_ templateApplicationScene: CPTemplateApplicationScene,
                                   didDisconnect interfaceController: CPInterfaceController) {
         self.interfaceController = nil

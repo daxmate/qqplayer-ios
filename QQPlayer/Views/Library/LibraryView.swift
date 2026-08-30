@@ -347,7 +347,7 @@ struct LibraryView: View {
 
                                 HStack(spacing: 20) {
                                     // Sync button (if available)
-                                    if let onManualSync = onManualSync {
+                                    if onManualSync != nil {
                                         Button(action: {
                                             guard !isRefreshing else { return }
 

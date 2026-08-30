@@ -179,13 +179,13 @@ struct DeleteSettings: Codable {
     func save() {
         if let data = try? JSONEncoder().encode(self) {
             UserDefaults.standard.set(data, forKey: "DeleteSettings")
-            let notify = {
-                NotificationCenter.default.post(name: .qqplayerSettingsDidChange, object: nil)
-            }
+            // 内联通知，避免 non-Sendable 闭包跨线程转换警告（2026-08-30 警告清理）
             if Thread.isMainThread {
-                notify()
+                NotificationCenter.default.post(name: .qqplayerSettingsDidChange, object: nil)
             } else {
-                DispatchQueue.main.async(execute: notify)
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .qqplayerSettingsDidChange, object: nil)
+                }
             }
         }
     }

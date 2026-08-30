@@ -680,7 +680,7 @@ class DatabaseManager: @unchecked Sendable {
     }
 
     func deleteEQPreset(_ preset: EQPreset) async throws {
-        try await dbWriter.write { db in
+        _ = try await dbWriter.write { db in
             try preset.delete(db)
         }
     }

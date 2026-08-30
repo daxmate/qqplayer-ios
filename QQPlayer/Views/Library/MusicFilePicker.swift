@@ -43,8 +43,19 @@ struct MusicFilePicker: UIViewControllerRepresentable {
         }
 
         deinit {
-            // Ensure delegate is cleared on deallocation
-            picker?.delegate = nil
+            // Ensure delegate is cleared on deallocation. UIDocumentPickerViewController.delegate
+            // is main-actor isolated; deinit may run on any thread (2026-08-30 警告清理)。
+            if Thread.isMainThread {
+                MainActor.assumeIsolated {
+                    picker?.delegate = nil
+                }
+            } else {
+                DispatchQueue.main.async { [weak picker] in
+                    MainActor.assumeIsolated {
+                        picker?.delegate = nil
+                    }
+                }
+            }
         }
 
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {

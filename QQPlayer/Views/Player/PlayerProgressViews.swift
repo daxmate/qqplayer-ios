@@ -33,7 +33,7 @@ struct EqualizerBarsExact: View {
         .frame(width: isLarge ? 12 : 10, height: isLarge ? 20 : 12)
         .id(restartKey)                 // force view identity reset on key change
         .task(id: restartKey) { restart() } // runs on mount and when key changes
-        .onChange(of: scenePhase) { p in
+        .onChange(of: scenePhase) { _, p in
             if p == .active { restart() }   // recover after app foregrounding
         }
     }

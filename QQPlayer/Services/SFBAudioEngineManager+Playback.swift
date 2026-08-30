@@ -312,37 +312,32 @@ extension SFBAudioEngineManager {
             print("🔍 Seeking to frame: \(safeFramePosition) of \(useTotalFrames) (time: \(time)s, sampleRate: \(useSampleRate))")
 
             // Try to seek to the calculated frame position
-            if let audioPlayer = player as? AudioPlayer {
-                // Try frame-based seeking first (most precise)
-                let seekResult = audioPlayer.seek(frame: AVAudioFramePosition(safeFramePosition))
-                if seekResult {
-                    currentTime = time
-                    print("✅ SFBAudioEngine seeked to frame: \(safeFramePosition)")
-                    return
-                }
-                // Frame seeking failed, try time-based seeking
-                let timeSeekResult = audioPlayer.seek(time: time)
-                if timeSeekResult {
-                    currentTime = time
-                    print("✅ SFBAudioEngine seeked to time: \(time)s (frame seek failed)")
-                    return
-                }
-                throw seekFailed("Both frame and time seeking failed")
+            // 2026-08-30 警告清理：player 已是非可选 AudioPlayer，去掉恒真 cast
+            // Try frame-based seeking first (most precise)
+            let seekResult = player.seek(frame: AVAudioFramePosition(safeFramePosition))
+            if seekResult {
+                currentTime = time
+                print("✅ SFBAudioEngine seeked to frame: \(safeFramePosition)")
+                return
             }
-            throw seekFailed("AudioPlayer unavailable for seeking")
+            // Frame seeking failed, try time-based seeking
+            let timeSeekResult = player.seek(time: time)
+            if timeSeekResult {
+                currentTime = time
+                print("✅ SFBAudioEngine seeked to time: \(time)s (frame seek failed)")
+                return
+            }
+            throw seekFailed("Both frame and time seeking failed")
         }
 
         // Fallback when we don't have proper duration/sampleRate: still attempt a
         // real time-based seek instead of faking success.
-        if let audioPlayer = player as? AudioPlayer {
-            let timeSeekResult = audioPlayer.seek(time: time)
-            guard timeSeekResult else {
-                throw seekFailed("No format info and time-based seeking failed")
-            }
-            currentTime = time
-            print("⚠️ No sample rate or duration, using time-only seeking (succeeded)")
-            return
+        let timeSeekResult = player.seek(time: time)
+        guard timeSeekResult else {
+            throw seekFailed("No format info and time-based seeking failed")
         }
+        currentTime = time
+        print("⚠️ No sample rate or duration, using time-only seeking (succeeded)")
         throw seekFailed("AudioPlayer unavailable for seeking")
     }
 

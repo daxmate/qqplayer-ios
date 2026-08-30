@@ -31,16 +31,16 @@ enum InterruptionDiagnostics {
                    size > maxBytes {
                     // 环形截断：保留尾部，避免文件无限增长
                     if let handle = try? FileHandle(forReadingFrom: url) {
-                        defer { try? handle.close() }
+                        defer { _ = try? handle.close() }
                         try? handle.seek(toOffset: UInt64(max(0, size - keepTailBytes)))
                         let tail = handle.readDataToEndOfFile()
-                        try? tail.write(to: url, options: .atomic)
+                        _ = try? tail.write(to: url, options: .atomic)
                     }
                 }
                 if let handle = try? FileHandle(forWritingTo: url) {
-                    defer { try? handle.close() }
-                    try? handle.seekToEnd()
-                    try? handle.write(contentsOf: Data(line.utf8))
+                    defer { _ = try? handle.close() }
+                    _ = try? handle.seekToEnd()
+                    _ = try? handle.write(contentsOf: Data(line.utf8))
                     return
                 }
             }
