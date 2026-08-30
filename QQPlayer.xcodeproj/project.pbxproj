@@ -44,6 +44,7 @@
 		CD0AFF2F6F2944CFB8174D62 /* HintSystemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13B0714450B5432D9103647E /* HintSystemTests.swift */; };
 		B1C108FAF1AB4B1DBB94FE9B /* WhatsNewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0399BDBD88CA4F6C9D2D731E /* WhatsNewTests.swift */; };
 		48E5E03B86B64263A8027793 /* BuiltinEQPresetsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83039885CC054BB9B356E6EF /* BuiltinEQPresetsTests.swift */; };
+		DD25E8BCF490415CAF2818C0 /* InterruptionResumePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D39DE9FAECA4B4799C0FA6D /* InterruptionResumePolicyTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -138,6 +139,7 @@
 		13B0714450B5432D9103647E /* HintSystemTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HintSystemTests.swift; sourceTree = "<group>"; };
 		0399BDBD88CA4F6C9D2D731E /* WhatsNewTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WhatsNewTests.swift; sourceTree = "<group>"; };
 		83039885CC054BB9B356E6EF /* BuiltinEQPresetsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BuiltinEQPresetsTests.swift; sourceTree = "<group>"; };
+		7D39DE9FAECA4B4799C0FA6D /* InterruptionResumePolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InterruptionResumePolicyTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -341,6 +343,7 @@
 				13B0714450B5432D9103647E /* HintSystemTests.swift */,
 				0399BDBD88CA4F6C9D2D731E /* WhatsNewTests.swift */,
 				83039885CC054BB9B356E6EF /* BuiltinEQPresetsTests.swift */,
+				7D39DE9FAECA4B4799C0FA6D /* InterruptionResumePolicyTests.swift */,
 			);
 			path = QQPlayerTests;
 			sourceTree = "<group>";
@@ -653,6 +656,7 @@
 				CD0AFF2F6F2944CFB8174D62 /* HintSystemTests.swift in Sources */,
 				B1C108FAF1AB4B1DBB94FE9B /* WhatsNewTests.swift in Sources */,
 				48E5E03B86B64263A8027793 /* BuiltinEQPresetsTests.swift in Sources */,
+				DD25E8BCF490415CAF2818C0 /* InterruptionResumePolicyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

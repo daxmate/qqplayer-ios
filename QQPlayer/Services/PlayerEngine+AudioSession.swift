@@ -212,17 +212,28 @@ extension PlayerEngine {
             // playback started. This must be read before the engine is stopped,
             // while the player node still has a valid render time.
             let wasPlaying = isPlaying
-            let savedPosition = wasPlaying ? nowPlayingElapsedTime() : playbackTime
+            let livePosition = wasPlaying ? nowPlayingElapsedTime() : playbackTime
             // 中断诊断（2026-08-29 中断后从头播排查）：记录保存位置时的引擎状态，
             // 判断 savedPosition 是否走了 fallback（引擎已停导致 currentNodeSampleTime 为 nil）
             let sampleTimeValid = (currentNodeSampleTime() != nil)
+            // 中断诊断（2026-08-30）：引擎已停读不到实时位置时，用引擎存活时缓存的
+            // lastKnownPlaybackPosition 兜底，避免把冻结的 playbackTime（可能 0）存为恢复起点
+            let lastKnownAge = Date().timeIntervalSince(lastKnownPlaybackPositionUpdatedAt)
+            let savedPosition = InterruptionResumePolicy.savedPosition(
+                wasPlaying: wasPlaying,
+                livePosition: livePosition,
+                sampleTimeValid: sampleTimeValid,
+                lastKnown: lastKnownPlaybackPosition,
+                lastKnownAge: lastKnownAge
+            ) ?? livePosition
             let appState = UIApplication.shared.applicationState
             let frozenAge = Date().timeIntervalSince(playbackTimeUpdatedAt)
             let diagLine = "🔍 [intr] .began wasPlaying=\(wasPlaying) savedPosition=\(savedPosition)s "
                 + "engineRunning=\(audioEngine.isRunning) usingSFB=\(usingSFBEngine) "
                 + "sampleTimeValid=\(sampleTimeValid) audioFile=\(audioFile != nil) "
                 + "appState=\(appState.rawValue) playbackTime=\(playbackTime)s "
-                + "playbackTimeAge=\(String(format: "%.1f", frozenAge))s"
+                + "playbackTimeAge=\(String(format: "%.1f", frozenAge))s "
+                + "lastKnown=\(lastKnownPlaybackPosition)s lastKnownAge=\(String(format: "%.1f", lastKnownAge))s"
             print(diagLine)
             InterruptionDiagnostics.log(diagLine)
             wasPlayingBeforeInterruption = wasPlaying
@@ -332,6 +343,21 @@ extension PlayerEngine {
                 let resumeSnapshot = "🔍 [intr] .ended resume: playbackTime=\(playbackTime)s seekOffset=\(seekTimeOffset)s audioFile=\(audioFile != nil) usingSFB=\(usingSFBEngine) isPlaying=\(isPlaying) state=\(playbackState)"
                 print(resumeSnapshot)
                 InterruptionDiagnostics.log(resumeSnapshot)
+                // 中断诊断（2026-08-30）双保险：.began 修正未生效的边角场景下，
+                // playbackTime 仍是冻结值（playbackTimeUpdatedAt 久未刷新）时，
+                // 用新鲜且明显更大的 lastKnown 覆盖，避免命中 PLAY FROM BEGINNING 分支。
+                // 幂等：条件不满足（playbackTime 新鲜 / lastKnown 陈旧 / 差值不足）时不影响现状。
+                let playbackFrozenAge = Date().timeIntervalSince(playbackTimeUpdatedAt)
+                let resumeLastKnownAge = Date().timeIntervalSince(lastKnownPlaybackPositionUpdatedAt)
+                if let correctedPosition = InterruptionResumePolicy.correctedResumePosition(
+                    playbackTime: playbackTime,
+                    playbackTimeAge: playbackFrozenAge,
+                    lastKnown: lastKnownPlaybackPosition,
+                    lastKnownAge: resumeLastKnownAge
+                ) {
+                    print("🩹 Resume position corrected: \(playbackTime)s → \(correctedPosition)s (frozen playbackTime)")
+                    playbackTime = correctedPosition
+                }
                 play()
             } else {
                 print("⏸️ Not auto-resuming - user must manually resume")

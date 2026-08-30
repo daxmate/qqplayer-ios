@@ -34,6 +34,17 @@ class PlayerEngine: NSObject, ObservableObject {
     /// 后台/锁屏时 timer 不跑，此时间戳与 Date() 的间隔 = playbackTime 的"冻结时长"，
     /// 用于判断中断 .began 保存的位置是否是过期的冻结值（从头播根因排查）。
     var playbackTimeUpdatedAt = Date()
+    /// 中断诊断（2026-08-30 中断后从头播）：引擎存活时最后读取到的实时播放位置缓存。
+    /// 背景：后台/锁屏时 0.25s UI timer 不跑 → playbackTime 冻结；系统音频抢占时
+    /// interruption .began 通知延迟到达 → 引擎已停，currentNodeSampleTime() 失效，
+    /// 保存/恢复只能读到冻结值 → 可能从头播。此缓存由 currentTimeForCurrentNativeFile()
+    /// 成功路径（前台 timer / 后台 0.5s checkIfTrackEnded / pause / seek 等）持续刷新，
+    /// 中断保存/恢复时用它兜底。⚠️ fallback 路径（sampleTime 为 nil）绝不更新此缓存，
+    /// 否则会把冻结值污染进缓存。
+    /// 注：setter 为 internal（同 playbackTimeUpdatedAt 模式）——private(set) 的 setter
+    /// 仅限声明文件内可写，而刷新发生在跨文件的 extension 中，会编译失败。
+    var lastKnownPlaybackPosition: TimeInterval = 0
+    var lastKnownPlaybackPositionUpdatedAt = Date()
     @Published var duration: TimeInterval = 0
     @Published var playbackState: PlaybackState = .stopped
     @Published var playbackQueue: [Track] = []

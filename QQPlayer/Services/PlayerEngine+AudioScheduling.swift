@@ -242,7 +242,15 @@ extension PlayerEngine {
 
         let relativeSampleTime = max(0, currentSampleTime - nodeTimelineStartSampleTime)
         let time = seekTimeOffset + Double(relativeSampleTime) / audioFile.processingFormat.sampleRate
-        return min(max(time, 0), duration)
+        let clamped = min(max(time, 0), duration)
+        // 中断诊断（2026-08-30）：引擎存活、sampleTime 有效时刷新实时位置缓存，
+        // 供中断 .began 保存位置 / .ended 恢复起点兜底。⚠️ 仅成功路径更新——
+        // fallback（sampleTime 为 nil）分支绝不更新，避免把冻结值污染进缓存。
+        // 此函数被前台 timer / 后台 0.5s checkIfTrackEnded / pause / seek 等多处调用，
+        // 都会自然刷新。
+        lastKnownPlaybackPosition = clamped
+        lastKnownPlaybackPositionUpdatedAt = Date()
+        return clamped
     }
 
     private func handleScheduledSegmentFinished(generation: UInt64, trackStableId: String?, trackIndex: Int?) async {
