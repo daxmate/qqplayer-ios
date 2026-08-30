@@ -2,8 +2,9 @@
 //  MacPlayerView.swift
 //  QQPlayer
 //
-//  macOS player detail page: artwork, track info, playback controls, and a
-//  draggable progress bar. QQPlayerMac target only.
+//  macOS player detail page: artwork, track info, playback controls, a
+//  draggable progress bar, and a lyrics panel with karaoke controls.
+//  QQPlayerMac target only.
 //
 
 import SwiftUI
@@ -23,36 +24,75 @@ struct MacPlayerView: View {
     @State private var artworkTrackId: String?
     @State private var dragTime: TimeInterval?
     @State private var isDragging = false
+    @State private var lyrics: Lyrics?
+    @State private var lyricsLoading = false
+    @State private var showLyrics = true
+    @ObservedObject private var karaoke = KaraokeController.shared
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 0) {
+            playerSection
+            if showLyrics {
+                Divider()
+                MacLyricsView(
+                    lyrics: lyrics,
+                    currentTime: playbackTime,
+                    isLoading: lyricsLoading,
+                    onClose: { showLyrics = false }
+                )
+                .frame(height: 330)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task(id: track?.stableId) {
+            guard let track else {
+                artwork = nil
+                artworkTrackId = nil
+                lyrics = nil
+                return
+            }
+            let art = await ArtworkManager.shared.getArtwork(for: track)
+            artwork = art
+            artworkTrackId = track.stableId
+
+            // 歌词：优先缓存/本地，在线搜索失败不阻塞 UI（跟 iOS 语义一致）
+            lyricsLoading = true
+            lyrics = await LyricsManager.shared.getLyrics(for: track)
+            lyricsLoading = false
+        }
+    }
+
+    // MARK: - Player section
+
+    private var playerSection: some View {
+        VStack(spacing: 16) {
             Spacer()
 
             // Artwork
             ZStack {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.gray.opacity(0.15))
-                    .frame(width: 300, height: 300)
+                    .frame(width: 240, height: 240)
                     .shadow(radius: 8, y: 4)
 
                 if let artwork {
                     Image(nsImage: artwork)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 300, height: 300)
+                        .frame(width: 240, height: 240)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                 } else {
                     Image(systemName: "music.note")
-                        .font(.system(size: 72))
+                        .font(.system(size: 60))
                         .foregroundColor(.secondary)
                 }
             }
-            .frame(width: 300, height: 300)
+            .frame(width: 240, height: 240)
 
             // Track info
-            VStack(spacing: 6) {
+            VStack(spacing: 4) {
                 Text(track?.title ?? "未在播放")
-                    .font(.title2)
+                    .font(.title3)
                     .fontWeight(.semibold)
                     .lineLimit(1)
                 Text(artistName ?? "")
@@ -62,7 +102,7 @@ struct MacPlayerView: View {
             }
 
             // Progress bar
-            VStack(spacing: 6) {
+            VStack(spacing: 4) {
                 Slider(
                     value: Binding(
                         get: { isDragging ? (dragTime ?? playbackTime) : playbackTime },
@@ -88,13 +128,13 @@ struct MacPlayerView: View {
                 .foregroundColor(.secondary)
                 .monospacedDigit()
             }
-            .frame(maxWidth: 460)
+            .frame(maxWidth: 420)
 
             // Controls
-            HStack(spacing: 28) {
+            HStack(spacing: 24) {
                 Button(action: onPrevious) {
                     Image(systemName: "backward.fill")
-                        .font(.system(size: 24))
+                        .font(.system(size: 22))
                 }
                 .buttonStyle(.plain)
                 .disabled(track == nil)
@@ -102,7 +142,7 @@ struct MacPlayerView: View {
 
                 Button(action: onPlayPause) {
                     Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                        .font(.system(size: 52))
+                        .font(.system(size: 44))
                 }
                 .buttonStyle(.plain)
                 .disabled(track == nil)
@@ -110,27 +150,44 @@ struct MacPlayerView: View {
 
                 Button(action: onNext) {
                     Image(systemName: "forward.fill")
-                        .font(.system(size: 24))
+                        .font(.system(size: 22))
                 }
                 .buttonStyle(.plain)
                 .disabled(track == nil)
                 .keyboardShortcut(.rightArrow, modifiers: [.command])
+
+                Divider().frame(height: 24)
+
+                // 跟唱模式开关（双击歌词行的 iOS 语义在 Mac 上没有，给显式按钮）
+                Button {
+                    karaoke.toggleKaraokeMode()
+                } label: {
+                    Image(systemName: karaoke.isKaraokeOn ? "mic.fill" : "mic")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(karaoke.isKaraokeOn ? .accentColor : .secondary)
+                .disabled(track == nil)
+                .help("跟唱模式（倍速 / 单句循环 / AB 循环）")
+
+                // 歌词面板开关
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showLyrics.toggle()
+                    }
+                } label: {
+                    Image(systemName: showLyrics ? "quote.bubble.fill" : "quote.bubble")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(showLyrics ? .accentColor : .secondary)
+                .help("显示 / 隐藏歌词")
             }
 
             Spacer()
-            Spacer()
         }
-        .padding(32)
+        .padding(.top, 24)
+        .padding(.horizontal, 32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task(id: track?.stableId) {
-            guard let track else {
-                artwork = nil
-                artworkTrackId = nil
-                return
-            }
-            let art = await ArtworkManager.shared.getArtwork(for: track)
-            artwork = art
-            artworkTrackId = track.stableId
-        }
     }
 }

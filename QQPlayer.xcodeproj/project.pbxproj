@@ -216,6 +216,7 @@
 				Services/HintSystem.swift,
 				Services/HybridMusicAPI.swift,
 				Services/InterruptionDiagnostics.swift,
+				Services/KaraokeController.swift,
 				Services/LyricsManager.swift,
 				Services/LyricsModels.swift,
 				Services/LyricsParsing.swift,
@@ -257,7 +258,10 @@
 				Mac/MacLibraryView.swift,
 				Mac/MacTrackListView.swift,
 				Mac/MacAlbumArtistViews.swift,
+				Mac/MacLyricsView.swift,
 				Mac/MacPlayerView.swift,
+				Views/Player/KaraokeControlBar.swift,
+				Views/Player/PlayerGestureLogic.swift,
 			);
 			target = B1A000000000000000000007 /* QQPlayerMac */;
 		};

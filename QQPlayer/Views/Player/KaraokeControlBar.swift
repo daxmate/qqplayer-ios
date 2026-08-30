@@ -157,7 +157,9 @@ struct KaraokeControlBar: View {
                 karaoke.exitABLoop()
             } else {
                 guard let index = currentLineIndex else { return }
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                #if os(iOS)
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                #endif
                 karaoke.enterABLoop(currentLine: index)
             }
         } label: {

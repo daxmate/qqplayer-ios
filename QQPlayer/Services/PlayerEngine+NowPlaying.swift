@@ -1051,6 +1051,23 @@
         }
 
         private func updateMacPlaybackTime() async {
+            // SFBAudioEngine timing: progress + end-of-track detection.
+            if usingSFBEngine {
+                playbackTime = sfbAudioManager.currentTime
+                playbackTimeUpdatedAt = Date()
+
+                if duration > 0, playbackTime >= duration {
+                    await handleTrackEnd()
+                    return
+                }
+                if abs(playbackTime - lastControlCenterUpdate) >= 0.5 {
+                    lastControlCenterUpdate = playbackTime
+                    updateNowPlayingElapsedTime()
+                }
+                KaraokeController.shared.handlePlaybackTick(time: playbackTime, duration: duration)
+                return
+            }
+
             guard audioFile != nil,
                   audioEngine.attachedNodes.contains(playerNode),
                   audioEngine.isRunning,

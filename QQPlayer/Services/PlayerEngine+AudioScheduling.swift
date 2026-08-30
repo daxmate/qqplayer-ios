@@ -505,7 +505,11 @@
             isPlaying = false
             playbackState = .stopped
             stopPlaybackTimer()
-            playerNode.stop()
+            if usingSFBEngine {
+                sfbAudioManager.stop()
+            } else {
+                playerNode.stop()
+            }
             updateNowPlayingInfoEnhanced()
         }
     }

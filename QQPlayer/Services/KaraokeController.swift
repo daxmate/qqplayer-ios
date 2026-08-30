@@ -18,7 +18,9 @@
 //
 
 import Foundation
-import UIKit
+#if os(iOS)
+    import UIKit
+#endif
 
 /// AB 循环区间状态（a/b 为歌词行号；b == nil 表示等选终点）
 struct ABLoopState: Equatable {
@@ -170,7 +172,9 @@ final class KaraokeController: ObservableObject {
               currentLines[currentLine].timestamp != nil else {
             // 失败反馈：warning 级震动（评估现有机制：KaraokeControlBar 只在
             // 取到 currentLineIndex 时给 light 震动；取不到/行无时间戳时这里补一条）
-            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            #if os(iOS)
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            #endif
             return false
         }
         isSingleLineLoop = false

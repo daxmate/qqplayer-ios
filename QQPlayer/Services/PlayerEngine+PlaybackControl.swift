@@ -891,13 +891,36 @@
                 return false
             }
 
-            // SFB-only formats are not playable on macOS until the SFB batch.
+            // SFB formats (Opus/OGG/DSD) play through SFBAudioEngine's AudioPlayer
+            // (cross-platform, supports macOS 11+).
             if SFBAudioEngineManager.canHandle(url: url) {
-                print("⚠️ macOS loadTrack: \(url.lastPathComponent) needs SFBAudioEngine (Opus/OGG/DSD) — macOS SFB batch pending")
-                playbackState = .stopped
-                isLoadingTrack = false
-                return false
+                print("🚀 macOS loadTrack delegating to SFBAudioEngine: \(url.lastPathComponent)")
+                do {
+                    try await sfbAudioManager.loadAndPlay(url: url)
+                    guard isCurrentLoad(generation) else {
+                        sfbAudioManager.stop()
+                        return false
+                    }
+                    usingSFBEngine = true
+                    duration = sfbAudioManager.duration
+                    isPlaying = sfbAudioManager.isPlaying
+                    currentTrack = track
+                    playbackState = .stopped
+                    isLoadingTrack = false
+                    print("✅ macOS delegated to SFBAudioEngine: \(url.lastPathComponent)")
+                    return true
+                } catch {
+                    print("❌ macOS SFBAudioEngine delegation failed: \(error)")
+                    if isCurrentLoad(generation) {
+                        usingSFBEngine = false
+                        playbackState = .stopped
+                        isLoadingTrack = false
+                    }
+                    return false
+                }
             }
+
+            usingSFBEngine = false
 
             do {
                 let file = try AVAudioFile(forReading: url)
@@ -920,6 +943,22 @@
         }
 
         func play() {
+            if usingSFBEngine {
+                do {
+                    try sfbAudioManager.play()
+                } catch {
+                    print("❌ macOS SFB play failed: \(error)")
+                    return
+                }
+                isPlaying = true
+                playbackState = .playing
+                startPlaybackTimer()
+                PlayHistoryRecorder.shared.playbackBegan(track: currentTrack, at: playbackTime)
+                updateNowPlayingInfoEnhanced()
+                print("✅ macOS SFB playback resumed: \(currentTrack?.title ?? "")")
+                return
+            }
+
             guard let audioFile = audioFile, !isLoadingTrack, playbackState != .loading else {
                 print("⚠️ macOS play skipped: audioFile=\(audioFile != nil) state=\(playbackState)")
                 return
@@ -949,6 +988,20 @@
         }
 
         func pause(fromControlCenter: Bool = false) {
+            if usingSFBEngine {
+                let currentPosition = sfbAudioManager.currentTime
+                playbackTime = currentPosition
+                seekTimeOffset = currentPosition
+                sfbAudioManager.pause()
+                isPlaying = false
+                playbackState = .paused
+                stopPlaybackTimer()
+                PlayHistoryRecorder.shared.playbackPaused(track: currentTrack, at: playbackTime)
+                updateNowPlayingInfoEnhanced()
+                print("⏸️ macOS SFB paused at \(playbackTime)s")
+                return
+            }
+
             guard audioFile != nil else { return }
 
             let currentPosition = currentTimeForCurrentNativeFile()
@@ -967,6 +1020,22 @@
         }
 
         func seek(to time: TimeInterval) async {
+            if usingSFBEngine {
+                let clamped = min(max(time, 0), duration)
+                do {
+                    try sfbAudioManager.seek(to: clamped)
+                } catch {
+                    print("❌ macOS SFB seek failed: \(error)")
+                    return
+                }
+                playbackTime = clamped
+                lastKnownPlaybackPosition = clamped
+                lastKnownPlaybackPositionUpdatedAt = Date()
+                updateNowPlayingInfoEnhanced()
+                print("✅ macOS SFB seek to \(clamped)s")
+                return
+            }
+
             guard let audioFile = audioFile else { return }
             let clamped = min(max(time, 0), duration)
             let wasPlaying = isPlaying

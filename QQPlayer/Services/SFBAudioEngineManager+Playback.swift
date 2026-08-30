@@ -754,18 +754,133 @@
     }
 
 #else
+    import AVFoundation
     import Foundation
+    import SFBAudioEngine
 
     extension SFBAudioEngineManager {
-        // macOS stubs: SFB playback control lands with the macOS playback batch.
-        // Only symbols referenced by shared Core compile.
+        // macOS SFB playback: AudioPlayer (SFBAudioEngine) is cross-platform.
+        // No CarPlay / AVAudioSession / DSD DoP preference on macOS — DSD decodes
+        // to PCM and the system audio output handles the rest.
 
-        func updateEQSettings() {
-            // EQ settings apply once the macOS playback chain is wired up.
+        // EQ settings apply once the macOS EQ chain is wired up (batch 4 note:
+        // macOS EQ chain not connected yet).
+        func updateEQSettings() {}
+        func applySFBEQSettings() {}
+
+        func loadAndPlay(url: URL) async throws {
+            try Task.checkCancellation()
+
+            setupAudioPlayer()
+            guard let player = audioPlayer else {
+                throw NSError(domain: "SFBAudioEngineManager", code: -1, userInfo: [
+                    NSLocalizedDescriptionKey: "SFBAudioEngine unavailable - AudioPlayer initialization failed",
+                ])
+            }
+
+            player.stop()
+            cleanupEqualizer()
+            try Task.checkCancellation()
+
+            let track = await Task.detached(priority: .userInitiated) { SFBTrack(url: url) }.value
+            try Task.checkCancellation()
+            currentTrack = track
+            duration = track.duration
+
+            guard let decoder = try track.decoder(enableDoP: false) else {
+                throw NSError(domain: "SFBAudioEngineManager", code: 1, userInfo: [
+                    NSLocalizedDescriptionKey: "Unsupported audio format",
+                ])
+            }
+
+            do {
+                try decoder.open()
+            } catch {
+                print("⚠️ Failed to open decoder: \(error)")
+            }
+
+            decoderSampleRate = decoder.processingFormat.sampleRate
+            decoderFrameLength = decoder.length
+            if duration == 0, decoderFrameLength > 0, decoderSampleRate > 0 {
+                duration = Double(decoderFrameLength) / decoderSampleRate
+            }
+
+            try player.play(decoder)
+            currentTime = 0
+            isPlaying = true
+            startUpdateTimer()
+            print("✅ macOS SFBAudioEngine playback started: \(url.lastPathComponent)")
         }
 
-        func applySFBEQSettings() {
-            // EQ settings apply once the macOS playback chain is wired up.
+        func play() throws {
+            guard let player = audioPlayer else {
+                throw NSError(domain: "SFBAudioEngineManager", code: 3, userInfo: [
+                    NSLocalizedDescriptionKey: "AudioPlayer not initialized",
+                ])
+            }
+            try player.play()
+            isPlaying = true
+            startUpdateTimer()
+        }
+
+        func pause() {
+            audioPlayer?.pause()
+            isPlaying = false
+            updateTimer?.invalidate()
+        }
+
+        func stop() {
+            audioPlayer?.stop()
+            isPlaying = false
+            currentTime = 0
+            currentTrack = nil
+            decoderFrameLength = 0
+            decoderSampleRate = 0
+            updateTimer?.invalidate()
+            cleanupEqualizer()
+        }
+
+        func seek(to time: TimeInterval) throws {
+            guard let player = audioPlayer, let track = currentTrack else {
+                throw NSError(domain: "SFBAudioEngineManager", code: 4, userInfo: [
+                    NSLocalizedDescriptionKey: "No audio player available",
+                ])
+            }
+
+            func seekFailed(_ detail: String) -> NSError {
+                NSError(domain: "SFBAudioEngineManager", code: 5, userInfo: [
+                    NSLocalizedDescriptionKey: "Seek failed",
+                    NSLocalizedFailureReasonErrorKey: detail,
+                ])
+            }
+
+            let useSampleRate = track.sampleRate > 0 ? track.sampleRate : decoderSampleRate
+            let useTotalFrames = track.frameLength > 0 ? track.frameLength : decoderFrameLength
+
+            if useSampleRate > 0, duration > 0, time <= duration, useTotalFrames > 0 {
+                let framePosition = Int64(time * useSampleRate)
+                let safeFramePosition = min(framePosition, max(0, useTotalFrames - 1))
+                if player.seek(frame: AVAudioFramePosition(safeFramePosition)) {
+                    currentTime = time
+                    return
+                }
+            }
+
+            guard player.seek(time: time) else {
+                throw seekFailed("No format info and time-based seeking failed")
+            }
+            currentTime = time
+        }
+
+        // MARK: - Timer Management (macOS)
+
+        private func startUpdateTimer() {
+            updateTimer?.invalidate()
+            updateTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+                Task { @MainActor in
+                    self?.updatePlaybackPosition()
+                }
+            }
         }
     }
 #endif
