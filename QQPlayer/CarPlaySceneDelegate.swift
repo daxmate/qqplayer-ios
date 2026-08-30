@@ -1,16 +1,24 @@
+//
+//  CarPlaySceneDelegate.swift
+//  QQPlayer
+//
+//  CarPlay 场景生命周期、根界面（Tab 模板）装配、列表模板构建与导航、
+//  列表封面/文字渲染。拆分见 CarPlay+Playback.swift（播放队列/NowPlaying）。
+//
 import CarPlay
+import Foundation
 import UIKit
 
 class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
-    private var interfaceController: CPInterfaceController?
+    var interfaceController: CPInterfaceController?
     private var allSongsTemplate: CPListTemplate?
-    private var allSongsTracks: [Track] = []
+    var allSongsTracks: [Track] = []
     private var artistNameCache: [Int64: String] = [:]
 
-    private let incompatibleFormats = ["ogg", "opus", "dsf", "dff"]
+    let incompatibleFormats = ["ogg", "opus", "dsf", "dff"]
     private let maxArtworkItems = 50
     private let carPlayPageSize = 200
-    private let maxQueueItems = 5000
+    let maxQueueItems = 5000
 
     private var allSongsOffset = 0
     private var allSongsTotal = 0
@@ -316,55 +324,6 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         )
     }
 
-    // MARK: - Helpers
-
-    private func addNowPlayingButton(to template: CPListTemplate) {
-        guard let nowPlayingImage = UIImage(systemName: "play.circle.fill") else { return }
-
-        let nowPlayingButton = CPBarButton(image: nowPlayingImage) { [weak self] _ in
-            self?.showNowPlaying()
-        }
-        template.trailingNavigationBarButtons = [nowPlayingButton]
-    }
-
-    private func showNowPlaying() {
-        let nowPlayingTemplate = CPNowPlayingTemplate.shared
-        interfaceController?.pushTemplate(nowPlayingTemplate, animated: true, completion: nil)
-    }
-
-    private func queueForAllSongs(startingAt index: Int) -> [Track] {
-        if let paginatedQueue = try? DatabaseManager.shared.getTracksPaginated(
-            limit: maxQueueItems,
-            offset: index,
-            excludingFormats: incompatibleFormats
-        ), !paginatedQueue.isEmpty {
-            return paginatedQueue
-        }
-
-        return forwardQueue(from: allSongsTracks, startingAt: index)
-    }
-
-    private func forwardQueue(from tracks: [Track], startingAt index: Int) -> [Track] {
-        guard !tracks.isEmpty else { return [] }
-        let safeIndex = max(0, min(index, tracks.count - 1))
-        let endIndex = min(safeIndex + maxQueueItems, tracks.count)
-        return Array(tracks[safeIndex ..< endIndex])
-    }
-
-    private func isCompatible(track: Track) -> Bool {
-        let ext = URL(fileURLWithPath: track.path).pathExtension.lowercased()
-        return !incompatibleFormats.contains(ext)
-    }
-
-    private func getCompatibleTracks(for playlist: Playlist) -> [Track] {
-        guard let playlistId = playlist.id else { return [] }
-
-        let playlistItems = (try? AppCoordinator.shared.databaseManager.getPlaylistItems(playlistId: playlistId)) ?? []
-        let trackIds = playlistItems.map { $0.trackStableId }
-        let allPlaylistTracks = (try? AppCoordinator.shared.databaseManager.getTracksByStableIdsPreservingOrder(trackIds)) ?? []
-        return allPlaylistTracks.filter(isCompatible)
-    }
-
     private func configureArtwork(for item: CPListItem, track: Track, index _: Int) {
         item.setImage(createPlaceholderImage())
         Task { @MainActor in
@@ -435,7 +394,6 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         return artistNameCache[artistId] ?? ""
     }
 }
-
 // Helper function to resize images for CarPlay with aspect-fill cropping
 @MainActor
 private func resizeImageForCarPlay(_ image: UIImage, rounded: Bool = false) -> UIImage {
