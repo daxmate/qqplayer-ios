@@ -95,9 +95,12 @@ struct LyricsSearchView: View {
                 doSearch()
             }
         }
-        // 左滑关闭：跟手位移，达阈值/快速回甩滑出（与全屏歌词页右滑关闭同款，方向镜像）
+        // 左滑关闭：跟手位移，达阈值/快速回甩滑出（与全屏歌词页右滑关闭同款，方向镜像）。
+        // simultaneousGesture：结果列表是 ScrollView，普通 .gesture 优先级低于子视图，
+        // 列表区域左滑会被滚动视图吃掉（只有空白区能滑）；simultaneous 与列表互不取消——
+        // 纵向滚动正常、左滑关闭仍可用（与 LyricsView 同款模式）。
         .offset(x: dragX)
-        .gesture(
+        .simultaneousGesture(
             DragGesture(minimumDistance: 8)
                 .onChanged { value in
                     guard value.translation.width < 0 else { return }

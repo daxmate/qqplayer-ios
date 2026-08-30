@@ -40,6 +40,7 @@
 		A7B1EF33208A478896011764 /* SpotifyAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C4DA91270EB4FC2A4AF992C /* SpotifyAPITests.swift */; };
 		1785EE9EA7D649388F552CDD /* DiscogsAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 145FEC71F24C4ECFA8D5056E /* DiscogsAPITests.swift */; };
 		0937E1860D1E419D976EFA11 /* HybridMusicAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F25A9396A62497892BAE967 /* HybridMusicAPITests.swift */; };
+		8B39816A2390441EA17F4B87 /* LyricsLRCLibFallbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84F56C1D13EF47CCADFACA84 /* LyricsLRCLibFallbackTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -130,6 +131,7 @@
 		6C4DA91270EB4FC2A4AF992C /* SpotifyAPITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SpotifyAPITests.swift; sourceTree = "<group>"; };
 		145FEC71F24C4ECFA8D5056E /* DiscogsAPITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DiscogsAPITests.swift; sourceTree = "<group>"; };
 		1F25A9396A62497892BAE967 /* HybridMusicAPITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HybridMusicAPITests.swift; sourceTree = "<group>"; };
+		84F56C1D13EF47CCADFACA84 /* LyricsLRCLibFallbackTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LyricsLRCLibFallbackTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -329,6 +331,7 @@
 				6C4DA91270EB4FC2A4AF992C /* SpotifyAPITests.swift */,
 				145FEC71F24C4ECFA8D5056E /* DiscogsAPITests.swift */,
 				1F25A9396A62497892BAE967 /* HybridMusicAPITests.swift */,
+				84F56C1D13EF47CCADFACA84 /* LyricsLRCLibFallbackTests.swift */,
 			);
 			path = QQPlayerTests;
 			sourceTree = "<group>";
@@ -637,6 +640,7 @@
 				A7B1EF33208A478896011764 /* SpotifyAPITests.swift in Sources */,
 				1785EE9EA7D649388F552CDD /* DiscogsAPITests.swift in Sources */,
 				0937E1860D1E419D976EFA11 /* HybridMusicAPITests.swift in Sources */,
+				8B39816A2390441EA17F4B87 /* LyricsLRCLibFallbackTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

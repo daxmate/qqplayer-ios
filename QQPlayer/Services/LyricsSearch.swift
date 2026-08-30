@@ -146,7 +146,7 @@ extension LyricsManager {
         request.timeoutInterval = 10
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await Self.lyricsURLSession.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 return nil
@@ -174,58 +174,77 @@ extension LyricsManager {
         artistName: String,
         duration: Double
     ) async -> Lyrics? {
-        var components = URLComponents(string: "\(baseURL)/search")
-        components?.queryItems = [
-            URLQueryItem(name: "track_name", value: trackName),
-            URLQueryItem(name: "artist_name", value: artistName),
-        ]
+        var results = await fetchLRCLibSearchResults(
+            trackName: trackName, artistName: artistName
+        )
 
-        guard let url = components?.url else {
-            return nil
+        // lrclib 收录的中文歌 artist 多为拉丁拼写（「孙燕姿」→ Stefanie Sun），
+        // 带中文 artist 搜索必然 0 条——兑底只按歌名重搜，靠 duration 过滤保证相关度
+        if results.isEmpty {
+            print("⚠️ lrclib search with artist returned 0, retrying by track name only")
+            results = await fetchLRCLibSearchResults(trackName: trackName, artistName: nil)
         }
+
+        guard !results.isEmpty else { return nil }
+
+        // Filter and prioritize:
+        // 1. Must have synced lyrics
+        // 2. Prefer duration match (within ±2 seconds)
+        // 3. Pick the first matching result
+
+        let syncedResults = results.filter {
+            $0.syncedLyrics != nil && !($0.syncedLyrics?.isEmpty ?? true)
+        }
+
+        // Try exact duration match first (±2 seconds)
+        if let exactMatch = syncedResults.first(where: {
+            abs($0.duration - duration) <= 2
+        }) {
+            print("📝 Found exact duration match with synced lyrics")
+            return parseLRCLibResponse(exactMatch)
+        }
+
+        // Otherwise take first synced result
+        if let firstSynced = syncedResults.first {
+            print("📝 Using first synced lyrics result (duration mismatch)")
+            return parseLRCLibResponse(firstSynced)
+        }
+
+        return nil
+    }
+
+    /// lrclib /api/search 请求 + 解析；artistName 为 nil 时只按歌名搜
+    /// （中文歌 artist 是拉丁拼写匹配不上，兑底路径用）
+    private func fetchLRCLibSearchResults(
+        trackName: String,
+        artistName: String?
+    ) async -> [LRCLibResponse] {
+        var components = URLComponents(string: "\(baseURL)/search")
+        var queryItems = [URLQueryItem(name: "track_name", value: trackName)]
+        if let artistName, !artistName.isEmpty {
+            queryItems.append(URLQueryItem(name: "artist_name", value: artistName))
+        }
+        components?.queryItems = queryItems
+
+        guard let url = components?.url else { return [] }
 
         var request = URLRequest(url: url)
         request.setValue("QQPlayer/1.0 (https://github.com/daxmate/qqplayer-ios)", forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 10
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await Self.lyricsURLSession.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200 else {
-                return nil
+                return []
             }
 
-            let results = try decoder.decode([LRCLibResponse].self, from: data)
-
-            // Filter and prioritize:
-            // 1. Must have synced lyrics
-            // 2. Prefer duration match (within ±2 seconds)
-            // 3. Pick the first matching result
-
-            let syncedResults = results.filter {
-                $0.syncedLyrics != nil && !($0.syncedLyrics?.isEmpty ?? true)
-            }
-
-            // Try exact duration match first (±2 seconds)
-            if let exactMatch = syncedResults.first(where: {
-                abs($0.duration - duration) <= 2
-            }) {
-                print("📝 Found exact duration match with synced lyrics")
-                return parseLRCLibResponse(exactMatch)
-            }
-
-            // Otherwise take first synced result
-            if let firstSynced = syncedResults.first {
-                print("📝 Using first synced lyrics result (duration mismatch)")
-                return parseLRCLibResponse(firstSynced)
-            }
-
-            return nil
+            return (try? decoder.decode([LRCLibResponse].self, from: data)) ?? []
 
         } catch {
             print("❌ Failed to search lrclib.net: \(error)")
-            return nil
+            return []
         }
     }
 

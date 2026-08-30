@@ -61,6 +61,8 @@ struct LyricsSearchProvider: Sendable {
 
     private let netease = NeteaseLyricsProvider.shared
     private let lrclibBaseURL = "https://lrclib.net/api"
+    /// 测试注入：默认共享会话（MockURLProtocol 通过它拦截 lrclib 请求）
+    var urlSession: URLSession = .shared
 
     /// 双源并发搜索：netease 在前、lrclib 在后；全部失败返回 []。
     /// 缓存优先：相同搜索词命中未过期缓存时直接返回，不重复请求网络（见 LyricsSearchCache）。
@@ -133,8 +135,11 @@ struct LyricsSearchProvider: Sendable {
     /// lrclib /api/search：只保留带时间戳的 syncedLyrics（纯文本歌词对播放器无用）
     /// 简繁双查询：lrclib 收录多为繁体标题（如「電台情歌」），简体查询词会漏；
     /// 用系统 ICU 转换生成繁体查询词补搜一次，按歌曲 id 去重合并。
+    /// 兑底：带 artist 双查仍 0 条时只按歌名（简/繁）重搜——lrclib 中文歌 artist
+    /// 多为拉丁拼写（「孙燕姿」→ Stefanie Sun），中文 artist 匹配不上。
     /// 两个查询 async let 并发（各 10s 超时）：串行会放大最坏等待到 20s。
-    private func searchLRCLib(title: String, artist: String) async -> [LyricsSearchCandidate] {
+    /// internal：供测试直接验证 lrclib 路径（不经 search()，避免触发网易云/缓存）。
+    func searchLRCLib(title: String, artist: String) async -> [LyricsSearchCandidate] {
         // swiftlint:disable todo
         // TODO(搜索页分批展示)：双源结果当前等齐才返回（netease+lrclib 并发 ≈ max(10s,10s)）；
         // 若要做「先出 netease 再出 lrclib」的分批展示，需把 search 改为流式/回调式 API。
@@ -149,7 +154,19 @@ struct LyricsSearchProvider: Sendable {
         async let traditionalHits = fetchLRCLibHits(
             trackName: queries[1].trackName, artistName: queries[1].artistName
         )
-        let hits = await simplifiedHits + traditionalHits
+        var hits = await simplifiedHits + traditionalHits
+
+        if hits.isEmpty {
+            print("⚠️ lrclib search with artist returned 0, retrying by track name only")
+            async let fallbackSimplified = fetchLRCLibHits(
+                trackName: queries[0].trackName, artistName: nil
+            )
+            async let fallbackTraditional = fetchLRCLibHits(
+                trackName: queries[1].trackName, artistName: nil
+            )
+            hits = await fallbackSimplified + fallbackTraditional
+        }
+
         var seenIDs = Set<Int>()
         var out: [LyricsSearchCandidate] = []
         for hit in hits {
@@ -174,12 +191,13 @@ struct LyricsSearchProvider: Sendable {
         return out
     }
 
-    private func fetchLRCLibHits(trackName: String, artistName: String) async -> [LRCLibSearchHit] {
+    private func fetchLRCLibHits(trackName: String, artistName: String?) async -> [LRCLibSearchHit] {
         var components = URLComponents(string: "\(lrclibBaseURL)/search")
-        components?.queryItems = [
-            URLQueryItem(name: "track_name", value: trackName),
-            URLQueryItem(name: "artist_name", value: artistName),
-        ]
+        var queryItems = [URLQueryItem(name: "track_name", value: trackName)]
+        if let artistName, !artistName.isEmpty {
+            queryItems.append(URLQueryItem(name: "artist_name", value: artistName))
+        }
+        components?.queryItems = queryItems
         guard let url = components?.url else { return [] }
 
         var request = URLRequest(url: url)
@@ -190,7 +208,7 @@ struct LyricsSearchProvider: Sendable {
         request.timeoutInterval = 10
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await urlSession.data(for: request)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 return []
             }

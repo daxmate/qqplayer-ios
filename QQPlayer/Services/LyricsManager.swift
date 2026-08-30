@@ -22,6 +22,8 @@ actor LyricsManager {
     let decoder = JSONDecoder()
     /// 测试注入：手动歌词存储目录（nil = 默认 Documents/lyrics-manual）
     nonisolated(unsafe) static var manualLyricsDirectoryOverride: URL?
+    /// 测试注入：歌词网络请求会话（默认共享会话；MockURLProtocol 通过它拦截 lrclib/网易云请求）
+    nonisolated(unsafe) static var lyricsURLSession: URLSession = .shared
     /// 测试注入：逐曲歌词缓存目录（nil = 默认 Documents/lyrics-cache/tracks）
     nonisolated(unsafe) static var lyricsCacheDirectoryOverride: URL?
 
