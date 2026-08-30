@@ -17,7 +17,9 @@ import Combine
 import Foundation
 import GRDB
 import MediaPlayer
-import UIKit
+#if os(iOS)
+    import UIKit
+#endif
 
 @MainActor
 class PlayerEngine: NSObject, ObservableObject {
@@ -107,7 +109,9 @@ class PlayerEngine: NSObject, ObservableObject {
     /// reports an unplug as an *interruption* whose .ended carries
     /// .shouldResume, so without this the app would resume into the speaker.
     var outputDeviceBecameUnavailable = false
-    var backgroundTask: UIBackgroundTaskIdentifier = .invalid
+    #if os(iOS)
+        var backgroundTask: UIBackgroundTaskIdentifier = .invalid
+    #endif
     var isInBackground = false
     var hasSetupRemoteCommands = false
     nonisolated(unsafe) var hasSetupAudioSessionNotifications = false
@@ -168,43 +172,49 @@ class PlayerEngine: NSObject, ObservableObject {
     // MARK: - State Persistence
 
     func setupBackgroundSessionForSiri() {
-        // When Siri launches the app, it bypasses normal lifecycle events
-        // This method manually sets up the background session that would normally
-        // happen via handleWillResignActive() and handleDidEnterBackground()
+        #if os(iOS)
+            // When Siri launches the app, it bypasses normal lifecycle events
+            // This method manually sets up the background session that would normally
+            // happen via handleWillResignActive() and handleDidEnterBackground()
 
-        print("🎤 Setting up background session for Siri-initiated playback")
+            print("🎤 Setting up background session for Siri-initiated playback")
 
-        // Check app state to confirm we're in background
-        let appState = UIApplication.shared.applicationState
-        print("🎤 App state: \(appState == .background ? "background" : appState == .inactive ? "inactive" : "active")")
+            // Check app state to confirm we're in background
+            let appState = UIApplication.shared.applicationState
+            print("🎤 App state: \(appState == .background ? "background" : appState == .inactive ? "inactive" : "active")")
 
-        // Mark that we've set up Siri background session
-        hasSetupSiriBackgroundSession = true
+            // Mark that we've set up Siri background session
+            hasSetupSiriBackgroundSession = true
 
-        // Set up audio session for background (same as handleWillResignActive)
-        // But don't re-grab if interrupted by alarm/call
-        guard !isAudioSessionInterrupted else {
-            print("🎧 Audio session interrupted (alarm/call) - skipping Siri background session keepalive")
-            return
-        }
-        do {
-            // Don't call setCategory here - changing category/options on a live
-            // session forces a hardware reconfiguration that stops playback
-            try AVAudioSession.sharedInstance().setActive(true, options: [])
-            print("🎧 Session keepalive on resign active - success")
-        } catch {
-            print("❌ Session keepalive on resign active failed: \(error)")
-        }
+            // Set up audio session for background (same as handleWillResignActive)
+            // But don't re-grab if interrupted by alarm/call
+            guard !isAudioSessionInterrupted else {
+                print("🎧 Audio session interrupted (alarm/call) - skipping Siri background session keepalive")
+                return
+            }
+            do {
+                // Don't call setCategory here - changing category/options on a live
+                // session forces a hardware reconfiguration that stops playback
+                try AVAudioSession.sharedInstance().setActive(true, options: [])
+                print("🎧 Session keepalive on resign active - success")
+            } catch {
+                print("❌ Session keepalive on resign active failed: \(error)")
+            }
 
-        // Background diagnostic and state saving (same as handleDidEnterBackground)
-        let backgroundTime = UIApplication.shared.backgroundTimeRemaining
-        print("🔍 DIAGNOSTIC - backgroundTimeRemaining: \(backgroundTime)")
+            // Background diagnostic and state saving (same as handleDidEnterBackground)
+            let backgroundTime = UIApplication.shared.backgroundTimeRemaining
+            print("🔍 DIAGNOSTIC - backgroundTimeRemaining: \(backgroundTime)")
 
-        // Stop all UI timers since we're in background
-        suspendUITimersForBackground()
+            // Stop all UI timers since we're in background
+            suspendUITimersForBackground()
 
-        // Save player state
-        savePlayerState()
+            // Save player state
+            savePlayerState()
+        #else
+            // macOS: no Siri-initiated background launch or background session
+            // concept; audio keeps playing on the default output device.
+            print("ℹ️ setupBackgroundSessionForSiri: no-op on macOS")
+        #endif
     }
 
     func savePlayerState() {

@@ -7,7 +7,6 @@
 
 import Foundation
 import SFBAudioEngine
-import UIKit
 
 /// A simplified audio track for SFBAudioEngine
 struct SFBTrack: Identifiable {

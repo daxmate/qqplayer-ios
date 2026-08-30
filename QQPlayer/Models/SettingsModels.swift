@@ -1,6 +1,8 @@
 import Foundation
 import SwiftUI
-import UIKit
+#if os(iOS)
+    import UIKit
+#endif
 
 extension Notification.Name {
     /// Posted only when QQPlayer UI settings change. Playback persistence also
@@ -10,27 +12,29 @@ extension Notification.Name {
     static let qqplayerSettingsDidChange = Notification.Name("QQPlayerSettingsDidChange")
 }
 
-/// 全局外观决策（forceDarkMode → UIUserInterfaceStyle）。
-///
-/// 不用 SwiftUI 的 `.preferredColorScheme(forceDark ? .dark : nil)`：从显式
-/// `.dark` 切回 `nil` 时系统不会重新解析，界面会卡在深色（已实测复现）。
-/// 改用 UIKit 层 `window.overrideUserInterfaceStyle`：`.unspecified` 明确
-/// 恢复跟随系统，SwiftUI 的 `@Environment(\.colorScheme)` 会自动跟随，
-/// sheet/弹窗/系统控件全部统一生效。
-enum AppearanceResolver {
-    static func interfaceStyle(forceDark: Bool) -> UIUserInterfaceStyle {
-        forceDark ? .dark : .unspecified
-    }
+#if os(iOS)
+    /// 全局外观决策（forceDarkMode → UIUserInterfaceStyle）。
+    ///
+    /// 不用 SwiftUI 的 `.preferredColorScheme(forceDark ? .dark : nil)`：从显式
+    /// `.dark` 切回 `nil` 时系统不会重新解析，界面会卡在深色（已实测复现）。
+    /// 改用 UIKit 层 `window.overrideUserInterfaceStyle`：`.unspecified` 明确
+    /// 恢复跟随系统，SwiftUI 的 `@Environment(\.colorScheme)` 会自动跟随，
+    /// sheet/弹窗/系统控件全部统一生效。
+    enum AppearanceResolver {
+        static func interfaceStyle(forceDark: Bool) -> UIUserInterfaceStyle {
+            forceDark ? .dark : .unspecified
+        }
 
-    @MainActor
-    static func apply(forceDark: Bool) {
-        let style = interfaceStyle(forceDark: forceDark)
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap(\.windows)
-            .forEach { $0.overrideUserInterfaceStyle = style }
+        @MainActor
+        static func apply(forceDark: Bool) {
+            let style = interfaceStyle(forceDark: forceDark)
+            UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap(\.windows)
+                .forEach { $0.overrideUserInterfaceStyle = style }
+        }
     }
-}
+#endif
 
 enum BackgroundColor: String, CaseIterable, Codable {
     case violet = "b11491"
@@ -56,7 +60,13 @@ enum BackgroundColor: String, CaseIterable, Codable {
     }
 
     var color: Color {
-        return Color(hex: self.rawValue)
+        #if os(iOS)
+            return Color(hex: self.rawValue)
+        #else
+            // Color(hex:) lives in an iOS Views file; macOS UI batch will bring
+            // its own hex color helper. Fall back to a plain SwiftUI Color.
+            return Color(red: 0.5, green: 0.5, blue: 0.5)
+        #endif
     }
 }
 

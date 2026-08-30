@@ -13,7 +13,9 @@ import Combine
 import CryptoKit
 import Foundation
 @preconcurrency import GRDB
-import UIKit
+#if os(iOS)
+    import UIKit
+#endif
 
 class DatabaseManager: @unchecked Sendable {
     static let shared = DatabaseManager()
@@ -743,31 +745,33 @@ final class DatabaseSuspensionCoordinator {
     func start() {
         guard observers.isEmpty else { return }
 
-        let backgroundObserver = NotificationCenter.default.addObserver(
-            forName: UIApplication.didEnterBackgroundNotification,
-            object: nil,
-            queue: nil
-        ) { @Sendable _ in
-            Task { @MainActor in
-                let coordinator = DatabaseSuspensionCoordinator.shared
-                coordinator.isInBackground = true
-                coordinator.apply()
+        #if os(iOS)
+            let backgroundObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.didEnterBackgroundNotification,
+                object: nil,
+                queue: nil
+            ) { @Sendable _ in
+                Task { @MainActor in
+                    let coordinator = DatabaseSuspensionCoordinator.shared
+                    coordinator.isInBackground = true
+                    coordinator.apply()
+                }
             }
-        }
-        observers.append(backgroundObserver)
+            observers.append(backgroundObserver)
 
-        let foregroundObserver = NotificationCenter.default.addObserver(
-            forName: UIApplication.willEnterForegroundNotification,
-            object: nil,
-            queue: nil
-        ) { @Sendable _ in
-            Task { @MainActor in
-                let coordinator = DatabaseSuspensionCoordinator.shared
-                coordinator.isInBackground = false
-                coordinator.apply()
+            let foregroundObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.willEnterForegroundNotification,
+                object: nil,
+                queue: nil
+            ) { @Sendable _ in
+                Task { @MainActor in
+                    let coordinator = DatabaseSuspensionCoordinator.shared
+                    coordinator.isInBackground = false
+                    coordinator.apply()
+                }
             }
-        }
-        observers.append(foregroundObserver)
+            observers.append(foregroundObserver)
+        #endif
 
         isPlaying = PlayerEngine.shared.isPlaying
         playbackCancellable = PlayerEngine.shared.$isPlaying

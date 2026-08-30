@@ -9,16 +9,22 @@
 //
 
 import Foundation
-import UIKit
+#if os(iOS)
+    import UIKit
+    typealias ArtworkImage = UIImage
+#else
+    import AppKit
+    typealias ArtworkImage = NSImage
+#endif
 
 @MainActor
 class ArtworkManager: ObservableObject {
     static let shared = ArtworkManager()
 
     // Memory cache for quick access
-    let memoryCache = NSCache<NSString, UIImage>()
+    let memoryCache = NSCache<NSString, ArtworkImage>()
     // Small row/grid-sized artwork, keyed by "\(stableId)-\(pixelSize)"
-    let thumbnailCache = NSCache<NSString, UIImage>()
+    let thumbnailCache = NSCache<NSString, ArtworkImage>()
     var cachedTrackIds: Set<String> = []
     private var notificationObservers: [NSObjectProtocol] = []
 
@@ -52,30 +58,32 @@ class ArtworkManager: ObservableObject {
         loadMapping()
 
         let notificationCenter = NotificationCenter.default
-        notificationObservers.append(
-            notificationCenter.addObserver(
-                forName: UIApplication.didReceiveMemoryWarningNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.clearCache()
-                    self?.flushMappingIfDirty()
+        #if os(iOS)
+            notificationObservers.append(
+                notificationCenter.addObserver(
+                    forName: UIApplication.didReceiveMemoryWarningNotification,
+                    object: nil,
+                    queue: .main
+                ) { [weak self] _ in
+                    Task { @MainActor [weak self] in
+                        self?.clearCache()
+                        self?.flushMappingIfDirty()
+                    }
                 }
-            }
-        )
-        notificationObservers.append(
-            notificationCenter.addObserver(
-                forName: UIApplication.didEnterBackgroundNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.clearCache()
-                    self?.flushMappingIfDirty()
+            )
+            notificationObservers.append(
+                notificationCenter.addObserver(
+                    forName: UIApplication.didEnterBackgroundNotification,
+                    object: nil,
+                    queue: .main
+                ) { [weak self] _ in
+                    Task { @MainActor [weak self] in
+                        self?.clearCache()
+                        self?.flushMappingIfDirty()
+                    }
                 }
-            }
-        )
+            )
+        #endif
 
         print("📁 ArtworkManager initialized - Disk cache: \(diskCacheURL.path)")
     }
@@ -94,7 +102,7 @@ class ArtworkManager: ObservableObject {
         print("🗑️ ArtworkManager memory cache cleared")
     }
 
-    func forceRefreshArtwork(for track: Track) async -> UIImage? {
+    func forceRefreshArtwork(for track: Track) async -> ArtworkImage? {
         // Remove from memory cache and mapping to force re-extraction
         memoryCache.removeObject(forKey: track.stableId as NSString)
         // Thumbnail keys are size-suffixed and NSCache can't enumerate, so drop them all
@@ -110,7 +118,7 @@ class ArtworkManager: ObservableObject {
         return await getArtwork(for: track)
     }
 
-    func getArtwork(for track: Track) async -> UIImage? {
+    func getArtwork(for track: Track) async -> ArtworkImage? {
         // 1. Check memory cache first (fastest)
         if let cachedImage = memoryCache.object(forKey: track.stableId as NSString) {
             return cachedImage
@@ -137,7 +145,7 @@ class ArtworkManager: ObservableObject {
 
     /// Small artwork for list rows and grid cells. Decoding and holding these
     /// instead of full-size art keeps scrolling smooth and memory low.
-    func getThumbnail(for track: Track, maxPixelSize: CGFloat = 160) async -> UIImage? {
+    func getThumbnail(for track: Track, maxPixelSize: CGFloat = 160) async -> ArtworkImage? {
         let key = "\(track.stableId)-\(Int(maxPixelSize))" as NSString
         if let cached = thumbnailCache.object(forKey: key) {
             return cached
@@ -171,8 +179,12 @@ class ArtworkManager: ObservableObject {
         }
     }
 
-    private func cacheImage(_ image: UIImage, for stableId: String) {
-        let cost = image.cgImage.map { $0.bytesPerRow * $0.height } ?? Int(image.size.width * image.size.height * 4)
+    private func cacheImage(_ image: ArtworkImage, for stableId: String) {
+        #if os(iOS)
+            let cost = image.cgImage.map { $0.bytesPerRow * $0.height } ?? Int(image.size.width * image.size.height * 4)
+        #else
+            let cost = Int(image.size.width * image.size.height * 4)
+        #endif
         memoryCache.setObject(image, forKey: stableId as NSString, cost: max(cost, 1))
         cachedTrackIds.insert(stableId)
     }

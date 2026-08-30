@@ -9,10 +9,14 @@
 import AVFoundation
 import Foundation
 import SFBAudioEngine
-import UIKit
+#if os(iOS)
+    import UIKit
+#else
+    import AppKit
+#endif
 
 extension ArtworkManager {
-    nonisolated func extractArtwork(from url: URL) async -> UIImage? {
+    nonisolated func extractArtwork(from url: URL) async -> ArtworkImage? {
         let ext = url.pathExtension.lowercased()
 
         if ext == "flac" {
@@ -30,7 +34,7 @@ extension ArtworkManager {
         return nil
     }
 
-    private nonisolated func extractMp3Artwork(from url: URL) async -> UIImage? {
+    private nonisolated func extractMp3Artwork(from url: URL) async -> ArtworkImage? {
         return await withCheckedContinuation { continuation in
             Task {
                 let asset = AVURLAsset(url: url)
@@ -41,7 +45,7 @@ extension ArtworkManager {
                     for item in metadata where item.commonKey == .commonKeyArtwork {
                         do {
                             if let data = try await item.load(.dataValue),
-                               let image = UIImage(data: data) {
+                               let image = ArtworkImage(data: data) {
                                 continuation.resume(returning: image)
                                 return
                             }
@@ -59,7 +63,7 @@ extension ArtworkManager {
         }
     }
 
-    private nonisolated func extractFlacArtwork(from url: URL) async -> UIImage? {
+    private nonisolated func extractFlacArtwork(from url: URL) async -> ArtworkImage? {
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 do {
@@ -106,7 +110,7 @@ extension ArtworkManager {
         }
     }
 
-    private nonisolated static func parseFlacPictureBlock(data: Data, offset: Int, size: Int) -> UIImage? {
+    private nonisolated static func parseFlacPictureBlock(data: Data, offset: Int, size: Int) -> ArtworkImage? {
         var pos = offset
 
         // Skip picture type (4 bytes)
@@ -137,12 +141,12 @@ extension ArtworkManager {
 
         // Extract picture data
         let pictureData = data.subdata(in: pos ..< pos + pictureLength)
-        return UIImage(data: pictureData)
+        return ArtworkImage(data: pictureData)
     }
 
     // MARK: - M4A/AAC Artwork Extraction
 
-    private nonisolated func extractM4AArtwork(from url: URL) async -> UIImage? {
+    private nonisolated func extractM4AArtwork(from url: URL) async -> ArtworkImage? {
         // 2026-08-30 警告清理：AVAsset.commonMetadata/dataValue 已弃用（iOS 16），
         // 迁移到 load(.commonMetadata)/load(.dataValue)；顺带去掉 withCheckedContinuation
         // 样板（原实现在 do 抛错时不 resume，continuation 永久挂起）。
@@ -153,7 +157,7 @@ extension ArtworkManager {
             for item in commonMetadata {
                 if item.commonKey == .commonKeyArtwork,
                    let data = try await item.load(.dataValue),
-                   let image = UIImage(data: data) {
+                   let image = ArtworkImage(data: data) {
                     print("🎨 Extracted M4A artwork: \(url.lastPathComponent)")
                     return image
                 }
@@ -169,7 +173,7 @@ extension ArtworkManager {
 
     // MARK: - DSD Artwork Extraction
 
-    private nonisolated func extractDSDArtwork(from url: URL) async -> UIImage? {
+    private nonisolated func extractDSDArtwork(from url: URL) async -> ArtworkImage? {
         do {
             let data = try Data(contentsOf: url, options: .mappedIfSafe)
 
@@ -200,7 +204,7 @@ extension ArtworkManager {
                     let endOffset = endRange.upperBound
                     let imageData = data.subdata(in: startOffset ..< endOffset)
 
-                    if let image = UIImage(data: imageData) {
+                    if let image = ArtworkImage(data: imageData) {
                         print("🎨 Extracted JPEG artwork from DSD file (binary search): \(url.lastPathComponent)")
                         return image
                     }
@@ -217,7 +221,7 @@ extension ArtworkManager {
                     let endOffset = endRange.upperBound + 4 // Include CRC after IEND
                     let imageData = data.subdata(in: startOffset ..< min(endOffset, data.count))
 
-                    if let image = UIImage(data: imageData) {
+                    if let image = ArtworkImage(data: imageData) {
                         print("🎨 Extracted PNG artwork from DSD file (binary search): \(url.lastPathComponent)")
                         return image
                     }
@@ -233,7 +237,7 @@ extension ArtworkManager {
     }
 
     // Extract artwork from DSF file using ID3v2 APIC frames
-    private nonisolated func extractDSFArtworkFromID3(data: Data, filename: String) -> UIImage? {
+    private nonisolated func extractDSFArtworkFromID3(data: Data, filename: String) -> ArtworkImage? {
         // Validate DSF signature: 'D', 'S', 'D', ' ' (includes 1 space)
         guard data.count >= 28,
               data[0] == 0x44, data[1] == 0x53, data[2] == 0x44, data[3] == 0x20 else {
@@ -267,7 +271,7 @@ extension ArtworkManager {
     }
 
     // Extract artwork from ID3v2 APIC frame
-    private nonisolated func extractArtworkFromID3v2(data: Data, filename: String) -> UIImage? {
+    private nonisolated func extractArtworkFromID3v2(data: Data, filename: String) -> ArtworkImage? {
         guard data.count >= 10 else { return nil }
 
         // Read ID3v2 header
@@ -342,11 +346,11 @@ extension ArtworkManager {
 
                 let imageData = frameData.subdata(in: frameOffset ..< frameData.count)
 
-                if let image = UIImage(data: imageData) {
+                if let image = ArtworkImage(data: imageData) {
                     print("✅ Successfully extracted artwork from ID3v2 APIC frame: \(filename)")
                     return image
                 } else {
-                    print("⚠️ Could not create UIImage from APIC data in: \(filename)")
+                    print("⚠️ Could not create ArtworkImage from APIC data in: \(filename)")
                 }
             }
 
@@ -378,7 +382,7 @@ extension ArtworkManager {
 
     // MARK: - Generic Artwork Extraction (Opus, OGG, etc.)
 
-    private nonisolated func extractGenericArtwork(from url: URL) async -> UIImage? {
+    private nonisolated func extractGenericArtwork(from url: URL) async -> ArtworkImage? {
         // Use SFBAudioEngine's TagLib-backed metadata reader. The previous
         // hand-rolled byte scan corrupted any METADATA_BLOCK_PICTURE larger
         // than one Ogg page (~64KB): the base64 payload is interleaved with
@@ -387,7 +391,7 @@ extension ArtworkManager {
             let audioFile = try AudioFile(readingPropertiesAndMetadataFrom: url)
             let pictures = audioFile.metadata.attachedPictures
             let preferred = pictures.first(where: { $0.type == .frontCover }) ?? pictures.first
-            if let preferred, let image = UIImage(data: preferred.imageData) {
+            if let preferred, let image = ArtworkImage(data: preferred.imageData) {
                 print("✅ Extracted artwork via SFBAudioEngine metadata: \(url.lastPathComponent) (\(preferred.imageData.count) bytes)")
                 return image
             }
@@ -411,7 +415,7 @@ extension ArtworkManager {
     }
 
     // Extract artwork from Vorbis Comments (OGG/Opus)
-    private nonisolated func extractVorbisCommentArtwork(from data: Data, filename: String) -> UIImage? {
+    private nonisolated func extractVorbisCommentArtwork(from data: Data, filename: String) -> ArtworkImage? {
         // In Vorbis comments, each field has format: [4 bytes length][field name]=[field value]
         // We need to read the length to get the complete value, not just stop at null byte
 
@@ -511,7 +515,7 @@ extension ArtworkManager {
     }
 
     // Parse FLAC picture block structure (RFC 9639)
-    private nonisolated func parseFLACPictureBlock(data: Data, filename: String) -> UIImage? {
+    private nonisolated func parseFLACPictureBlock(data: Data, filename: String) -> ArtworkImage? {
         var offset = 0
 
         guard data.count >= 32 else {
@@ -586,11 +590,11 @@ extension ArtworkManager {
         // Extract picture data
         let pictureData = data.subdata(in: offset ..< offset + actualPictureLength)
 
-        if let image = UIImage(data: pictureData) {
+        if let image = ArtworkImage(data: pictureData) {
             print("✅ Successfully extracted \(mimeType) artwork from Vorbis comments: \(filename)")
             return image
         } else {
-            print("⚠️ Could not create UIImage from picture data in: \(filename)")
+            print("⚠️ Could not create ArtworkImage from picture data in: \(filename)")
             return nil
         }
     }

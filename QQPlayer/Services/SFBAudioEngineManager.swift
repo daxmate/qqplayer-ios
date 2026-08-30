@@ -7,12 +7,15 @@
 //    SFBAudioEngineManager+Playback.swift  playback control/seek/rate/time
 //    SFBAudioEngineManager+Queue.swift     progress/format compatibility
 //
-import AudioToolbox
 import AVFoundation
-import CarPlay
+#if os(iOS)
+    import CarPlay
+#endif
 import Foundation
 import SFBAudioEngine
-import UIKit
+#if os(iOS)
+    import UIKit
+#endif
 
 private struct AVAudioUnitEQBox: @unchecked Sendable {
     let node: AVAudioUnitEQ
@@ -266,65 +269,73 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
     @Published var duration: TimeInterval = 0
 
     // CarPlay environment detection
-    @Published var isCarPlayEnvironment = false
+    #if os(iOS)
+        @Published var isCarPlayEnvironment = false
+    #endif
 
     private override init() {
         super.init()
-        isCarPlayEnvironment = Self.detectCarPlay()
-        print("🔄 SFBAudioEngine Manager initialized - CarPlay: \(isCarPlayEnvironment)")
+        #if os(iOS)
+            isCarPlayEnvironment = Self.detectCarPlay()
+            print("🔄 SFBAudioEngine Manager initialized - CarPlay: \(isCarPlayEnvironment)")
+        #endif
     }
 
-    /// Detects if the app is running in a CarPlay environment
-    private static func detectCarPlay() -> Bool {
-        // Check if a CarPlay template scene is connected. The scene exists
-        // before AVAudioSession necessarily exposes a `.carAudio` route.
-        if #available(iOS 13.0, *) {
-            for scene in UIApplication.shared.connectedScenes {
-                if scene is CPTemplateApplicationScene
-                    || scene.session.role == .carTemplateApplication {
-                    print("🚗 CarPlay scene detected: \(scene)")
-                    return true
+    #if os(iOS)
+        /// Detects if the app is running in a CarPlay environment
+        private static func detectCarPlay() -> Bool {
+            // Check if a CarPlay template scene is connected. The scene exists
+            // before AVAudioSession necessarily exposes a `.carAudio` route.
+            if #available(iOS 13.0, *) {
+                for scene in UIApplication.shared.connectedScenes {
+                    if scene is CPTemplateApplicationScene
+                        || scene.session.role == .carTemplateApplication {
+                        print("🚗 CarPlay scene detected: \(scene)")
+                        return true
+                    }
+                }
+            }
+
+            // Additional check: CarPlay audio routes
+            let audioSession = AVAudioSession.sharedInstance()
+            let currentRoute = audioSession.currentRoute
+            print("🎧 Current audio route: \(currentRoute.outputs.map { "\($0.portName) (\($0.portType))" }.joined(separator: ", "))")
+
+            for output in currentRoute.outputs where output.portType == .carAudio {
+                print("🚗 CarPlay audio route detected: \(output.portName)")
+                return true
+            }
+
+            return false
+        }
+
+        /// Re-check CarPlay status (call when audio route changes)
+        func updateCarPlayStatus() {
+            let wasCarPlay = isCarPlayEnvironment
+            isCarPlayEnvironment = Self.detectCarPlay()
+
+            if wasCarPlay != isCarPlayEnvironment {
+                if isCarPlayEnvironment {
+                    print("🚗 Switched to CarPlay - stopping SFBAudioEngine")
+                    stop()
+                    audioPlayer = nil
+                } else {
+                    print("📱 Switched from CarPlay - SFBAudioEngine available again")
                 }
             }
         }
-
-        // Additional check: CarPlay audio routes
-        let audioSession = AVAudioSession.sharedInstance()
-        let currentRoute = audioSession.currentRoute
-        print("🎧 Current audio route: \(currentRoute.outputs.map { "\($0.portName) (\($0.portType))" }.joined(separator: ", "))")
-
-        for output in currentRoute.outputs where output.portType == .carAudio {
-            print("🚗 CarPlay audio route detected: \(output.portName)")
-            return true
-        }
-
-        return false
-    }
-
-    /// Re-check CarPlay status (call when audio route changes)
-    func updateCarPlayStatus() {
-        let wasCarPlay = isCarPlayEnvironment
-        isCarPlayEnvironment = Self.detectCarPlay()
-
-        if wasCarPlay != isCarPlayEnvironment {
-            if isCarPlayEnvironment {
-                print("🚗 Switched to CarPlay - stopping SFBAudioEngine")
-                stop()
-                audioPlayer = nil
-            } else {
-                print("📱 Switched from CarPlay - SFBAudioEngine available again")
-            }
-        }
-    }
+    #endif
 
     func setupAudioPlayer() {
         guard audioPlayer == nil else { return }
 
-        // Don't initialize SFBAudioEngine in CarPlay environment
-        if isCarPlayEnvironment {
-            print("🚗 Skipping SFBAudioEngine setup - running in CarPlay")
-            return
-        }
+        #if os(iOS)
+            // Don't initialize SFBAudioEngine in CarPlay environment
+            if isCarPlayEnvironment {
+                print("🚗 Skipping SFBAudioEngine setup - running in CarPlay")
+                return
+            }
+        #endif
 
         // Try to create AudioPlayer
         audioPlayer = AudioPlayer()
@@ -374,14 +385,16 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
     func optimizeForBackground() async {
         print("🔒 Optimizing SFBAudioEngine for background/lock screen")
 
-        // Increase buffer size significantly for background stability
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setPreferredIOBufferDuration(0.100) // 100ms buffer for lock screen
-            print("✅ Increased buffer to 100ms for lock screen stability")
-        } catch {
-            print("⚠️ Failed to increase buffer for background: \(error)")
-        }
+        #if os(iOS)
+            // Increase buffer size significantly for background stability
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setPreferredIOBufferDuration(0.100) // 100ms buffer for lock screen
+                print("✅ Increased buffer to 100ms for lock screen stability")
+            } catch {
+                print("⚠️ Failed to increase buffer for background: \(error)")
+            }
+        #endif
 
         // Reduce processing load by temporarily disabling EQ if possible
         if let equalizer = sfbEqualizer {
@@ -393,14 +406,16 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
     func optimizeForForeground() async {
         print("🔓 Restoring SFBAudioEngine for foreground")
 
-        // Restore normal buffer size
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setPreferredIOBufferDuration(0.040) // Back to 40ms
-            print("✅ Restored buffer to 40ms for foreground")
-        } catch {
-            print("⚠️ Failed to restore buffer for foreground: \(error)")
-        }
+        #if os(iOS)
+            // Restore normal buffer size
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setPreferredIOBufferDuration(0.040) // Back to 40ms
+                print("✅ Restored buffer to 40ms for foreground")
+            } catch {
+                print("⚠️ Failed to restore buffer for foreground: \(error)")
+            }
+        #endif
 
         // Re-enable EQ based on current settings
         if let equalizer = sfbEqualizer {

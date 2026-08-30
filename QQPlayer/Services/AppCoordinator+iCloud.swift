@@ -6,8 +6,10 @@
 //  索引完成后的 iCloud 收尾、widget 歌单数据刷新。
 //
 import Foundation
-import UIKit
-import WidgetKit
+#if os(iOS)
+    import UIKit
+    import WidgetKit
+#endif
 
 extension AppCoordinator {
     // url(forUbiquityContainerIdentifier:) blocks while iCloud sets the
@@ -441,87 +443,90 @@ extension AppCoordinator {
     }
 
     private func updateWidgetPlaylists(playlists: [Playlist]) async {
-        guard let containerURL = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios"
-        ) else {
-            print("⚠️ Widget: Failed to get shared container URL")
-            return
-        }
+        // Widget playlist data is iOS WidgetKit-only; on macOS this is a no-op.
+        #if os(iOS)
+            guard let containerURL = FileManager.default.containerURL(
+                forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios"
+            ) else {
+                print("⚠️ Widget: Failed to get shared container URL")
+                return
+            }
 
-        // Sort playlists by most recently played (lastPlayedAt descending)
-        let sortedPlaylists = playlists.sorted { playlist1, playlist2 in
-            return playlist1.lastPlayedAt > playlist2.lastPlayedAt
-        }
+            // Sort playlists by most recently played (lastPlayedAt descending)
+            let sortedPlaylists = playlists.sorted { playlist1, playlist2 in
+                return playlist1.lastPlayedAt > playlist2.lastPlayedAt
+            }
 
-        // Show only the top 3 most recently played playlists
-        let playlistsToShow = Array(sortedPlaylists.prefix(3))
-        print("📊 Widget: Showing top 3 most recently played playlists out of \(playlists.count) total")
+            // Show only the top 3 most recently played playlists
+            let playlistsToShow = Array(sortedPlaylists.prefix(3))
+            print("📊 Widget: Showing top 3 most recently played playlists out of \(playlists.count) total")
 
-        var widgetPlaylists: [WidgetPlaylistData] = []
+            var widgetPlaylists: [WidgetPlaylistData] = []
 
-        for playlist in playlistsToShow {
-            guard let playlistId = playlist.id else { continue }
+            for playlist in playlistsToShow {
+                guard let playlistId = playlist.id else { continue }
 
-            do {
-                // Get playlist items IN ORDER (same as app displays)
-                let playlistItems = try databaseManager.getPlaylistItems(playlistId: playlistId)
+                do {
+                    // Get playlist items IN ORDER (same as app displays)
+                    let playlistItems = try databaseManager.getPlaylistItems(playlistId: playlistId)
 
-                let orderedTrackIds = playlistItems.map { $0.trackStableId }
-                let orderedTracks = try databaseManager.getTracksByStableIdsPreservingOrder(orderedTrackIds)
+                    let orderedTrackIds = playlistItems.map { $0.trackStableId }
+                    let orderedTracks = try databaseManager.getTracksByStableIdsPreservingOrder(orderedTrackIds)
 
-                // Get first 4 tracks for artwork mashup (in correct playlist order)
-                let artworkTracks = Array(orderedTracks.prefix(4))
-                var artworkPaths: [String] = []
+                    // Get first 4 tracks for artwork mashup (in correct playlist order)
+                    let artworkTracks = Array(orderedTracks.prefix(4))
+                    var artworkPaths: [String] = []
 
-                // Save artwork for each track
-                for (index, track) in artworkTracks.enumerated() {
-                    if let artwork = await ArtworkManager.shared.getArtwork(for: track) {
-                        let filename = "playlist_\(playlistId)_\(index).jpg"
-                        let fileURL = containerURL.appendingPathComponent(filename)
+                    // Save artwork for each track
+                    for (index, track) in artworkTracks.enumerated() {
+                        if let artwork = await ArtworkManager.shared.getArtwork(for: track) {
+                            let filename = "playlist_\(playlistId)_\(index).jpg"
+                            let fileURL = containerURL.appendingPathComponent(filename)
 
-                        // 编码 + 写盘下沉后台线程（主 actor 串行 3 歌单 × 4 曲目
-                        // jpegData + write 会阻塞 UI，2026-08-29 审计 #9）
-                        let hasData = await withCheckedContinuation { continuation in
-                            DispatchQueue.global(qos: .utility).async {
-                                if let artworkData = artwork.jpegData(compressionQuality: 0.8) {
-                                    try? artworkData.write(to: fileURL, options: .atomic)
-                                    continuation.resume(returning: true)
-                                } else {
-                                    continuation.resume(returning: false)
+                            // 编码 + 写盘下沉后台线程（主 actor 串行 3 歌单 × 4 曲目
+                            // jpegData + write 会阻塞 UI，2026-08-29 审计 #9）
+                            let hasData = await withCheckedContinuation { continuation in
+                                DispatchQueue.global(qos: .utility).async {
+                                    if let artworkData = artwork.jpegData(compressionQuality: 0.8) {
+                                        try? artworkData.write(to: fileURL, options: .atomic)
+                                        continuation.resume(returning: true)
+                                    } else {
+                                        continuation.resume(returning: false)
+                                    }
                                 }
                             }
-                        }
-                        if hasData {
-                            artworkPaths.append(filename)
-                            print("✅ Widget: Saved artwork '\(track.title)' for playlist '\(playlist.title)' tile \(index)")
+                            if hasData {
+                                artworkPaths.append(filename)
+                                print("✅ Widget: Saved artwork '\(track.title)' for playlist '\(playlist.title)' tile \(index)")
+                            }
                         }
                     }
+
+                    // Get theme color from settings
+                    let settings = DeleteSettings.load()
+                    let colorHex = settings.backgroundColorChoice.rawValue
+
+                    let widgetPlaylist = WidgetPlaylistData(
+                        id: String(playlistId),
+                        name: playlist.title,
+                        trackCount: orderedTracks.count,
+                        colorHex: colorHex,
+                        artworkPaths: artworkPaths,
+                        customCoverImagePath: playlist.customCoverImagePath
+                    )
+                    widgetPlaylists.append(widgetPlaylist)
+
+                } catch {
+                    print("❌ Failed to process playlist \(playlist.title): \(error)")
                 }
-
-                // Get theme color from settings
-                let settings = DeleteSettings.load()
-                let colorHex = settings.backgroundColorChoice.rawValue
-
-                let widgetPlaylist = WidgetPlaylistData(
-                    id: String(playlistId),
-                    name: playlist.title,
-                    trackCount: orderedTracks.count,
-                    colorHex: colorHex,
-                    artworkPaths: artworkPaths,
-                    customCoverImagePath: playlist.customCoverImagePath
-                )
-                widgetPlaylists.append(widgetPlaylist)
-
-            } catch {
-                print("❌ Failed to process playlist \(playlist.title): \(error)")
             }
-        }
 
-        PlaylistDataManager.shared.savePlaylists(widgetPlaylists)
-        print("✅ Widget playlist data updated with \(widgetPlaylists.count) playlists")
+            PlaylistDataManager.shared.savePlaylists(widgetPlaylists)
+            print("✅ Widget playlist data updated with \(widgetPlaylists.count) playlists")
 
-        // Force widget to reload immediately
-        WidgetCenter.shared.reloadAllTimelines()
-        print("🔄 Widget timeline reload triggered")
+            // Force widget to reload immediately
+            WidgetCenter.shared.reloadAllTimelines()
+            print("🔄 Widget timeline reload triggered")
+        #endif
     }
 }

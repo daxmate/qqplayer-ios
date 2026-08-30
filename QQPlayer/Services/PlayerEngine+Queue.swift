@@ -4,7 +4,6 @@
 //  Queue management, playback order modes, shuffle, and loop handling for
 //  PlayerEngine.
 //
-import AVFoundation
 import Foundation
 
 extension PlayerEngine {
