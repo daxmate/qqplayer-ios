@@ -102,3 +102,8 @@ Config.plist
 
 # macOS
 .DS_Store
+# git worktree 目录（嵌套 git 仓库，禁止入库）
+.worktrees/
+
+# 本地产物（审计详报/拆分方案，不入库）
+docs/

@@ -48,13 +48,21 @@
             }
 
             if case .available = SystemLanguageModel.default.availability {
-                if let mix = try? await generateWithModel(
-                    request: request,
-                    candidates: candidates,
-                    artistNames: artistNames,
-                    albumTitles: albumTitles
-                ) {
-                    return mix
+                do {
+                    if let mix = try await generateWithModel(
+                        request: request,
+                        candidates: candidates,
+                        artistNames: artistNames,
+                        albumTitles: albumTitles
+                    ) {
+                        return mix
+                    }
+                    // 模型输出无效（选曲 < 3 等）：走 fallback
+                    print("⚠️ MixGenerator: 模型输出无效，走 fallback")
+                } catch {
+                    // 模型不可用/抛错统一走 fallback；此前 try? 静默吞错
+                    // 无法区分原因（2026-08-30 审计清尾）
+                    print("⚠️ MixGenerator: 模型生成失败，走 fallback: \(error)")
                 }
             }
 

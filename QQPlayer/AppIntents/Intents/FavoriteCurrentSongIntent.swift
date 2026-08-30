@@ -27,8 +27,6 @@ struct FavoriteCurrentSongIntent: AppIntent {
             throw FavoriteCurrentSongError.nothingPlaying
         }
 
-        SiriDiag.log("APP FavoriteCurrentSongIntent.perform track=\(track.title)")
-
         if try playback.isFavorite(trackStableId: track.stableId) {
             return .result(dialog: IntentDialog(
                 "\(track.title) is already in your Liked Songs."

@@ -82,7 +82,6 @@
     extension AudioEntity.AudioIntentValueQuery: IntentValueQuery {
         @MainActor
         func values(for input: AudioSearch) async throws -> [AudioEntity] {
-            SiriDiag.log("APP AudioIntentValueQuery criteria=\(input.criteria)")
             switch input.criteria {
             case .searchQuery(let query):
                 return try searchResults(for: query)

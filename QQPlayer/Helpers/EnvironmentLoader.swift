@@ -22,16 +22,9 @@ class EnvironmentLoader: @unchecked Sendable {
             loadFromFile(path: envPath)
         }
 
-        // Also try loading from .env in the project root (for development)
-        let projectRoot = Bundle.main.bundlePath
-        let rootEnvPath = URL(fileURLWithPath: projectRoot)
-            .appendingPathComponent("../../../.env")
-            .standardized
-            .path
-
-        if FileManager.default.fileExists(atPath: rootEnvPath) {
-            loadFromFile(path: rootEnvPath)
-        }
+        // 注意：不再尝试 "bundlePath/../../../.env" 项目根路径——DerivedData 构建下
+        // 该路径解析到构建产物内部而非源码目录，永远失效（死路径，2026-08-30 审计清尾）。
+        // 开发期请用环境变量注入（loadFromSystemEnvironment 已支持）。
 
         // Finally, load from actual environment variables (overrides file values)
         loadFromSystemEnvironment()

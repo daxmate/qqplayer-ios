@@ -11,7 +11,6 @@ import SwiftUI
 
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, handle intent: INIntent, completionHandler: @escaping (INIntentResponse) -> Void) {
-        SiriDiag.log("APP AppDelegate.handle intent=\(type(of: intent))")
         if let playMediaIntent = intent as? INPlayMediaIntent {
             Task { @MainActor in
                 await AppCoordinator.shared.handleSiriPlaybackIntent(playMediaIntent, completion: completionHandler)
@@ -26,7 +25,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        SiriDiag.log("APP didFinishLaunching")
         // Set up Siri vocabulary and media context
         setupSiriIntegration()
         return true
@@ -40,11 +38,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // 与模拟器直接跳过（iOS 无公开 API 校验自身 entitlement，SecTask 系 macOS
         // 专有；真机付费签名构建 entitlement 生效，不受影响）。
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
-            SiriDiag.log("Skipping Siri integration: running under XCTest")
             return
         }
         #if targetEnvironment(simulator)
-            SiriDiag.log("Skipping Siri integration: simulator has no Siri entitlement")
             return
         #endif
 

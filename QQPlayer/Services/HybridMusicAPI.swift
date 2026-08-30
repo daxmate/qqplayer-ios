@@ -319,7 +319,8 @@ class HybridMusicAPIService: ObservableObject, @unchecked Sendable {
         }
 
         // Check disk cache
-        let filename = name.lowercased().replacingOccurrences(of: " ", with: "_") + ".json"
+        // 文件名安全编码：非字母数字统一替换为 _（2026-08-30 审计清尾）
+        let filename = HybridMusicAPIService.safeCacheFilename(name) + ".json"
         let fileURL = cacheDirectory.appendingPathComponent(filename)
 
         guard let data = try? Data(contentsOf: fileURL),
@@ -348,7 +349,7 @@ class HybridMusicAPIService: ObservableObject, @unchecked Sendable {
         cache.setObject(cached, forKey: key)
 
         // Store in disk cache
-        let filename = name.lowercased().replacingOccurrences(of: " ", with: "_") + ".json"
+        let filename = HybridMusicAPIService.safeCacheFilename(name) + ".json"
         let fileURL = cacheDirectory.appendingPathComponent(filename)
 
         do {
@@ -399,18 +400,13 @@ class HybridMusicAPIService: ObservableObject, @unchecked Sendable {
     }
 }
 
-// MARK: - Errors
+// MARK: - 缓存文件名安全编码（非字母数字统一替换为 _，防路径分隔/逃逸，2026-08-30 审计清尾）
 
-enum HybridMusicAPIError: Error, LocalizedError {
-    case noArtistFound
-    case allServicesFailed([Error])
-
-    var errorDescription: String? {
-        switch self {
-        case .noArtistFound:
-            return "No artist found on any platform"
-        case .allServicesFailed(let errors):
-            return "All services failed: \(errors.map { $0.localizedDescription }.joined(separator: ", "))"
-        }
+extension HybridMusicAPIService {
+    static func safeCacheFilename(_ name: String) -> String {
+        name.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: "_")
     }
 }

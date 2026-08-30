@@ -245,6 +245,15 @@ struct NeteaseLyricsProvider: Sendable {
     }
 
     /// 搜索歌曲，返回候选列表（按相关度排序）
+    /// 搜索候选选择（桌面版逻辑：标题精确匹配 + 歌手包含；否则取第一个候选）
+    /// 抽出供测试直调——测试不得内联重写此逻辑（2026-08-30 审计清尾）。
+    static func selectBestCandidate(_ candidates: [NeteaseSong], title: String, artistName: String) -> NeteaseSong? {
+        candidates.first(where: { candidate in
+            candidate.title == title
+                && (artistName.isEmpty || candidate.artist.contains(artistName))
+        }) ?? candidates.first
+    }
+
     func search(query: String, limit: Int = 8) async throws -> [NeteaseSong] {
         let payload = OrderedJSON {
             OrderedJSONEntry("header", requestHeader())

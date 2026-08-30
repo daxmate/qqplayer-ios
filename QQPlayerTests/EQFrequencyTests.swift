@@ -40,6 +40,8 @@ struct EQFrequencyTests {
     @Test("频率范围在 20Hz - 20kHz 内")
     func rangeBounds() {
         let freqs = EQManager.defaultParametricFrequencies(for: 10)
+        // 先断言非空再解包：空数组时是失败而非崩溃（掩盖真实信号）
+        #expect(!freqs.isEmpty)
         #expect(freqs.first! >= 20.0)
         #expect(freqs.last! <= 20_000.0)
         #expect(freqs.last! > freqs.first!)
@@ -48,6 +50,7 @@ struct EQFrequencyTests {
     @Test("首尾接近对数端点（20Hz 与 20kHz）")
     func endpoints() {
         let freqs = EQManager.defaultParametricFrequencies(for: 10)
+        #expect(!freqs.isEmpty)
         #expect(abs(freqs.first! - 20.0) < 1.0)
         #expect(abs(freqs.last! - 20_000.0) < 1.0)
     }

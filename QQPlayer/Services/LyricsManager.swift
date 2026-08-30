@@ -702,10 +702,12 @@ actor LyricsManager {
             let candidates = try await provider.search(query: query, limit: 8)
             guard !candidates.isEmpty else { return nil }
 
-            let best = candidates.first(where: { candidate in
-                candidate.title == track.title
-                    && (artistName.isEmpty || candidate.artist.contains(artistName))
-            }) ?? candidates[0]
+            let best = NeteaseLyricsProvider.selectBestCandidate(
+                candidates,
+                title: track.title,
+                artistName: artistName
+            )
+            guard let best else { return nil }
 
             guard let result = try await provider.getLyric(songID: best.id) else {
                 print("⚠️ Netease returned no lyrics for: \(track.title)")

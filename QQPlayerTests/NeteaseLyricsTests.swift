@@ -185,10 +185,9 @@ struct NeteaseSongMappingTests {
             NeteaseSong(id: 2, title: "花海", artist: "其他歌手", duration: 250),
             NeteaseSong(id: 3, title: "无关歌曲", artist: "周杰伦", duration: 200),
         ]
-        let best = candidates.first(where: {
-            $0.title == "花海" && "周杰伦".contains("周杰伦")
-        }) ?? candidates[0]
-        #expect(best.id == 1)
+        // 调用生产选择函数（此前内联重写逻辑 = 测试自己，生产改了测试依然绿）
+        let best = NeteaseLyricsProvider.selectBestCandidate(candidates, title: "花海", artistName: "周杰伦")
+        #expect(best?.id == 1)
     }
 
     @Test("无精确匹配时取第一个候选")
@@ -196,8 +195,14 @@ struct NeteaseSongMappingTests {
         let candidates = [
             NeteaseSong(id: 7, title: "A", artist: "B", duration: 100),
         ]
-        let best = candidates.first(where: { $0.title == "不存在" && false }) ?? candidates[0]
-        #expect(best.id == 7)
+        let best = NeteaseLyricsProvider.selectBestCandidate(candidates, title: "不存在", artistName: "X")
+        #expect(best?.id == 7)
+    }
+
+    @Test("空候选返回 nil")
+    func emptyCandidates() {
+        let best = NeteaseLyricsProvider.selectBestCandidate([], title: "花海", artistName: "周杰伦")
+        #expect(best == nil)
     }
 }
 

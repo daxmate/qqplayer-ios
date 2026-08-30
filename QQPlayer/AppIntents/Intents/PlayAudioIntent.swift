@@ -48,7 +48,6 @@
 
         @MainActor
         func perform() async throws -> some IntentResult & ShowsSnippetIntent {
-            SiriDiag.log("APP PlayAudioIntent.perform entity=\(audioEntity.title) attrs=\(playbackAttributes) queueLocation=\(String(describing: queueLocation))")
             let tracks: [Track]
             do {
                 switch audioEntity {

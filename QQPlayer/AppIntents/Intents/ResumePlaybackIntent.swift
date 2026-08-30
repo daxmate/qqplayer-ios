@@ -22,7 +22,6 @@ struct ResumePlaybackIntent: AudioPlaybackIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        SiriDiag.log("APP ResumePlaybackIntent.perform currentTrack=\(playback.currentTrack?.title ?? "nil")")
         if playback.currentTrack != nil {
             playback.resume()
             return .result()

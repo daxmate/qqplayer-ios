@@ -1102,7 +1102,6 @@ class AppCoordinator: ObservableObject {
         }
 
         print("🎤 Handling Siri playback intent for: \(identifier)")
-        SiriDiag.log("APP handleSiriPlaybackIntent identifier=\(identifier) title=\(mediaItem.title ?? "nil")")
 
         guard identifier != "qqplayer_not_found" else {
             completion(INPlayMediaIntentResponse(code: .failure, userActivity: nil))
@@ -1229,7 +1228,6 @@ class AppCoordinator: ObservableObject {
                 // songs → albums → artists → playlists against the main DB.
                 let name = String(identifier.dropFirst(11))
                 print("🎤 Untyped search: '\(name)'")
-                SiriDiag.log("APP search_any name=\(name)")
                 let tracks = try databaseManager.searchTracks(query: name)
                 if let firstTrack = tracks.first {
                     await prepareSiriAudioSession()
@@ -1316,7 +1314,6 @@ class AppCoordinator: ObservableObject {
     /// INAddMediaIntent route the SiriIntentsExtension hands to the app.
     func handleSiriAddMediaIntent(_ intent: INAddMediaIntent, completion: @escaping (INIntentResponse) -> Void) async {
         let identifier = intent.mediaItems?.first?.identifier ?? "current_track"
-        SiriDiag.log("APP handleSiriAddMediaIntent id=\(identifier) destination=\(String(describing: intent.mediaDestination))")
 
         let track: Track?
         if identifier == "current_track" {

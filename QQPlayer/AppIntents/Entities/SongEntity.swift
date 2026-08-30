@@ -77,7 +77,6 @@
     @available(iOS 27.0, *)
     extension SongQuery: EntityQuery {
         func entities(for identifiers: [SongEntity.ID]) async throws -> [SongEntity] {
-            SiriDiag.log("APP SongQuery.entities(for:) ids=\(identifiers)")
             return try await store.songEntities(for: identifiers)
         }
 
@@ -90,7 +89,6 @@
     extension SongQuery: EntityStringQuery {
         func entities(matching string: String) async throws -> [SongEntity] {
             let results = try await store.songEntities(matching: string)
-            SiriDiag.log("APP SongQuery.entities(matching:) query=\(string) results=\(results.count)")
             return results
         }
     }

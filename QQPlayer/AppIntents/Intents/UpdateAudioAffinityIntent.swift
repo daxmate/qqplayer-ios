@@ -26,7 +26,6 @@
 
         @MainActor
         func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetIntent {
-            SiriDiag.log("APP UpdateAudioAffinityIntent.perform state=\(affinityState) target=\(target.title)")
             guard case .song(let song) = target else {
                 throw AppIntentError(wrapping: AudioIntentError.unsupportedTarget)
             }

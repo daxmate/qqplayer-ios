@@ -26,13 +26,13 @@ struct SpotifySearchResponse: Codable {
 }
 
 struct SpotifyArtistsResponse: Codable {
-    let href: String
+    let href: String?
     let items: [SpotifyArtist]
-    let limit: Int
+    let limit: Int?
     let next: String?
-    let offset: Int
+    let offset: Int?
     let previous: String?
-    let total: Int
+    let total: Int?
 }
 
 struct SpotifyArtist: Codable {
@@ -164,7 +164,22 @@ class SpotifyAPIService: ObservableObject, @unchecked Sendable {
 
     private let cache = NSCache<NSString, CachedSpotifyArtistInfo>()
     private let cacheDirectory: URL
+    /// accessToken 被 async 方法读写（可能并发调用）：NSLock 保护（锁临界区不跨 await，
+    /// 同步 helper 内使用合法；2026-08-30 审计清尾）。
+    private let tokenLock = NSLock()
     private var accessToken: SpotifyAccessToken?
+
+    private func withTokenLocked<T>(_ body: () -> T) -> T {
+        tokenLock.lock()
+        defer { tokenLock.unlock() }
+        return body()
+    }
+
+    private func writeTokenLocked(_ body: () -> Void) {
+        tokenLock.lock()
+        defer { tokenLock.unlock() }
+        body()
+    }
 
     /// 依赖注入 init（可测性）：生产代码只通过 `shared` 创建，行为与原先完全一致。
     init(clientId: String?, clientSecret: String?, session: URLSession, cacheDirectory: URL) {
@@ -214,13 +229,15 @@ class SpotifyAPIService: ObservableObject, @unchecked Sendable {
     // MARK: - Authentication
 
     private func ensureValidAccessToken() async throws {
-        if let token = accessToken, !token.isExpired {
+        let token = withTokenLocked { accessToken }
+        if let token, !token.isExpired {
             return // Token is still valid
         }
 
         // Need to get a new token
         print("🔐 Spotify: Getting new access token...")
-        accessToken = try await getAccessToken()
+        let newToken = try await getAccessToken()
+        writeTokenLocked { accessToken = newToken }
         print("✅ Spotify: Successfully obtained access token")
     }
 
@@ -265,7 +282,8 @@ class SpotifyAPIService: ObservableObject, @unchecked Sendable {
     // MARK: - Search
 
     private func performSearch(query: String, type: String) async throws -> [SpotifyArtist] {
-        guard let accessToken = accessToken else {
+        let accessToken = withTokenLocked { self.accessToken }
+        guard let accessToken else {
             throw SpotifyAPIError.noAccessToken
         }
 
@@ -340,7 +358,9 @@ class SpotifyAPIService: ObservableObject, @unchecked Sendable {
         }
 
         // Check disk cache
-        let filename = name.lowercased().replacingOccurrences(of: " ", with: "_") + ".json"
+        // 文件名安全编码：歌手名可能含 /、.. 等路径特殊字符（AC/DC 曾静默写失败、
+        // 极端名可逃逸缓存目录，2026-08-30 审计清尾）：非字母数字统一替换为 _。
+        let filename = Self.safeCacheFilename(name) + ".json"
         let fileURL = cacheDirectory.appendingPathComponent(filename)
 
         guard let data = try? Data(contentsOf: fileURL),
@@ -361,7 +381,7 @@ class SpotifyAPIService: ObservableObject, @unchecked Sendable {
         cache.setObject(cached, forKey: key)
 
         // Store in disk cache
-        let filename = name.lowercased().replacingOccurrences(of: " ", with: "_") + ".json"
+        let filename = Self.safeCacheFilename(name) + ".json"
         let fileURL = cacheDirectory.appendingPathComponent(filename)
 
         do {
@@ -380,8 +400,6 @@ enum SpotifyAPIError: Error, LocalizedError {
     case invalidURL
     case httpError(Int)
     case forbidden(String?)
-    case decodingError(Error)
-    case networkError(Error)
     case authenticationError
     case noAccessToken
 
@@ -396,14 +414,20 @@ enum SpotifyAPIError: Error, LocalizedError {
                 return "Spotify access forbidden: \(message)"
             }
             return "Spotify access forbidden. Check that Web API access is enabled for this Spotify app and that the client credentials are from the correct app."
-        case .decodingError(let error):
-            return "Decoding Error: \(error.localizedDescription)"
-        case .networkError(let error):
-            return "Network Error: \(error.localizedDescription)"
         case .authenticationError:
             return "Authentication Error"
         case .noAccessToken:
             return "No valid access token"
         }
+    }
+}
+
+/// 缓存文件名安全编码：非字母数字统一替换为 _（防路径分隔/逃逸，2026-08-30 审计清尾）
+extension SpotifyAPIService {
+    static func safeCacheFilename(_ name: String) -> String {
+        name.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: "_")
     }
 }
