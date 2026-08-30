@@ -20,8 +20,15 @@ struct WhatsNewItem: Codable, Identifiable {
 }
 
 enum WhatsNewContent {
-    /// 当前版本通告（id 与 build 号对齐：MARKETING_VERSION + CURRENT_PROJECT_VERSION）
-    static let currentVersion = "1.0.0 (60)"
+    /// 当前版本通告。版本号从 Bundle 动态读取（与 Info.plist 的
+    /// $(MARKETING_VERSION) / $(CURRENT_PROJECT_VERSION) 单一事实源对齐），
+    /// 发版只改 pbxproj build settings 一处，无需同步此处。
+    static var currentVersion: String {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String ?? "0.0.0"
+        let build = info?["CFBundleVersion"] as? String ?? "0"
+        return "\(short) (\(build))"
+    }
 
     /// 全部版本通告，从新到旧。后续版本由 maintainer 在发版时追加。
     static let all: [WhatsNewItem] = [
