@@ -62,3 +62,41 @@ jobs:
             -derivedDataPath build/DerivedData \
             -only-testing:QQPlayerTests \
             CODE_SIGNING_ALLOWED=NO
+
+  macos:
+    name: macOS (build QQPlayerMac + 资源产物断言)
+    # macOS 原生版（QQPlayerMac target）编译级验证。
+    # 历史教训（2026-08-31）：macOS 版首测三 bug 全是"能编译但行为错"——
+    # ① App 图标没生效（Contents.json 缺 mac 条目 + target 缺 APPICON_NAME）
+    # ② sidebar 与交通灯重叠 ③ 扫描从不执行（isIndexing 未置 true）→ 库永远为空。
+    # 其中图标类问题可用产物断言抓住：AppIcon.icns / Assets.car 必须在 app 里。
+    # 编译级验证无法覆盖布局/行为，macOS 单测 target 后续补齐。
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cache SPM packages + DerivedData (macOS)
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            build/DerivedDataMac
+          key: ${{ runner.os }}-spm-mac-v2-${{ hashFiles('QQPlayer.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-mac-v2-
+
+      - name: Build QQPlayerMac
+        run: |
+          xcodebuild build \
+            -project QQPlayer.xcodeproj \
+            -scheme QQPlayerMac \
+            -configuration Debug \
+            -derivedDataPath build/DerivedDataMac \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Assert app resources (AppIcon + Assets.car)
+        run: |
+          APP="build/DerivedDataMac/Build/Products/Debug/QQPlayerMac.app"
+          test -f "$APP/Contents/Resources/AppIcon.icns" || { echo "❌ AppIcon.icns 缺失——AppIcon.appiconset 无 mac 条目或 target 缺 ASSETCATALOG_COMPILER_APPICON_NAME"; exit 1; }
+          test -f "$APP/Contents/Resources/Assets.car" || { echo "❌ Assets.car 缺失——Assets.xcassets 未进 QQPlayerMac target 资源阶段"; exit 1; }
+          echo "✅ AppIcon.icns + Assets.car 均在产物中"
