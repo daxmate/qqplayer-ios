@@ -504,7 +504,15 @@ class StateManager: @unchecked Sendable {
     }
 
     func getMusicFolderURL() -> URL? {
-        return getAppFolderURL()
+        #if os(macOS)
+            // macOS 无 iCloud 容器语义（MVP）：沿用桌面端约定，默认 ~/Music/QQPlayer。
+            // 用户拍板（2026-08-30）：音乐库 = 本地文件夹扫描，默认路径 ~/Music/QQPlayer。
+            return FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Music", isDirectory: true)
+                .appendingPathComponent("QQPlayer", isDirectory: true)
+        #else
+            return getAppFolderURL()
+        #endif
     }
 
     func checkiCloudAvailability() -> Bool {

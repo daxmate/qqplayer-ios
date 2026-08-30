@@ -84,6 +84,13 @@ class LibraryIndexer: NSObject, ObservableObject {
     func start() {
         guard !isIndexing else { return }
 
+        #if os(macOS)
+            // macOS 数据源：FileManager 目录扫描（默认 ~/Music/QQPlayer）。
+            // MVP 策略：启动全扫 + 手动刷新；FSEvents 实时监控后补（调研报告 §3.5 风险 2）。
+            startMacScan()
+            return
+        #endif
+
         // Attempt recovery from offline mode when manually syncing
         CloudDownloadManager.shared.attemptRecovery()
 
@@ -720,6 +727,99 @@ class LibraryIndexer: NSObject, ObservableObject {
             }
         }
     }
+
+    #if os(macOS)
+        /// macOS 数据源：FileManager 目录扫描音乐文件夹（默认 ~/Music/QQPlayer）。
+        /// 复用 iOS 的 findMusicFiles/indexFile/processFolderPlaylists 逻辑，
+        /// 仅替换数据源（NSMetadataQuery → 目录枚举）。MVP 为启动全扫，
+        /// FSEvents 实时监控后补（调研报告 §3.5 风险 2）。
+        private func startMacScan() {
+            let generation = indexingGeneration
+            Task {
+                await scanMusicFolder(generation: generation)
+            }
+        }
+
+        private func scanMusicFolder(generation: Int) async {
+            guard generation == indexingGeneration, isIndexing else { return }
+
+            guard let musicFolderURL = stateManager.getMusicFolderURL() else {
+                print("❌ macOS scan: no music folder configured")
+                isIndexing = false
+                return
+            }
+
+            print("📁 macOS scanning music folder: \(musicFolderURL.path)")
+            do {
+                let musicFiles = try await findMusicFiles(in: musicFolderURL)
+                let totalFiles = musicFiles.count
+                print("📁 macOS found \(totalFiles) music files")
+
+                guard totalFiles > 0 else {
+                    // 空目录也走 reconcile，清理已删除曲目（与 iOS 语义一致）。
+                    guard generation == indexingGeneration else { return }
+                    await FileCleanupManager.shared.reconcileMissingFiles(in: [musicFolderURL])
+                    postPendingLibraryRefresh()
+                    isIndexing = false
+                    print("❌ No music files found in \(musicFolderURL.path)")
+                    return
+                }
+
+                await MainActor.run {
+                    queuedFiles = musicFiles.map { $0.lastPathComponent }
+                    currentlyProcessing = ""
+                }
+
+                let allFileNames = musicFiles.map { $0.lastPathComponent }
+                let maxConcurrentFiles = 4
+                var completedCount = 0
+                var nextIndex = 0
+
+                await withTaskGroup(of: Void.self) { group in
+                    while nextIndex < min(maxConcurrentFiles, totalFiles) {
+                        let url = musicFiles[nextIndex]
+                        group.addTask { [weak self] in await self?.indexFile(url) }
+                        nextIndex += 1
+                    }
+
+                    while await group.next() != nil {
+                        completedCount += 1
+
+                        guard generation == indexingGeneration else { return }
+
+                        if completedCount % 20 == 0 || completedCount == totalFiles {
+                            currentlyProcessing = allFileNames[min(completedCount, totalFiles - 1)]
+                            queuedFiles = Array(allFileNames.suffix(from: min(completedCount, totalFiles)))
+                            indexingProgress = Double(completedCount) / Double(totalFiles)
+                        }
+
+                        if nextIndex < totalFiles {
+                            let url = musicFiles[nextIndex]
+                            group.addTask { [weak self] in await self?.indexFile(url) }
+                            nextIndex += 1
+                        }
+                    }
+                }
+
+                await MainActor.run {
+                    currentlyProcessing = ""
+                    queuedFiles = []
+                }
+
+                guard generation == indexingGeneration else { return }
+                await FileCleanupManager.shared.reconcileMissingFiles(in: [musicFolderURL])
+                postPendingLibraryRefresh()
+
+                isIndexing = false
+                print("✅ macOS scan completed. Found \(tracksFound) tracks.")
+
+                await processFolderPlaylists(allMusicFiles: musicFiles)
+            } catch {
+                print("❌ macOS scan failed: \(error)")
+                isIndexing = false
+            }
+        }
+    #endif
 
     private func findMusicFiles(in directory: URL) async throws -> [URL] {
         return try await withCheckedThrowingContinuation { continuation in
