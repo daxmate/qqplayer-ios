@@ -1,0 +1,110 @@
+import GRDB
+import SwiftUI
+struct PlaylistManagementView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var appCoordinator: AppCoordinator
+    @State private var playlists: [Playlist] = []
+    @State private var playlistToDelete: Playlist?
+    @State private var showDeleteConfirmation = false
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                if playlists.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "music.note.list")
+                            .font(.system(size: 40))
+                            .foregroundColor(.secondary)
+
+                        Text(Localized.noPlaylistsYet)
+                            .font(.headline)
+
+                        Text(Localized.createPlaylistsInstruction)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(playlists, id: \.id) { playlist in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(playlist.title)
+                                        .font(.headline)
+
+                                    Text(Localized.createdDate(formatDate(Date(timeIntervalSince1970: TimeInterval(playlist.createdAt)))))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+
+                                Spacer()
+
+                                Button(action: {
+                                    playlistToDelete = playlist
+                                    showDeleteConfirmation = true
+                                }) {
+                                    Image(systemName: "trash")
+                                        .foregroundColor(.red)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+            }
+            .padding()
+            .navigationTitle(Localized.managePlaylists)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(Localized.done) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .alert(Localized.deletePlaylist, isPresented: $showDeleteConfirmation) {
+            Button(Localized.delete, role: .destructive) {
+                deletePlaylist()
+            }
+            Button(Localized.cancel, role: .cancel) { }
+        } message: {
+            if let playlist = playlistToDelete {
+                Text(Localized.deletePlaylistConfirmation(playlist.title))
+            }
+        }
+        .onAppear {
+            loadPlaylists()
+        }
+    }
+
+    private func loadPlaylists() {
+        do {
+            playlists = try DatabaseManager.shared.getAllPlaylists()
+        } catch {
+            print("Failed to load playlists: \(error)")
+        }
+    }
+
+    private func deletePlaylist() {
+        guard let playlist = playlistToDelete,
+              let playlistId = playlist.id else { return }
+
+        do {
+            try appCoordinator.deletePlaylist(playlistId: playlistId)
+            playlists.removeAll { $0.id == playlistId }
+            playlistToDelete = nil
+        } catch {
+            print("Failed to delete playlist: \(error)")
+        }
+    }
+
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter.string(from: date)
+    }
+}
