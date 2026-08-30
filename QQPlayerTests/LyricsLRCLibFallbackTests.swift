@@ -10,10 +10,10 @@
 //    按 duration ±2s 命中带时间轴的歌词
 //  - 搜索页（LyricsSearchProvider.searchLRCLib）：带 artist 简繁双查 0 条 → 只按歌名（简/繁）重搜
 //
-//  隔离说明：本测试**不自建 MockURLProtocol**（那个是其他 API 测试套件共用的进程级
-//  静态 handler，跨 suite 并行会互相覆盖），而是用本文件底部自带的
-//  LRCLibMockURLProtocol —— 独立 URLProtocol 类，静态状态只属于自己，
-//  与其他 suite 完全隔离，suite 无需 .serialized。
+//  隔离说明：双保险——① 本文件底部自带 LRCLibMockURLProtocol（独立 URLProtocol 类，
+//  静态状态只属于自己），与其他 suite 共用的 MockURLProtocol 互不干扰，跨 suite 可并行；
+//  ② suite 内必须 .serialized：3 个测试共享 LRCLibMockURLProtocol 静态 handler/
+//  receivedRequests，Swift Testing 默认 suite 内并行会互相踩（CI 实跑验证过）。
 //
 
 import Foundation
@@ -21,7 +21,7 @@ import Testing
 
 @testable import QQPlayer
 
-@Suite
+@Suite(.serialized)
 struct LyricsLRCLibFallbackTests {
     /// 真实 lrclib 响应结构（字段与 /api/search 返回一致）
     private static let stefanieHitJSON = """
