@@ -128,7 +128,7 @@ struct MacLyricsView: View {
                 .padding(.vertical, 20)
                 .padding(.horizontal, 24)
             }
-            .onChange(of: activeIndex) { _, newIndex in
+            .onChange(of: activeIndex) { newIndex in
                 guard let newIndex else { return }
                 withAnimation(.easeInOut(duration: 0.3)) {
                     proxy.scrollTo(newIndex, anchor: .center)
