@@ -287,13 +287,18 @@ struct KaraokeControllerTests {
         #expect(fake.seeks.isEmpty)
 
         // seek 生效：播放时间到达目标行句首（12.0）→ pending 解除，恢复正常检测；
-        // 12 < 末句句末 15，不触发句末。
-        kc.handlePlaybackTick(time: 12.0, duration: 15.0)
+        // 12 < 末句句末，不触发句末。
+        kc.handlePlaybackTick(time: 12.0, duration: 12.5)
         await drainMainActor()
         #expect(fake.seeks.isEmpty)
 
-        // 解除后句末检测恢复工作：15.0 = 末句句末 → 句末自动停回 12.0 暂停
-        kc.handlePlaybackTick(time: 15.0, duration: 15.0)
+        // 解除后句末检测恢复工作：模拟真实 0.25s tick 间隔自然播放到末句句末
+        // （12.5 = duration）→ 句末自动停回 12.0 暂停。不能直接 12→15 跳变：
+        // 间隔 >1s 会被「前向 seek 检测」误判为用户拖进度条而跳过句末检测。
+        kc.handlePlaybackTick(time: 12.25, duration: 12.5)
+        await drainMainActor()
+        #expect(fake.seeks.isEmpty)
+        kc.handlePlaybackTick(time: 12.5, duration: 12.5)
         await drainMainActor()
         expectSingleSeek(fake, time: 12.0, play: false)
     }

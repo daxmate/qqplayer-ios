@@ -11,6 +11,11 @@
     extension PlayerEngine {
         func setPlaybackRate(_ rate: Double) {
             currentPlaybackRate = rate
+            // rate == 1.0 时 bypass timePitch：AVAudioUnitTimePitch 从非 1.0 切回 1.0 时
+            // phase-vocoder 窗口状态残留，rate=1.0 仍走 DSP → 持续失真
+            // （2026-08-31 用户实测 0.7→1.0 声音失真）。1.0 本就不需要变速处理，
+            // bypass 直通最干净；非 1.0 时恢复 DSP。
+            timePitchNode.auAudioUnit.shouldBypassEffect = (rate == 1.0)
             // engine 未 setup 时设属性也安全：attach 后生效
             timePitchNode.rate = Float(rate)
             if usingSFBEngine {
@@ -835,6 +840,9 @@
 
         func setPlaybackRate(_ rate: Double) {
             currentPlaybackRate = rate
+            // macOS 同 iOS：rate==1.0 bypass timePitch，避免从非 1.0 切回时
+            // phase-vocoder 残留状态失真（2026-08-31 iOS 实测同根因）
+            timePitchNode.auAudioUnit.shouldBypassEffect = (rate == 1.0)
             timePitchNode.rate = Float(rate)
         }
 
