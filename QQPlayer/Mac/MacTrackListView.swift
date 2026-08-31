@@ -27,9 +27,9 @@ struct MacTrackListView: View {
                 Image(systemName: "music.note.list")
                     .font(.system(size: 44))
                     .foregroundColor(.secondary)
-                Text("音乐库为空")
+                Text("library_empty".localized)
                     .font(.title3)
-                Text("点击左下角「刷新音乐库」扫描 ~/Music/QQPlayer")
+                Text("library_empty_hint".localized)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -47,25 +47,25 @@ struct MacTrackListView: View {
                 }
                 .width(32)
 
-                TableColumn("标题") { row in
+                TableColumn("title".localized) { row in
                     Text(row.track.title)
                         .fontWeight(row.track.stableId == activeTrackId ? .semibold : .regular)
                         .lineLimit(1)
                 }
 
-                TableColumn("艺术家") { row in
+                TableColumn("artist".localized) { row in
                     Text(artistNameResolver(row.track) ?? "")
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                 }
 
-                TableColumn("专辑") { row in
+                TableColumn("album".localized) { row in
                     Text(albumTitle(for: row.track))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                 }
 
-                TableColumn("时长") { row in
+                TableColumn("duration".localized) { row in
                     Text(MacTimeFormat.format(duration(for: row.track)))
                         .foregroundColor(.secondary)
                         .monospacedDigit()
@@ -79,7 +79,7 @@ struct MacTrackListView: View {
             .contextMenu(forSelectionType: String.self) { selectedIDs in
                 if let id = selectedIDs.first,
                    let track = tracks.first(where: { $0.stableId == id }) {
-                    Button("播放") {
+                    Button("play".localized) {
                         onPlay(track)
                     }
                 }

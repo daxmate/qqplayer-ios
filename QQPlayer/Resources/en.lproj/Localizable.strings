@@ -470,3 +470,22 @@
 "whats_new_item_hints" = "First-use hints: bubbles teach hidden gestures when you enter the player / lyrics pages";
 "whats_new_item_guide" = "Features & Gestures guide: a full manual in Settings, available anytime";
 "whats_new_item_announcement" = "What's New popup: after each update, new content is shown at launch";
+
+// MARK: - macOS (QQPlayerMac)
+"title" = "Title";
+"duration" = "Duration";
+"close" = "Close";
+"refresh_library" = "Refresh Library";
+"indexing_progress" = "Indexing… %d tracks";
+"library_empty" = "Library is empty";
+"library_empty_hint" = "Click “Refresh Library” at the bottom left to scan ~/Music/QQPlayer";
+"load_library_failed" = "Failed to load library: %@";
+"not_playing" = "Not Playing";
+"karaoke_mode_help" = "Karaoke mode (speed / single-line loop / AB loop)";
+"toggle_lyrics_help" = "Show or hide lyrics";
+"lyrics" = "Lyrics";
+"close_lyrics_panel" = "Close lyrics panel";
+"lyrics_loading" = "Loading lyrics…";
+"instrumental_no_lyrics" = "Instrumental, no lyrics";
+"no_lyrics" = "No lyrics";
+"track_count" = "%d tracks";

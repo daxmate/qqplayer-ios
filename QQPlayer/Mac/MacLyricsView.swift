@@ -37,7 +37,7 @@ struct MacLyricsView: View {
 
     private var header: some View {
         HStack {
-            Label("歌词", systemImage: "quote.bubble")
+            Label("lyrics".localized, systemImage: "quote.bubble")
                 .font(.headline)
             Spacer()
             Button(action: onClose) {
@@ -46,7 +46,7 @@ struct MacLyricsView: View {
             }
             .buttonStyle(.plain)
             .foregroundColor(.secondary)
-            .help("关闭歌词面板")
+            .help("close_lyrics_panel".localized)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
@@ -59,21 +59,21 @@ struct MacLyricsView: View {
         if isLoading {
             VStack {
                 Spacer()
-                ProgressView("歌词加载中…")
+                ProgressView("lyrics_loading".localized)
                 Spacer()
             }
         } else if let lyrics {
             if lyrics.isInstrumental {
-                emptyState("纯音乐，无歌词")
+                emptyState("instrumental_no_lyrics".localized)
             } else if !lyrics.syncedLyrics.isEmpty {
                 syncedView(lyrics.syncedLyrics)
             } else if !lyrics.plainLyrics.isEmpty {
                 plainView(lyrics.plainLyrics)
             } else {
-                emptyState("暂无歌词")
+                emptyState("no_lyrics".localized)
             }
         } else {
-            emptyState("暂无歌词")
+            emptyState("no_lyrics".localized)
         }
     }
 

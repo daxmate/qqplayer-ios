@@ -41,7 +41,7 @@ struct MacAlbumGridView: View {
                                 .font(.callout)
                                 .fontWeight(.medium)
                                 .lineLimit(1)
-                            Text(album.albumArtist ?? String(format: "%d 首", albumTrackCount(album)))
+                            Text(album.albumArtist ?? String(format: "track_count".localized, albumTrackCount(album)))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .lineLimit(1)
@@ -95,9 +95,9 @@ struct MacAlbumDetailSheet: View {
                     .font(.title2)
                     .fontWeight(.bold)
                 Spacer()
-                Button("播放") { onPlay() }
+                Button("play".localized) { onPlay() }
                     .keyboardShortcut(.return)
-                Button("关闭") { dismiss() }
+                Button("close".localized) { dismiss() }
                     .keyboardShortcut(.cancelAction)
             }
             .padding()
@@ -148,7 +148,7 @@ struct MacArtistListView: View {
                     Text(artist.name)
                         .lineLimit(1)
                     Spacer()
-                    Text("\(artistTrackCount(artist)) 首")
+                    Text(String(format: "track_count".localized, artistTrackCount(artist)))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -199,9 +199,9 @@ struct MacArtistDetailSheet: View {
                     .font(.title2)
                     .fontWeight(.bold)
                 Spacer()
-                Button("播放") { onPlay() }
+                Button("play".localized) { onPlay() }
                     .keyboardShortcut(.return)
-                Button("关闭") { dismiss() }
+                Button("close".localized) { dismiss() }
                     .keyboardShortcut(.cancelAction)
             }
             .padding()
@@ -258,7 +258,7 @@ struct MacPlaylistListView: View {
                         .lineLimit(1)
                     Spacer()
                     if let itemCount = try? DatabaseManager.shared.getPlaylistItems(playlistId: playlist.id ?? 0).count {
-                        Text("\(itemCount) 首")
+                        Text(String(format: "track_count".localized, itemCount))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }

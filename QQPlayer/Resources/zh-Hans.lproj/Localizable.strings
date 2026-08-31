@@ -506,3 +506,22 @@
 "whats_new_item_hints" = "首次使用提示：进入播放页 / 歌词页时，自动用气泡教你隐藏手势";
 "whats_new_item_guide" = "功能与手势指南：设置中新增完整操作手册，随时可查";
 "whats_new_item_announcement" = "新功能通告：每次更新后，启动时展示本版新增内容";
+
+// MARK: - macOS (QQPlayerMac)
+"title" = "标题";
+"duration" = "时长";
+"close" = "关闭";
+"refresh_library" = "刷新音乐库";
+"indexing_progress" = "索引中… %d 首";
+"library_empty" = "音乐库为空";
+"library_empty_hint" = "点击左下角「刷新音乐库」扫描 ~/Music/QQPlayer";
+"load_library_failed" = "加载音乐库失败：%@";
+"not_playing" = "未在播放";
+"karaoke_mode_help" = "跟唱模式（倍速 / 单句循环 / AB 循环）";
+"toggle_lyrics_help" = "显示 / 隐藏歌词";
+"lyrics" = "歌词";
+"close_lyrics_panel" = "关闭歌词面板";
+"lyrics_loading" = "歌词加载中…";
+"instrumental_no_lyrics" = "纯音乐，无歌词";
+"no_lyrics" = "暂无歌词";
+"track_count" = "%d 首";

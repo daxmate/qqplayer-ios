@@ -12,12 +12,15 @@ import Combine
 import SwiftUI
 
 enum MacLibrarySection: String, CaseIterable, Identifiable {
-    case tracks = "歌曲"
-    case albums = "专辑"
-    case artists = "艺术家"
-    case playlists = "播放列表"
+    case tracks = "songs"
+    case albums = "albums"
+    case artists = "artists"
+    case playlists = "playlists"
 
     var id: String { rawValue }
+
+    /// Localized sidebar title (rawValue is a localization key).
+    var title: String { rawValue.localized }
 
     var icon: String {
         switch self {
@@ -88,7 +91,7 @@ struct MacLibraryView: View {
 
     private var sidebar: some View {
         List(MacLibrarySection.allCases, selection: $section) { item in
-            Label(item.rawValue, systemImage: item.icon)
+            Label(item.title, systemImage: item.icon)
                 .tag(item)
         }
         .listStyle(.sidebar)
@@ -98,14 +101,14 @@ struct MacLibraryView: View {
                     ProgressView(value: indexer.indexingProgress)
                         .progressViewStyle(.linear)
                         .frame(maxWidth: .infinity)
-                    Text("索引中… \(indexer.tracksFound) 首")
+                    Text(String(format: "indexing_progress".localized, indexer.tracksFound))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 } else {
                     Button {
                         indexer.start()
                     } label: {
-                        Label("刷新音乐库", systemImage: "arrow.clockwise")
+                        Label("refresh_library".localized, systemImage: "arrow.clockwise")
                     }
                     .buttonStyle(.borderless)
                     .font(.caption)
@@ -164,7 +167,7 @@ struct MacLibraryView: View {
             playlists = try DatabaseManager.shared.getAllPlaylists()
             loadError = nil
         } catch {
-            loadError = "加载音乐库失败：\(error.localizedDescription)"
+            loadError = "load_library_failed".localized(with: error.localizedDescription)
             print("❌ macOS reloadLibrary failed: \(error)")
         }
     }

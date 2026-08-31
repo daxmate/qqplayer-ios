@@ -91,7 +91,7 @@ struct MacPlayerView: View {
 
             // Track info
             VStack(spacing: 4) {
-                Text(track?.title ?? "未在播放")
+                Text(track?.title ?? "not_playing".localized)
                     .font(.title3)
                     .fontWeight(.semibold)
                     .lineLimit(1)
@@ -168,7 +168,7 @@ struct MacPlayerView: View {
                 .buttonStyle(.plain)
                 .foregroundColor(karaoke.isKaraokeOn ? .accentColor : .secondary)
                 .disabled(track == nil)
-                .help("跟唱模式（倍速 / 单句循环 / AB 循环）")
+                .help("karaoke_mode_help".localized)
 
                 // 歌词面板开关
                 Button {
@@ -181,7 +181,7 @@ struct MacPlayerView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(showLyrics ? .accentColor : .secondary)
-                .help("显示 / 隐藏歌词")
+                .help("toggle_lyrics_help".localized)
             }
 
             Spacer()

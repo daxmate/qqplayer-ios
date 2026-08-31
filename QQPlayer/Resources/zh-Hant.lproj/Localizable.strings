@@ -849,3 +849,22 @@
 "whats_new_item_guide" = "功能與手勢指南：設定中新增完整操作手冊，隨時可查";
 
 "whats_new_item_announcement" = "新功能通告：每次更新後，啟動時展示本版新增內容";
+
+// MARK: - macOS (QQPlayerMac)
+"title" = "標題";
+"duration" = "時長";
+"close" = "關閉";
+"refresh_library" = "重新整理音樂庫";
+"indexing_progress" = "索引中… %d 首";
+"library_empty" = "音樂庫為空";
+"library_empty_hint" = "點擊左下角「重新整理音樂庫」掃描 ~/Music/QQPlayer";
+"load_library_failed" = "載入音樂庫失敗：%@";
+"not_playing" = "未在播放";
+"karaoke_mode_help" = "跟唱模式（倍速 / 單句循環 / AB 循環）";
+"toggle_lyrics_help" = "顯示 / 隱藏歌詞";
+"lyrics" = "歌詞";
+"close_lyrics_panel" = "關閉歌詞面板";
+"lyrics_loading" = "歌詞載入中…";
+"instrumental_no_lyrics" = "純音樂，無歌詞";
+"no_lyrics" = "暫無歌詞";
+"track_count" = "%d 首";
