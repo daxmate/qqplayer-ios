@@ -178,21 +178,25 @@ class DatabaseManager: @unchecked Sendable {
             // macOS 无 iOS 的 App Group 容器（目录不存在，GRDB 打开必失败，
             // 导致 in-memory fallback，扫描全部白跑）。用 Application Support
             // 独立目录，与桌面版（~/Library/Application Support/qqplayer/）区分。
+            // 路径决策上收：DatabasePathResolver.macDatabaseURL（有单测锁定）。
             let appSupport = FileManager.default.urls(for: .applicationSupportDirectory,
                                                       in: .userDomainMask).first!
-            let dir = appSupport.appendingPathComponent("QQPlayerMac", isDirectory: true)
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            return dir.appendingPathComponent("qqplayer.db")
+            let url = DatabasePathResolver.macDatabaseURL(appSupportRoot: appSupport)
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            return url
         #else
             // Try to use app group container first for sharing with Siri extension
-            if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios") {
-                return containerURL.appendingPathComponent("qqplayer.db")
-            } else {
-                // Fallback to documents directory
-                let documentsPath = FileManager.default.urls(for: .documentDirectory,
-                                                             in: .userDomainMask).first!
-                return documentsPath.appendingPathComponent("MusicLibrary.sqlite")
-            }
+            // 决策上收：DatabasePathResolver.iosDatabaseURL（有单测锁定）。
+            let containerURL = FileManager.default.containerURL(
+                forSecurityApplicationGroupIdentifier: "group.com.daxmate.qqplayer.ios")
+            let documentsPath = FileManager.default.urls(for: .documentDirectory,
+                                                         in: .userDomainMask).first!
+            return DatabasePathResolver.iosDatabaseURL(
+                appGroupContainer: containerURL,
+                documentsDirectory: documentsPath)
         #endif
     }
 

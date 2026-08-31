@@ -959,7 +959,13 @@
                 return
             }
 
-            guard let audioFile = audioFile, !isLoadingTrack, playbackState != .loading else {
+            // 决策上收：前置条件语义与 MacPlaybackGate.canStartPlayback 一一对应（有单测锁定）。
+            guard let audioFile = audioFile,
+                  MacPlaybackGate.canStartPlayback(
+                      audioFileLoaded: true,
+                      isLoadingTrack: isLoadingTrack,
+                      playbackStateIsLoading: playbackState == .loading
+                  ) else {
                 print("⚠️ macOS play skipped: audioFile=\(audioFile != nil) state=\(playbackState)")
                 return
             }

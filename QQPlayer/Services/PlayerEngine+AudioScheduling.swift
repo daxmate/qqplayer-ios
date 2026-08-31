@@ -404,23 +404,14 @@
 
         @discardableResult
         func scheduleSegment(from startFrame: AVAudioFramePosition, file: AVAudioFile, track: Track? = nil, trackIndex: Int? = nil) -> Bool {
-            guard audioEngine.isRunning else {
-                print("❌ macOS scheduleSegment: audio engine is not running")
-                return false
-            }
-
-            guard startFrame >= 0 && startFrame < file.length else {
-                print("❌ macOS scheduleSegment: invalid startFrame \(startFrame), file length \(file.length)")
-                return false
-            }
-
-            let remaining = file.length - startFrame
-            guard remaining > 0 else {
-                print("❌ macOS scheduleSegment: no remaining frames")
-                return false
-            }
-            guard remaining <= AVAudioFrameCount.max else {
-                print("❌ macOS scheduleSegment: remaining exceeds AVAudioFrameCount.max")
+            // 决策上收：guard 链语义与 MacPlaybackGate.segmentPlan 一一对应（有单测锁定）。
+            guard case let .success(remaining) = MacPlaybackGate.segmentPlan(
+                engineIsRunning: audioEngine.isRunning,
+                startFrame: startFrame,
+                fileLength: file.length,
+                maxFrameCount: Int64(AVAudioFrameCount.max)
+            ) else {
+                print("❌ macOS scheduleSegment rejected (engine running=\(audioEngine.isRunning) start=\(startFrame) len=\(file.length))")
                 return false
             }
 

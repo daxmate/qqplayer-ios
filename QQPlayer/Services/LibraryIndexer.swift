@@ -734,8 +734,11 @@ class LibraryIndexer: NSObject, ObservableObject {
         /// 仅替换数据源（NSMetadataQuery → 目录枚举）。MVP 为启动全扫，
         /// FSEvents 实时监控后补（调研报告 §3.5 风险 2）。
         private func startMacScan() {
+            // 决策上收：是否启动扫描由 MacIndexingGate.shouldBeginScan 决定（有单测锁定）。
             // 必须与 iOS 分支保持同一套状态前置：isIndexing 置 true 才能通过
             // scanMusicFolder 首行的 guard（否则扫描被直接拦截、永远不会执行）。
+            guard MacIndexingGate.shouldBeginScan(currentlyIndexing: isIndexing) else { return }
+
             isIndexing = true
             indexingProgress = 0.0
             tracksFound = 0
@@ -747,7 +750,11 @@ class LibraryIndexer: NSObject, ObservableObject {
         }
 
         private func scanMusicFolder(generation: Int) async {
-            guard generation == indexingGeneration, isIndexing else { return }
+            // 决策上收：首行 guard 语义与 MacIndexingGate.canProceedScan 一致（有单测锁定）。
+            guard MacIndexingGate.canProceedScan(
+                generationMatches: generation == indexingGeneration,
+                isIndexing: isIndexing
+            ) else { return }
 
             guard let musicFolderURL = stateManager.getMusicFolderURL() else {
                 print("❌ macOS scan: no music folder configured")
