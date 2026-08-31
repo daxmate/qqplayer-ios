@@ -88,56 +88,55 @@ class LibraryIndexer: NSObject, ObservableObject {
             // macOS 数据源：FileManager 目录扫描（默认 ~/Music/QQPlayer）。
             // MVP 策略：启动全扫 + 手动刷新；FSEvents 实时监控后补（调研报告 §3.5 风险 2）。
             startMacScan()
-            return
+        #else
+            // Attempt recovery from offline mode when manually syncing
+            CloudDownloadManager.shared.attemptRecovery()
+
+            isIndexing = true
+            indexingProgress = 0.0
+            tracksFound = 0
+
+            // Copy any new files from share extension first
+            Task {
+                await copyFilesFromSharedContainer()
+            }
+
+            let generation = indexingGeneration
+
+            Task {
+                // Resolve the container off the main actor, then start the query
+                // back on it - NSMetadataQuery needs a run loop. Both the resolve
+                // and the diagnostic directory listing used to run inline here, on
+                // the main thread, during launch.
+                let musicFolderURL = await resolveMusicFolderURL()
+
+                // stop() or switchToOfflineMode() may have run while the container
+                // was resolving. Without this the query would be started again just
+                // after being stopped, leaving an iCloud query alive in offline
+                // mode and racing the local scan.
+                guard generation == indexingGeneration, isIndexing else {
+                    print("🛑 Metadata query start cancelled - indexing was stopped")
+                    return
+                }
+
+                if let musicFolderURL {
+                    metadataQuery.searchScopes = [musicFolderURL]
+                }
+                metadataQuery.start()
+
+                // Add a timeout to trigger fallback if NSMetadataQuery doesn't work
+                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+                print("Timeout check: resultCount=\(metadataQuery.resultCount), isIndexing=\(isIndexing)")
+                // The generation check matters as much as isIndexing here: a switch
+                // to offline mode sets isIndexing back to true for its own scan, and
+                // without this the fallback would run alongside it.
+                guard generation == indexingGeneration else { return }
+                if metadataQuery.resultCount == 0 && isIndexing {
+                    print("NSMetadataQuery timeout - triggering fallback scan")
+                    await fallbackToDirectScan()
+                }
+            }
         #endif
-
-        // Attempt recovery from offline mode when manually syncing
-        CloudDownloadManager.shared.attemptRecovery()
-
-        isIndexing = true
-        indexingProgress = 0.0
-        tracksFound = 0
-
-        // Copy any new files from share extension first
-        Task {
-            await copyFilesFromSharedContainer()
-        }
-
-        let generation = indexingGeneration
-
-        Task {
-            // Resolve the container off the main actor, then start the query
-            // back on it - NSMetadataQuery needs a run loop. Both the resolve
-            // and the diagnostic directory listing used to run inline here, on
-            // the main thread, during launch.
-            let musicFolderURL = await resolveMusicFolderURL()
-
-            // stop() or switchToOfflineMode() may have run while the container
-            // was resolving. Without this the query would be started again just
-            // after being stopped, leaving an iCloud query alive in offline
-            // mode and racing the local scan.
-            guard generation == indexingGeneration, isIndexing else {
-                print("🛑 Metadata query start cancelled - indexing was stopped")
-                return
-            }
-
-            if let musicFolderURL {
-                metadataQuery.searchScopes = [musicFolderURL]
-            }
-            metadataQuery.start()
-
-            // Add a timeout to trigger fallback if NSMetadataQuery doesn't work
-            try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-            print("Timeout check: resultCount=\(metadataQuery.resultCount), isIndexing=\(isIndexing)")
-            // The generation check matters as much as isIndexing here: a switch
-            // to offline mode sets isIndexing back to true for its own scan, and
-            // without this the fallback would run alongside it.
-            guard generation == indexingGeneration else { return }
-            if metadataQuery.resultCount == 0 && isIndexing {
-                print("NSMetadataQuery timeout - triggering fallback scan")
-                await fallbackToDirectScan()
-            }
-        }
     }
 
     /// Reads the music folder URL away from the main actor, since the first
@@ -284,12 +283,13 @@ class LibraryIndexer: NSObject, ObservableObject {
             // full-resolution JPEG round trip, which dominated first-run scan
             // time. ArtworkManager.getArtwork/getThumbnail already extract and
             // fill the disk cache lazily the first time a row is displayed.
-            print("📢 Posting TrackFound notification for \(sourceDescription): \(track.title)")
+            let notificationTrack = track
+            print("📢 Posting TrackFound notification for \(sourceDescription): \(notificationTrack.title)")
             await MainActor.run {
                 self.tracksFound += 1
                 NotificationCenter.default.post(
                     name: NSNotification.Name("TrackFound"),
-                    object: track
+                    object: notificationTrack
                 )
             }
         }

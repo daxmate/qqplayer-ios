@@ -169,6 +169,7 @@
 				Mac/MacAlbumArtistViews.swift,
 				Mac/MacHelpers.swift,
 				Mac/MacLibraryView.swift,
+				Mac/MacLyricsView.swift,
 				Mac/MacPlayerView.swift,
 				Mac/MacTrackListView.swift,
 				QQPlayerMacApp.swift,
