@@ -261,6 +261,43 @@ struct KaraokeControllerTests {
         expectSingleSeek(fake, time: 5.0, play: true)
     }
 
+    @Test("点击歌词后 seek 未生效：tick 不重定位旧行、不误触发句末（2026-08-31 竞态回归）")
+    func pendingJumpSuppressesRelocation() async {
+        let fake = await makeFake(expireJumpQuiet: true)
+        let kc = KaraokeController.shared
+        kc.setKaraokeOn(true)
+        kc.setLyrics(makeLines(0, 5, 9, 12))
+
+        kc.handlePlaybackTick(time: 6.0, duration: 15.0) // 缓存第 1 行 [5,9)
+        kc.clickLine(index: 3) // 点击第 3 行（ts=12）→ pending jump + seek(12, play)
+        await drainMainActor()
+        #expect(fake.seeks.count == 1)
+        #expect(fake.seeks.first?.time == 12.0)
+        #expect(fake.seeks.first?.play == true)
+        fake.seeks = []
+
+        // 模拟真实竞态：seek 慢（>0.3s quiet 窗口），播放位置仍停留在旧行。
+        // quiet 过期后旧代码会把 karaokeLine 重定位回第 1 行，随后 9.0（第 1 行句末）
+        // 误触发句末自动停（seek 5.0 play:false）；修复后 pending 期间全部跳过。
+        try? await Task.sleep(nanoseconds: 320_000_000)
+        kc.handlePlaybackTick(time: 6.0, duration: 15.0)
+        await drainMainActor()
+        kc.handlePlaybackTick(time: 9.0, duration: 15.0)
+        await drainMainActor()
+        #expect(fake.seeks.isEmpty)
+
+        // seek 生效：播放时间到达目标行句首（12.0）→ pending 解除，恢复正常检测；
+        // 12 < 末句句末 15，不触发句末。
+        kc.handlePlaybackTick(time: 12.0, duration: 15.0)
+        await drainMainActor()
+        #expect(fake.seeks.isEmpty)
+
+        // 解除后句末检测恢复工作：15.0 = 末句句末 → 句末自动停回 12.0 暂停
+        kc.handlePlaybackTick(time: 15.0, duration: 15.0)
+        await drainMainActor()
+        expectSingleSeek(fake, time: 12.0, play: false)
+    }
+
     @Test("enterABLoop：A 点取不到（行无时间戳/越界）返回 false 不进入；正常行返回 true")
     func enterABLoopRejectsInvalidStart() async {
         _ = await makeFake(expireJumpQuiet: false)

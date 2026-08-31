@@ -64,6 +64,19 @@ final class KaraokeController: ObservableObject {
     /// 会误判「旧句句末」重复触发——桌面版 karaokeJumpQuiet 同款，2026-08-23 教训）
     private var jumpQuietUntil: Date = .distantPast
 
+    /// 待完成跳转（2026-08-31 修复「点击歌词行跳转不稳定」竞态根因）：
+    /// jumpTo 设目标行后 seek 是异步的（可能需加载文件/启引擎，耗时不可控），
+    /// 生效前 tick 读到旧播放位置 → `time < cachedStart` 把 karaokeLine 重定位回旧行；
+    /// seek 完成后播放已到目标行但缓存行是旧行 → 下一 tick 误判「旧行播完」
+    /// 触发句末自动停/单句循环，把播放拉回旧句句首（用户实测「点一句不能稳定播一句」）。
+    /// 修复：pending 期间 tick 跳过重定位与句末检测，直到播放时间到达目标行句首
+    /// （seek 生效）或超时（seek 失败，兜底解除并重定位到实际位置）。
+    private var pendingJumpLine: Int?
+    /// pending 超时时刻：seek 失败/目标行异常时兜底解除，防永久抑制句末检测
+    private var pendingJumpDeadline: Date?
+    /// seek 生效等待上限（正常 seek 远快于此；超时视为失败降级）
+    private static let pendingJumpTimeout: TimeInterval = 2.0
+
     /// 当前跟唱行缓存（句末检测用，对齐桌面 karaokeState.line 语义）：
     /// 不能用 activeLineIndex 实时算——播放时间刚跨过句末的瞬间 active 已跳到下一句，
     /// 永远检测不到「本句播完」（单句循环/AB 失效根因，2026-08-29 用户实测）。
@@ -96,6 +109,7 @@ final class KaraokeController: ObservableObject {
         if on {
             karaokeLine = nil // 进入跟唱：缓存行重新定位
             lastTickTime = nil
+            clearPendingJump()
             applySpeedToEngine()
         } else {
             // 退出跟唱：清理 AB/单句（避免回到正常播放后句子循环/残留 AB 标注），速度恢复 1.0
@@ -104,6 +118,7 @@ final class KaraokeController: ObservableObject {
             speed = 1.0
             karaokeLine = nil
             lastTickTime = nil
+            clearPendingJump()
             applySpeedToEngine()
         }
     }
@@ -113,6 +128,7 @@ final class KaraokeController: ObservableObject {
         abLoop = nil
         karaokeLine = nil
         lastTickTime = nil
+        clearPendingJump()
     }
 
     /// 歌词行注入（UI 歌词加载/切歌完成后调用）
@@ -120,6 +136,7 @@ final class KaraokeController: ObservableObject {
         currentLines = lines
         karaokeLine = nil // 歌词变化：缓存行失效，重新定位
         lastTickTime = nil
+        clearPendingJump()
     }
 
     // MARK: - 倍速
@@ -238,6 +255,26 @@ final class KaraokeController: ObservableObject {
     /// 播放 tick：跟唱模式下检测句末并执行 句末自动停 / 单句循环 / AB 循环
     func handlePlaybackTick(time: TimeInterval, duration: TimeInterval) {
         guard isKaraokeOn, !currentLines.isEmpty else { return }
+        // 待完成跳转：seek 异步生效前，tick 一律跳过（不重定位、不句末检测）。
+        // 否则 tick 读到旧播放位置会把 karaokeLine 重定位回旧行，seek 生效后
+        // 基于旧行误触发句末自动停，把播放拉回旧句（2026-08-31 点击跳转竞态根因）。
+        if let pending = pendingJumpLine {
+            // seek 已生效：播放时间到达目标行句首 → 解除 pending，走正常检测
+            if let ts = currentLines.indices.contains(pending) ? currentLines[pending].timestamp : nil,
+               time >= ts {
+                pendingJumpLine = nil
+                pendingJumpDeadline = nil
+            } else if let deadline = pendingJumpDeadline, Date() > deadline {
+                // seek 失败/超时（如目标行无时间戳、音频未加载）：解除 pending 降级，
+                // 缓存行重定位到实际播放位置，不阻塞后续句末检测
+                print("⏭️ Karaoke pending jump timed out (line \(pending)) - relocating to actual position")
+                pendingJumpLine = nil
+                pendingJumpDeadline = nil
+                karaokeLine = LyricTiming.activeLineIndex(time: time, in: currentLines)
+            } else {
+                return
+            }
+        }
         guard Date() > jumpQuietUntil else { return }
         // 用户主动前向 seek（进度条拖动）：相比上一 tick 大幅前跳（>1s；自然播放每 tick
         // 最多前进 0.25s，1x/慢速都远小于阈值）→ 重定位到当前实际行，不触发句末自动停。
@@ -316,6 +353,9 @@ final class KaraokeController: ObservableObject {
               let ts = currentLines[line].timestamp else { return }
         karaokeLine = line
         lastTickTime = ts // seek 到目标时间，避免静默窗口过后首个 tick 被误判为前向 seek
+        // 设置待完成跳转：seek 生效前 tick 跳过重定位/句末检测（竞态修复 2026-08-31）
+        pendingJumpLine = line
+        pendingJumpDeadline = Date().addingTimeInterval(Self.pendingJumpTimeout)
         jumpQuietUntil = Date().addingTimeInterval(0.3)
         let target = ts
         Task { @MainActor in
@@ -325,6 +365,12 @@ final class KaraokeController: ObservableObject {
                 await actions?.seekAndPause(to: target)
             }
         }
+    }
+
+    /// 清理待完成跳转（模式开关/切歌/歌词变化时调用）
+    private func clearPendingJump() {
+        pendingJumpLine = nil
+        pendingJumpDeadline = nil
     }
 }
 
