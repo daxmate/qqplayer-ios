@@ -589,6 +589,9 @@ extension EQManager {
         eqGains = gains
         eqBandwidths = Array(repeating: 1.0, count: frequencies.count)
         activeBuiltinKey = key
+        // 选择预设 = 明确使用意图，自动启用 EQ（否则用户选了预设但开关没开，
+        // 全程 bypass 听不到任何变化，2026-08-31 用户实测踩坑）
+        isEnabled = true
         if currentPreset != nil {
             currentPreset = nil
         }

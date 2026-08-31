@@ -70,6 +70,7 @@ struct EQSettingsView: View {
                         .contentShape(Rectangle())
                         .onTapGesture {
                             eqManager.clearBuiltin()
+                            eqManager.isEnabled = true
                             eqManager.currentPreset = preset
                             showingEditManual = true
                         }
@@ -80,6 +81,7 @@ struct EQSettingsView: View {
 
                             Button(Localized.eqEdit) {
                                 eqManager.clearBuiltin()
+                                eqManager.isEnabled = true
                                 eqManager.currentPreset = preset
                                 showingEditManual = true
                             }
@@ -134,6 +136,7 @@ struct EQSettingsView: View {
                         .contentShape(Rectangle())
                         .onTapGesture {
                             eqManager.clearBuiltin()
+                            eqManager.isEnabled = true
                             eqManager.currentPreset = preset
                         }
                         .swipeActions(edge: .trailing) {
