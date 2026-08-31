@@ -208,11 +208,7 @@ final class KaraokeController: ObservableObject {
     /// 无 AB → 播放该句；等选终点 → 点击设为 B；区间内 → 跳到该句播放；
     /// 区间外 → 退出 AB 并播放该句
     func clickLine(index: Int) {
-        KaraokeDiagnostics.log("▶️ clickLine(index: \(index)) lines=\(currentLines.count) karaokeOn=\(isKaraokeOn) ab=\(String(describing: abLoop))")
-        guard isKaraokeOn, currentLines.indices.contains(index) else {
-            KaraokeDiagnostics.log("⛔ clickLine REJECTED: karaokeOn=\(isKaraokeOn) indices=\(currentLines.indices.contains(index))")
-            return
-        }
+        guard isKaraokeOn, currentLines.indices.contains(index) else { return }
         if let ab = abLoop {
             if let b = ab.b {
                 if index < ab.a || index > b {
@@ -266,19 +262,16 @@ final class KaraokeController: ObservableObject {
             // seek 已生效：播放时间到达目标行句首 → 解除 pending，走正常检测
             if let ts = currentLines.indices.contains(pending) ? currentLines[pending].timestamp : nil,
                time >= ts {
-                KaraokeDiagnostics.log("✅ pending resolved: line \(pending) ts=\(String(describing: ts)) time=\(time) (seek 生效)")
                 pendingJumpLine = nil
                 pendingJumpDeadline = nil
             } else if let deadline = pendingJumpDeadline, Date() > deadline {
                 // seek 失败/超时（如目标行无时间戳、音频未加载）：解除 pending 降级，
                 // 缓存行重定位到实际播放位置，不阻塞后续句末检测
                 print("⏭️ Karaoke pending jump timed out (line \(pending)) - relocating to actual position")
-                KaraokeDiagnostics.log("⏭️ pending TIMEOUT: line \(pending) time=\(time) → relocate karaokeLine")
                 pendingJumpLine = nil
                 pendingJumpDeadline = nil
                 karaokeLine = LyricTiming.activeLineIndex(time: time, in: currentLines)
             } else {
-                KaraokeDiagnostics.log("⏳ pending HOLD: line \(pending) time=\(time) (< ts，seek 未生效，tick 跳过)")
                 return
             }
         }
@@ -357,11 +350,7 @@ final class KaraokeController: ObservableObject {
     /// 同步更新缓存行（karaokeLine = 目标行）：seek 后 tick 不误判旧行句末
     private func jumpTo(line: Int, play: Bool) {
         guard currentLines.indices.contains(line),
-              let ts = currentLines[line].timestamp else {
-            KaraokeDiagnostics.log("⛔ jumpTo REJECTED: line \(line) 无时间戳/越界（点击后无反应原因？）")
-            return
-        }
-        KaraokeDiagnostics.log("🎯 jumpTo(line: \(line), ts: \(ts), play: \(play)) → seekAnd\(play ? "Play" : "Pause")(\(ts))")
+              let ts = currentLines[line].timestamp else { return }
         karaokeLine = line
         lastTickTime = ts // seek 到目标时间，避免静默窗口过后首个 tick 被误判为前向 seek
         // 设置待完成跳转：seek 生效前 tick 跳过重定位/句末检测（竞态修复 2026-08-31）
@@ -389,22 +378,17 @@ final class KaraokeController: ObservableObject {
 /// setRate 依赖 PlayerEngine.setPlaybackRate（任务包 A 实现：AVAudioUnitTimePitch 接入）
 private struct PlayerEngineKaraokeActions: KaraokeActions {
     func seekAndPlay(to time: TimeInterval) async {
-        KaraokeDiagnostics.log("🔊 seekAndPlay(→ \(time)) 开始（engine 实际执行）")
         await PlayerEngine.shared.seek(to: time)
-        KaraokeDiagnostics.log("✅ seekAndPlay 完成，isPlaying=\(PlayerEngine.shared.isPlaying) playbackTime=\(PlayerEngine.shared.playbackTime)")
         // 暂停态点击上一句/下一句/歌词行也要自动播放（用户 2026-08-29 拍板）：
         // seek 只更新位置不改变播放态，这里补 play()
         if !PlayerEngine.shared.isPlaying {
             PlayerEngine.shared.play()
-            KaraokeDiagnostics.log("▶️ seekAndPlay 补 play()")
         }
     }
 
     func seekAndPause(to time: TimeInterval) async {
-        KaraokeDiagnostics.log("🔊 seekAndPause(→ \(time)) 开始（engine 实际执行）")
         await PlayerEngine.shared.seek(to: time)
         PlayerEngine.shared.pause()
-        KaraokeDiagnostics.log("✅ seekAndPause 完成，playbackTime=\(PlayerEngine.shared.playbackTime)")
     }
 
     func setRate(_ rate: Double) {
