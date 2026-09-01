@@ -5,9 +5,14 @@
 //  - canStartPlayback：play() 的前置条件（audioFile 已加载、非 loading 中、非 loading 态）
 //  - segmentPlan：scheduleSegment 的帧范围校验与剩余帧计算
 //  - canResumeFromSavedPosition：恢复播放时的位置有效性
+//  - shouldHandleSegmentFinished：segment completion 是否应触发曲目结束
+//    （seek/play 前 cancelPendingCompletions 使旧 completion 失效的判定核心）
 //
 //  设计遵循 InterruptionResumePolicy 模式：决策抽纯函数，引擎只执行不决策。
 //  2026-08-31 立：macOS 首测暴露"能编译但行为错"类 bug，决策逻辑必须有防回归测试。
+//  2026-09-01 增：macOS seek 漏 cancelPendingCompletions → playerNode.stop() 触发旧
+//   completion → 误判播完 → handleTrackEnd 停播（用户实测：点歌词/上下句首次不播放，
+//   二次点击才播）。判定逻辑上收为纯函数锁定，防再次被拆散。
 //
 
 import Foundation
@@ -47,5 +52,58 @@ enum MacPlaybackGate {
             case noRemainingFrames
             case exceedsMaxFrameCount
         }
+    }
+
+    /// segment completion 是否应触发曲目结束（handleMacSegmentFinished 的判定核心）。
+    /// 语义：completion 只属于「当前调度代 + 正在播放 + 当前曲目」时才有效。
+    /// - generation：completion 回调携带的调度代（scheduleSegment 时捕获的 scheduleGeneration）
+    /// - scheduleGeneration：当前调度代（seek/play 前 cancelPendingCompletions() 会 +1）
+    /// - isPlaying：当前是否在播放
+    /// - completionTrackId / currentTrackId：completion 所属曲目与当前曲目（nil 兼容）
+    ///
+    /// 防回归背景（2026-09-01）：macOS seek() 曾漏调 cancelPendingCompletions()，
+    /// playerNode.stop() 触发旧 segment 的 completion 时 generation 仍与当前代相等，
+    /// 误判"这段播完了"→ handleTrackEnd 停播/切歌，导致"点歌词/上下句首次不播放"。
+    static func shouldHandleSegmentFinished(
+        generation: UInt64,
+        scheduleGeneration: UInt64,
+        isPlaying: Bool,
+        completionTrackId: String?,
+        currentTrackId: String?
+    ) -> Bool {
+        guard generation == scheduleGeneration, isPlaying else { return false }
+        if let completionTrackId, completionTrackId != currentTrackId {
+            return false
+        }
+        return true
+    }
+
+    // MARK: - 跟唱大画面布局决策（2026-09-01 用户需求：跟唱时播放区隐藏、歌词撑满）
+
+    /// 跟唱大画面：播放区是否隐藏（跟唱开启时把空间让给歌词区）
+    static func shouldHidePlayerSection(isKaraokeOn: Bool) -> Bool {
+        isKaraokeOn
+    }
+
+    /// 跟唱大画面：歌词区是否撑满整个 detail 区域（非跟唱固定 330 高）
+    static func shouldExpandLyrics(isKaraokeOn: Bool) -> Bool {
+        isKaraokeOn
+    }
+
+    /// 进入跟唱时是否强制显示歌词面板（大画面依赖歌词区，面板被关时自动打开）
+    static func shouldAutoShowLyrics(isKaraokeOn: Bool) -> Bool {
+        isKaraokeOn
+    }
+
+    /// 歌词面板关闭按钮的决策：跟唱中 = 退出跟唱复原（保留面板）；否则 = 关闭面板
+    static func lyricsCloseAction(isKaraokeOn: Bool) -> LyricsCloseAction {
+        isKaraokeOn ? .exitKaraokeKeepPanel : .closePanel
+    }
+
+    enum LyricsCloseAction: Equatable {
+        /// 跟唱大画面：退出跟唱模式，播放区恢复，歌词面板保持开启
+        case exitKaraokeKeepPanel
+        /// 普通状态：关闭歌词面板
+        case closePanel
     }
 }

@@ -31,24 +31,46 @@ struct MacPlayerView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            playerSection
-            if showLyrics {
+            // 跟唱大画面：隐藏播放区，把空间全部让给歌词区（决策上收 MacPlaybackGate，有测试）
+            if !MacPlaybackGate.shouldHidePlayerSection(isKaraokeOn: karaoke.isKaraokeOn) {
+                playerSection
+            }
+            if showLyrics || karaoke.isKaraokeOn {
                 Divider()
                 MacLyricsView(
                     lyrics: lyrics,
                     currentTime: playbackTime,
                     isLoading: lyricsLoading,
-                    onClose: { showLyrics = false }
+                    onClose: {
+                        // 决策上收 MacPlaybackGate.lyricsCloseAction（有测试）
+                        switch MacPlaybackGate.lyricsCloseAction(isKaraokeOn: karaoke.isKaraokeOn) {
+                        case .exitKaraokeKeepPanel:
+                            karaoke.toggleKaraokeMode()
+                        case .closePanel:
+                            showLyrics = false
+                        }
+                    }
                 )
-                .frame(height: 330)
+                .frame(maxHeight: MacPlaybackGate.shouldExpandLyrics(isKaraokeOn: karaoke.isKaraokeOn) ? .infinity : 330)
+                .frame(height: MacPlaybackGate.shouldExpandLyrics(isKaraokeOn: karaoke.isKaraokeOn) ? nil : 330)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.easeInOut(duration: 0.25), value: karaoke.isKaraokeOn)
+        .onChange(of: karaoke.isKaraokeOn) { isOn in
+            // 进入跟唱：确保歌词面板可见（大画面依赖歌词区；决策上收 MacPlaybackGate）
+            if MacPlaybackGate.shouldAutoShowLyrics(isKaraokeOn: isOn) {
+                showLyrics = true
+            }
+        }
         .task(id: track?.stableId) {
             guard let track else {
                 artwork = nil
                 artworkTrackId = nil
                 lyrics = nil
+                // 跟唱：无曲目时清空歌词注入 + 清 AB（对齐 iOS PlayerView 切歌语义）
+                KaraokeController.shared.setLyrics([])
+                KaraokeController.shared.resetForNewTrack()
                 return
             }
             let art = await ArtworkManager.shared.getArtwork(for: track)
@@ -58,6 +80,8 @@ struct MacPlayerView: View {
             // 歌词：优先缓存/本地，在线搜索失败不阻塞 UI（跟 iOS 语义一致）
             lyricsLoading = true
             lyrics = await LyricsManager.shared.getLyrics(for: track)
+            // 跟唱：歌词行注入（句末自动停/单句循环/AB/上一句下一句依赖；对齐 iOS PlayerView:829）
+            KaraokeController.shared.setLyrics(lyrics?.syncedLyrics ?? [])
             lyricsLoading = false
         }
     }

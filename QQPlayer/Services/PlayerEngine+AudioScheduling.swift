@@ -437,10 +437,16 @@
         }
 
         private func handleMacSegmentFinished(generation: UInt64, trackStableId: String?) async {
-            guard generation == scheduleGeneration, isPlaying else { return }
-            if let trackStableId, trackStableId != currentTrack?.stableId {
-                return
-            }
+            // 判定上收纯函数（MacPlaybackGate.shouldHandleSegmentFinished，有防回归测试）：
+            // 旧代 completion（seek/play 前 cancelPendingCompletions 已 +1）/ 非播放中 /
+            // 非当前曲目 → 不触发。2026-09-01 修复：macOS seek 漏 cancel 导致误触发停播。
+            guard MacPlaybackGate.shouldHandleSegmentFinished(
+                generation: generation,
+                scheduleGeneration: scheduleGeneration,
+                isPlaying: isPlaying,
+                completionTrackId: trackStableId,
+                currentTrackId: currentTrack?.stableId
+            ) else { return }
             await handleTrackEnd()
         }
 

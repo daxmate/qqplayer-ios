@@ -102,3 +102,96 @@ struct MacPlaybackGateSegmentPlanTests {
             == .success(frameCount: 1_000_000_000))
     }
 }
+
+struct MacPlaybackGateSegmentFinishedTests {
+    // 防回归背景（2026-09-01）：macOS seek() 漏 cancelPendingCompletions() →
+    // playerNode.stop() 触发旧 segment completion（generation 仍等于当前代）→
+    // 误判播完 → handleTrackEnd 停播（用户实测：点歌词/上下句首次不播放，二次才播）。
+    // 判定已上收为纯函数，这里锁定全部分支。
+
+    @Test("当前代 + 播放中 + 同曲目：触发曲目结束（正常播完）")
+    func currentGenerationPlayingSameTrackTriggers() {
+        #expect(MacPlaybackGate.shouldHandleSegmentFinished(
+            generation: 5, scheduleGeneration: 5, isPlaying: true,
+            completionTrackId: "t1", currentTrackId: "t1"))
+    }
+
+    @Test("旧代 completion（seek/play 已 cancel）：不触发——本次 bug 核心")
+    func staleGenerationIgnored() {
+        #expect(!MacPlaybackGate.shouldHandleSegmentFinished(
+            generation: 4, scheduleGeneration: 5, isPlaying: true,
+            completionTrackId: "t1", currentTrackId: "t1"))
+        // cancelPendingCompletions 可能多次 +1，任意旧代都应失效
+        #expect(!MacPlaybackGate.shouldHandleSegmentFinished(
+            generation: 0, scheduleGeneration: 5, isPlaying: true,
+            completionTrackId: "t1", currentTrackId: "t1"))
+    }
+
+    @Test("非播放中：不触发（暂停/停止态 stop 的回调忽略）")
+    func notPlayingIgnored() {
+        #expect(!MacPlaybackGate.shouldHandleSegmentFinished(
+            generation: 5, scheduleGeneration: 5, isPlaying: false,
+            completionTrackId: "t1", currentTrackId: "t1"))
+    }
+
+    @Test("completion 属于旧曲目：不触发（切歌后旧段回调忽略）")
+    func staleTrackIgnored() {
+        #expect(!MacPlaybackGate.shouldHandleSegmentFinished(
+            generation: 5, scheduleGeneration: 5, isPlaying: true,
+            completionTrackId: "old", currentTrackId: "new"))
+    }
+
+    @Test("completion 无曲目 id（兼容旧回调）：触发")
+    func nilCompletionTrackIdTriggers() {
+        #expect(MacPlaybackGate.shouldHandleSegmentFinished(
+            generation: 5, scheduleGeneration: 5, isPlaying: true,
+            completionTrackId: nil, currentTrackId: "t1"))
+    }
+
+    @Test("当前曲目 id 为 nil 且 completion 也为 nil：触发")
+    func nilCurrentTrackIdWithNilCompletionTriggers() {
+        #expect(MacPlaybackGate.shouldHandleSegmentFinished(
+            generation: 5, scheduleGeneration: 5, isPlaying: true,
+            completionTrackId: nil, currentTrackId: nil))
+    }
+
+    @Test("多条件同时不满足：不触发")
+    func allWrongIgnored() {
+        #expect(!MacPlaybackGate.shouldHandleSegmentFinished(
+            generation: 1, scheduleGeneration: 9, isPlaying: false,
+            completionTrackId: "old", currentTrackId: "new"))
+    }
+}
+
+struct MacPlaybackGateKaraokeLayoutTests {
+    // 跟唱大画面布局决策（2026-09-01 用户需求）：播放区隐藏/歌词撑满/自动开面板/x 按钮语义。
+    // 手势交互（双击 toggle）无法单测，但布局与关闭决策抽纯函数锁定，防止后续改动悄悄破坏。
+
+    @Test("跟唱开启：播放区隐藏，空间让给歌词")
+    func karaokeOnHidesPlayerSection() {
+        #expect(MacPlaybackGate.shouldHidePlayerSection(isKaraokeOn: true))
+        #expect(!MacPlaybackGate.shouldHidePlayerSection(isKaraokeOn: false))
+    }
+
+    @Test("跟唱开启：歌词区撑满整个区域")
+    func karaokeOnExpandsLyrics() {
+        #expect(MacPlaybackGate.shouldExpandLyrics(isKaraokeOn: true))
+        #expect(!MacPlaybackGate.shouldExpandLyrics(isKaraokeOn: false))
+    }
+
+    @Test("进入跟唱：自动显示歌词面板（大画面依赖歌词区）")
+    func karaokeOnAutoShowsLyrics() {
+        #expect(MacPlaybackGate.shouldAutoShowLyrics(isKaraokeOn: true))
+        #expect(!MacPlaybackGate.shouldAutoShowLyrics(isKaraokeOn: false))
+    }
+
+    @Test("跟唱中关闭按钮：退出跟唱复原（保留面板）")
+    func closeInKaraokeExitsKaraoke() {
+        #expect(MacPlaybackGate.lyricsCloseAction(isKaraokeOn: true) == .exitKaraokeKeepPanel)
+    }
+
+    @Test("非跟唱关闭按钮：关闭面板")
+    func closeNormalClosesPanel() {
+        #expect(MacPlaybackGate.lyricsCloseAction(isKaraokeOn: false) == .closePanel)
+    }
+}

@@ -844,6 +844,11 @@
             // phase-vocoder 残留状态失真（2026-08-31 iOS 实测同根因）
             timePitchNode.auAudioUnit.shouldBypassEffect = (rate == 1.0)
             timePitchNode.rate = Float(rate)
+            if usingSFBEngine {
+                // SFB 引擎不支持变速：UI 立即复位显示（否则显示倍速档但实际没变速，对齐 iOS）
+                print("⚠️ SFBAudioEngine 暂不支持倍速（Opus/OGG/DSD 不变速）——复位跟唱倍速显示")
+                KaraokeController.shared.resetSpeedForUnsupportedEngine()
+            }
         }
 
         @discardableResult
@@ -872,6 +877,9 @@
         private func performMacLoadTrack(_ track: Track, preservePlaybackTime: Bool, generation: UInt64) async -> Bool {
             let url = URL(fileURLWithPath: track.path)
             print("📀 macOS loadTrack: \(track.title) (\(url.lastPathComponent))")
+
+            // 切歌：清 AB 行号（保留跟唱模式/速度/单句循环；对齐 iOS performLoadTrack）
+            KaraokeController.shared.resetForNewTrack()
 
             isLoadingTrack = true
             playbackState = .loading
@@ -987,9 +995,25 @@
                     print("❌ macOS audioEngine start failed: \(error)")
                     return
                 }
+                // AVAudioEngine.start() 异步生效：紧跟的 scheduleSegment 有 engineIsRunning guard
+                // （MacPlaybackGate.segmentPlan），isRunning 未变 true 时调度被拒 → 无声但 isPlaying=true
+                // （2026-09-01 用户实测：首次点击歌词不播放、再次点击才播——首次 start 后才生效）。
+                // 短轮询等 isRunning（引擎启动通常 <100ms，1s 兜底），用 RunLoop 转圈避免阻塞事件处理。
+                let deadline = Date().addingTimeInterval(1.0)
+                while !audioEngine.isRunning && Date() < deadline {
+                    RunLoop.current.run(until: Date().addingTimeInterval(0.01))
+                }
+                if !audioEngine.isRunning {
+                    print("❌ macOS audioEngine did not become running after start")
+                    return
+                }
             }
 
             let startFrame = AVAudioFramePosition(playbackTime * audioFile.processingFormat.sampleRate)
+            // 对齐 iOS play（暂停恢复路径）：cancel + stop 再重新 schedule，避免队列残留旧 segment
+            // 与旧 completion 误触发 handleTrackEnd（与 seek 同根因，2026-09-01）
+            cancelPendingCompletions()
+            playerNode.stop()
             scheduleSegment(from: startFrame, file: audioFile, track: currentTrack, trackIndex: currentIndex)
 
             playerNode.play()
@@ -1054,25 +1078,37 @@
             let clamped = min(max(time, 0), duration)
             let wasPlaying = isPlaying
 
+            // 对齐 iOS seek：先取消 pending completion 再 stop——playerNode.stop() 会触发
+            // 已调度 segment 的 completion 回调，不取消则 generation 仍匹配，handleMacSegmentFinished
+            // 误判「播完」→ handleTrackEnd 停播/切歌（2026-09-01 日志实锤：播放中点歌词后
+            // isPlaying 变 false，第二次点击才真正播放）
+            cancelPendingCompletions()
             playerNode.stop()
             seekTimeOffset = clamped
             playbackTime = clamped
             nodeTimelineStartSampleTime = 0
 
-            if !audioEngine.isRunning {
-                do {
-                    try audioEngine.start()
-                } catch {
-                    print("❌ macOS seek: engine start failed \(error)")
-                    return
-                }
-            }
-
-            let startFrame = AVAudioFramePosition(clamped * audioFile.processingFormat.sampleRate)
-            scheduleSegment(from: startFrame, file: audioFile, track: currentTrack, trackIndex: currentIndex)
             if wasPlaying {
+                // 播放中 seek：重新调度并继续播放（引擎应在运行；未运行则启动并等 isRunning 生效）
+                if !audioEngine.isRunning {
+                    do {
+                        try audioEngine.start()
+                    } catch {
+                        print("❌ macOS seek: engine start failed \(error)")
+                        return
+                    }
+                    let deadline = Date().addingTimeInterval(1.0)
+                    while !audioEngine.isRunning && Date() < deadline {
+                        RunLoop.current.run(until: Date().addingTimeInterval(0.01))
+                    }
+                }
+                let startFrame = AVAudioFramePosition(clamped * audioFile.processingFormat.sampleRate)
+                scheduleSegment(from: startFrame, file: audioFile, track: currentTrack, trackIndex: currentIndex)
                 playerNode.play()
             }
+            // 暂停态 seek：仅更新位置，不调度不启动引擎——由后续 play() 统一
+            // schedule（避免 seekAndPlay 链路双重 schedule 同位置 segment，
+            // 第一个 segment 播完误触发 handleTrackEnd 切歌；2026-09-01 发现）
             lastKnownPlaybackPosition = clamped
             lastKnownPlaybackPositionUpdatedAt = Date()
             updateNowPlayingInfoEnhanced()
@@ -1085,6 +1121,12 @@
 
         // MARK: - macOS Engine Graph
 
+        /// 已配置的引擎图 format（缓存避免每次 play 重复 connect——AVAudioEngine.connect
+        /// 是同步重操作，内部等待音频渲染线程，重复调用触发 Hang 检测的优先级反转
+        /// （2026-09-01 跟唱跳转链路实测：PlayerEngineKaraokeActions → play → connect）
+        /// static：extension 不允许实例存储属性；PlayerEngine 是单例，语义等价
+        private static var macEngineGraphFormat: AVAudioFormat?
+
         private func ensureMacAudioEngineSetup(with format: AVAudioFormat?) {
             if !audioEngine.attachedNodes.contains(playerNode) {
                 audioEngine.attach(playerNode)
@@ -1092,11 +1134,16 @@
             if !audioEngine.attachedNodes.contains(timePitchNode) {
                 audioEngine.attach(timePitchNode)
             }
+            // 同 format 已 connect 过：跳过重复 connect（幂等，但每次调用都同步等音频线程）
+            if Self.macEngineGraphFormat == format {
+                return
+            }
             // playerNode → timePitch（倍速）→ mainMixer。AVAudioEngine owns the
             // mainMixer → outputNode connection and negotiates the hardware format.
             audioEngine.connect(playerNode, to: timePitchNode, format: format)
             audioEngine.connect(timePitchNode, to: audioEngine.mainMixerNode, format: format)
             audioEngine.prepare()
+            Self.macEngineGraphFormat = format
         }
     }
 #endif

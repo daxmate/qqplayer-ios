@@ -350,7 +350,9 @@ final class KaraokeController: ObservableObject {
     /// 同步更新缓存行（karaokeLine = 目标行）：seek 后 tick 不误判旧行句末
     private func jumpTo(line: Int, play: Bool) {
         guard currentLines.indices.contains(line),
-              let ts = currentLines[line].timestamp else { return }
+              let ts = currentLines[line].timestamp else {
+            return
+        }
         karaokeLine = line
         lastTickTime = ts // seek 到目标时间，避免静默窗口过后首个 tick 被误判为前向 seek
         // 设置待完成跳转：seek 生效前 tick 跳过重定位/句末检测（竞态修复 2026-08-31）
@@ -383,6 +385,7 @@ private struct PlayerEngineKaraokeActions: KaraokeActions {
         // seek 只更新位置不改变播放态，这里补 play()
         if !PlayerEngine.shared.isPlaying {
             PlayerEngine.shared.play()
+        } else {
         }
     }
 

@@ -1085,6 +1085,8 @@
                 lastControlCenterUpdate = playbackTime
                 updateNowPlayingElapsedTime()
             }
+            // 跟唱 tick：句末自动停/单句循环/AB 循环决策（对齐 iOS updatePlaybackTime native 分支）
+            KaraokeController.shared.handlePlaybackTick(time: playbackTime, duration: duration)
         }
 
         func stopPlaybackTimer() {

@@ -23,6 +23,19 @@ struct MacLyricsView: View {
             header
             Divider()
             content
+            // 对齐 iOS LyricsView：跟唱控制条常驻底部，无论歌词状态（加载中/纯文本/无歌词）都显示
+            if karaoke.isKaraokeOn {
+                Divider()
+                KaraokeControlBar(accentColor: .accentColor)
+                    .padding(.vertical, 8)
+                    .background(
+                        LinearGradient(
+                            colors: [.clear, Color.black.opacity(0.35)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            }
         }
         .background(
             LinearGradient(
@@ -30,6 +43,14 @@ struct MacLyricsView: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
+        )
+        // 页面级双击：跟唱模式开关（对齐 iOS LyricsView——highPriority 双击优先，
+        // 行单击等双击判定失败后才触发；快速双击 = 切换模式且不触发行跳转）
+        .highPriorityGesture(
+            TapGesture(count: 2)
+                .onEnded {
+                    karaoke.toggleKaraokeMode()
+                }
         )
     }
 
@@ -113,16 +134,26 @@ struct MacLyricsView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .contentShape(Rectangle())
+                        // 对齐 iOS LyricsView：仅跟唱模式响应，决策统一走 clickLine
+                        // （无 AB → 播放该句；等选终点 → 设 B；区间内 → 跳到该句播放）
+                        // 普通 onTapGesture：页面级 highPriorityGesture 双击优先，
+                        // 单击等双击窗口判定失败后触发（与 iOS 结构一致）
                         .onTapGesture {
-                            if let ts = line.timestamp {
-                                Task { await PlayerEngine.shared.seek(to: ts) }
-                            }
-                            if karaoke.isKaraokeOn {
-                                karaoke.clickLine(index: index)
-                            }
+                            guard karaoke.isKaraokeOn else { return }
+                            KaraokeController.shared.clickLine(index: index)
                         }
                         .scaleEffect(index == activeIndex ? 1.06 : 1.0)
                         .animation(.easeInOut(duration: 0.2), value: activeIndex)
+                        // 对齐 iOS LyricsView：AB 激活时端点行加 accentColor 小圆点
+                        .overlay(alignment: .trailing) {
+                            if let ab = karaoke.abLoop, karaoke.isKaraokeOn,
+                               index == ab.a || index == ab.b {
+                                Circle()
+                                    .fill(Color.accentColor)
+                                    .frame(width: 7, height: 7)
+                                    .padding(.trailing, 26)
+                            }
+                        }
                     }
                 }
                 .padding(.vertical, 20)
@@ -138,19 +169,6 @@ struct MacLyricsView: View {
                 if let activeIndex {
                     proxy.scrollTo(activeIndex, anchor: .center)
                 }
-            }
-        }
-        .overlay(alignment: .bottom) {
-            if karaoke.isKaraokeOn {
-                KaraokeControlBar(accentColor: .accentColor)
-                    .padding(.bottom, 10)
-                    .background(
-                        LinearGradient(
-                            colors: [.clear, Color.black.opacity(0.35)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
             }
         }
     }
