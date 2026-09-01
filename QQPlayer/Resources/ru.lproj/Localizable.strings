@@ -468,3 +468,11 @@
 "instrumental_no_lyrics" = "Инструментал, без текста";
 "no_lyrics" = "Нет текста";
 "track_count" = "%d треков";
+"search_placeholder" = "Поиск в библиотеке";
+"search_clear" = "Очистить поиск";
+"search_no_results" = "Ничего не найдено";
+"search_no_results_hint" = "Попробуйте другие ключевые слова";
+"search_section_songs" = "Песни";
+"search_section_albums" = "Альбомы";
+"search_section_artists" = "Исполнители";
+"search_section_playlists" = "Плейлисты";

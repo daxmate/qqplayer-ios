@@ -525,3 +525,11 @@
 "instrumental_no_lyrics" = "纯音乐，无歌词";
 "no_lyrics" = "暂无歌词";
 "track_count" = "%d 首";
+"search_placeholder" = "搜索音乐库";
+"search_clear" = "清空搜索";
+"search_no_results" = "未找到结果";
+"search_no_results_hint" = "尝试其他关键词";
+"search_section_songs" = "歌曲";
+"search_section_albums" = "专辑";
+"search_section_artists" = "艺术家";
+"search_section_playlists" = "播放列表";

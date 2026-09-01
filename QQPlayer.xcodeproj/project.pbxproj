@@ -171,6 +171,7 @@
 				Mac/MacLibraryView.swift,
 				Mac/MacLyricsView.swift,
 				Mac/MacPlayerView.swift,
+				Mac/MacSearchView.swift,
 				Mac/MacTrackListView.swift,
 				QQPlayerMacApp.swift,
 			);
@@ -216,6 +217,7 @@
 				Mac/MacLibraryView.swift,
 				Mac/MacLyricsView.swift,
 				Mac/MacPlayerView.swift,
+				Mac/MacSearchView.swift,
 				Mac/MacTrackListView.swift,
 				Models/DatabaseModels.swift,
 				Models/SettingsModels.swift,

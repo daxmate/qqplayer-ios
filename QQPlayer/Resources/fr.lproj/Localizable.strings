@@ -471,3 +471,11 @@
 "instrumental_no_lyrics" = "Instrumental, sans paroles";
 "no_lyrics" = "Pas de paroles";
 "track_count" = "%d pistes";
+"search_placeholder" = "Rechercher dans votre bibliothèque";
+"search_clear" = "Effacer la recherche";
+"search_no_results" = "Aucun résultat";
+"search_no_results_hint" = "Essayez d'autres mots-clés";
+"search_section_songs" = "Musiques";
+"search_section_albums" = "Albums";
+"search_section_artists" = "Artistes";
+"search_section_playlists" = "Playlist";

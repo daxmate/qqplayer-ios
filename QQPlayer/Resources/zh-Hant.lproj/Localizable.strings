@@ -868,3 +868,11 @@
 "instrumental_no_lyrics" = "純音樂，無歌詞";
 "no_lyrics" = "暫無歌詞";
 "track_count" = "%d 首";
+"search_placeholder" = "搜尋音樂庫";
+"search_clear" = "清除搜尋";
+"search_no_results" = "找不到結果";
+"search_no_results_hint" = "請嘗試其他關鍵字";
+"search_section_songs" = "歌曲";
+"search_section_albums" = "專輯";
+"search_section_artists" = "藝術家";
+"search_section_playlists" = "播放列表";

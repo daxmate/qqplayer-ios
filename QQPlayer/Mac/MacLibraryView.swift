@@ -53,6 +53,13 @@ struct MacLibraryView: View {
     @State private var artistTracks: [Track] = []
     @State private var selectedTrackId: String?
 
+    // Search state (sidebar search field + grouped results)
+    @State private var searchText = ""
+    @State private var debouncedSearchText = ""
+    @State private var searchResults = MacSearchResults()
+    @State private var debounceTask: Task<Void, Never>?
+    @State private var searchTask: Task<Void, Never>?
+
     var body: some View {
         NavigationSplitView {
             sidebar
@@ -101,7 +108,23 @@ struct MacLibraryView: View {
         .onReceive(indexer.$isIndexing) { isIndexing in
             if !isIndexing {
                 reloadLibrary()
+                if !debouncedSearchText.isEmpty {
+                    performSearch(query: debouncedSearchText)
+                }
             }
+        }
+        .onChange(of: searchText) { newValue in
+            debounceTask?.cancel()
+            debounceTask = Task {
+                try? await Task.sleep(nanoseconds: 300_000_000) // 300ms
+                guard !Task.isCancelled else { return }
+                debouncedSearchText = newValue
+                performSearch(query: newValue)
+            }
+        }
+        .onDisappear {
+            debounceTask?.cancel()
+            searchTask?.cancel()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FavoritesChanged"))) { _ in
             // 收藏变化后刷新“我喜欢的音乐”列表（含正在展示时的实时移除）
@@ -112,11 +135,14 @@ struct MacLibraryView: View {
     // MARK: - Sidebar
 
     private var sidebar: some View {
-        List(MacLibrarySection.allCases, selection: $section) { item in
-            Label(item.title, systemImage: item.icon)
-                .tag(item)
+        VStack(spacing: 0) {
+            MacSearchField(text: $searchText)
+            List(MacLibrarySection.allCases, selection: $section) { item in
+                Label(item.title, systemImage: item.icon)
+                    .tag(item)
+            }
+            .listStyle(.sidebar)
         }
-        .listStyle(.sidebar)
         .safeAreaInset(edge: .bottom) {
             VStack(alignment: .leading, spacing: 6) {
                 if indexer.isIndexing {
@@ -145,46 +171,59 @@ struct MacLibraryView: View {
 
     @ViewBuilder
     private var contentList: some View {
-        switch section {
-        case .tracks:
-            MacTrackListView(
-                tracks: tracks,
+        if !debouncedSearchText.isEmpty {
+            MacSearchResultsView(
+                results: searchResults,
                 activeTrackId: player.currentTrack?.stableId,
                 isPlaying: player.isPlaying,
                 artistNameResolver: resolveArtistName,
-                onPlay: playFromTrackList,
-                onSelect: { selectedTrackId = $0.stableId }
+                onPlaySong: playSearchSongs,
+                onPlayAlbum: playAlbum,
+                onPlayArtist: playArtist,
+                onOpenPlaylist: openPlaylist
             )
-        case .likedSongs:
-            MacTrackListView(
-                tracks: likedTracks,
-                activeTrackId: player.currentTrack?.stableId,
-                isPlaying: player.isPlaying,
-                artistNameResolver: resolveArtistName,
-                onPlay: playLikedTracks,
-                onSelect: { selectedTrackId = $0.stableId }
-            )
-        case .albums:
-            MacAlbumGridView(
-                albums: albums,
-                selectedAlbum: $selectedAlbum,
-                albumTracks: $albumTracks,
-                artistNameResolver: resolveArtistName,
-                onPlayAlbum: playAlbum
-            )
-        case .artists:
-            MacArtistListView(
-                artists: artists,
-                selectedArtist: $selectedArtist,
-                artistTracks: $artistTracks,
-                artistNameResolver: resolveArtistName,
-                onPlayArtist: playArtist
-            )
-        case .playlists:
-            MacPlaylistListView(
-                playlists: playlists,
-                onOpen: openPlaylist
-            )
+        } else {
+            switch section {
+            case .tracks:
+                MacTrackListView(
+                    tracks: tracks,
+                    activeTrackId: player.currentTrack?.stableId,
+                    isPlaying: player.isPlaying,
+                    artistNameResolver: resolveArtistName,
+                    onPlay: playFromTrackList,
+                    onSelect: { selectedTrackId = $0.stableId }
+                )
+            case .likedSongs:
+                MacTrackListView(
+                    tracks: likedTracks,
+                    activeTrackId: player.currentTrack?.stableId,
+                    isPlaying: player.isPlaying,
+                    artistNameResolver: resolveArtistName,
+                    onPlay: playLikedTracks,
+                    onSelect: { selectedTrackId = $0.stableId }
+                )
+            case .albums:
+                MacAlbumGridView(
+                    albums: albums,
+                    selectedAlbum: $selectedAlbum,
+                    albumTracks: $albumTracks,
+                    artistNameResolver: resolveArtistName,
+                    onPlayAlbum: playAlbum
+                )
+            case .artists:
+                MacArtistListView(
+                    artists: artists,
+                    selectedArtist: $selectedArtist,
+                    artistTracks: $artistTracks,
+                    artistNameResolver: resolveArtistName,
+                    onPlayArtist: playArtist
+                )
+            case .playlists:
+                MacPlaylistListView(
+                    playlists: playlists,
+                    onOpen: openPlaylist
+                )
+            }
         }
     }
 
@@ -236,6 +275,53 @@ struct MacLibraryView: View {
     private func playLikedTracks(_ track: Track) {
         Task {
             await player.playTrack(track, queue: likedTracks)
+        }
+    }
+
+    private func playSearchSongs(_ track: Track, queue: [Track]) {
+        Task {
+            await player.playTrack(track, queue: queue)
+        }
+    }
+
+    private func performSearch(query: String) {
+        searchTask?.cancel()
+
+        guard !query.isEmpty else {
+            searchResults = MacSearchResults()
+            return
+        }
+
+        searchTask = Task {
+            // Normalize query for better matching (same as iOS SearchView).
+            let normalizedQuery = query
+                .lowercased()
+                .folding(options: .diacriticInsensitive, locale: .current)
+
+            // Run database queries off the main thread.
+            let results = await Task.detached(priority: .userInitiated) {
+                var songs: [Track] = []
+                var artists: [Artist] = []
+                var albums: [Album] = []
+                var playlists: [Playlist] = []
+
+                do {
+                    songs = try DatabaseManager.shared.searchTracks(query: normalizedQuery, limit: 50)
+                    artists = try DatabaseManager.shared.searchArtists(query: normalizedQuery, limit: 20)
+                    albums = try DatabaseManager.shared.searchAlbums(query: normalizedQuery, limit: 30)
+                    playlists = try DatabaseManager.shared.searchPlaylists(query: normalizedQuery, limit: 15)
+                } catch {
+                    print("❌ macOS search failed: \(error)")
+                }
+
+                return MacSearchResults(songs: songs, artists: artists, albums: albums, playlists: playlists)
+            }.value
+
+            guard !Task.isCancelled else { return }
+
+            await MainActor.run {
+                self.searchResults = results
+            }
         }
     }
 
