@@ -244,28 +244,102 @@ struct MacArtistDetailSheet: View {
 
 struct MacPlaylistListView: View {
     let playlists: [Playlist]
-    let onOpen: (Playlist) -> Void
+    /// Plays the whole playlist (queue = playlist tracks), used by the detail sheet.
+    let onPlay: (Playlist) -> Void
+
+    @State private var smartCards: [SmartPlaylistCardInfo] = []
+    @State private var showSmartSheet = false
+    @State private var selectedSmartKind: SmartPlaylistKind?
+    @State private var showPlaylistSheet = false
+    @State private var selectedPlaylist: Playlist?
+    @State private var showNewPlaylistAlert = false
+    @State private var newPlaylistName = ""
 
     var body: some View {
-        List(playlists, id: \.id) { playlist in
-            Button {
-                onOpen(playlist)
-            } label: {
-                HStack {
-                    Image(systemName: "list.bullet.rectangle")
-                        .foregroundColor(.secondary)
-                    Text(playlist.title)
-                        .lineLimit(1)
-                    Spacer()
-                    if let itemCount = try? DatabaseManager.shared.getPlaylistItems(playlistId: playlist.id ?? 0).count {
-                        Text(String(format: "track_count".localized, itemCount))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+        VStack(spacing: 0) {
+            // Pinned automatic playlists — always visible, never user-editable.
+            MacSmartPlaylistCardStrip(cards: smartCards) { kind in
+                selectedSmartKind = kind
+                showSmartSheet = true
+            }
+            Divider()
+
+            List {
+                Section {
+                    Button {
+                        newPlaylistName = ""
+                        showNewPlaylistAlert = true
+                    } label: {
+                        Label("create_new_playlist".localized, systemImage: "plus")
                     }
                 }
-                .contentShape(Rectangle())
+
+                Section {
+                    ForEach(playlists, id: \.id) { playlist in
+                        Button {
+                            selectedPlaylist = playlist
+                            showPlaylistSheet = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "list.bullet.rectangle")
+                                    .foregroundColor(.secondary)
+                                Text(playlist.title)
+                                    .lineLimit(1)
+                                Spacer()
+                                if let itemCount = try? DatabaseManager.shared.getPlaylistItems(playlistId: playlist.id ?? 0).count {
+                                    Text(String(format: "track_count".localized, itemCount))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
-            .buttonStyle(.plain)
+        }
+        .sheet(isPresented: $showSmartSheet) {
+            if let kind = selectedSmartKind {
+                MacSmartPlaylistDetailSheet(kind: kind)
+            }
+        }
+        .sheet(isPresented: $showPlaylistSheet) {
+            if let playlist = selectedPlaylist {
+                MacPlaylistDetailSheet(playlist: playlist, onPlayAll: { onPlay(playlist) })
+            }
+        }
+        .alert("create_new_playlist".localized, isPresented: $showNewPlaylistAlert) {
+            TextField("playlist_name_placeholder".localized, text: $newPlaylistName)
+            Button("create".localized) { createPlaylist() }
+            Button("cancel".localized, role: .cancel) {}
+        }
+        .onAppear { reloadSmartCards() }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("PlaylistsChanged"))) { _ in
+            reloadSmartCards()
+        }
+    }
+
+    private func createPlaylist() {
+        let title = newPlaylistName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        do {
+            _ = try DatabaseManager.shared.createPlaylist(title: title)
+            NotificationCenter.default.post(name: NSNotification.Name("PlaylistsChanged"), object: nil)
+        } catch {
+            print("❌ MacPlaylistListView createPlaylist failed: \(error)")
+        }
+    }
+
+    private func reloadSmartCards() {
+        do {
+            smartCards = try SmartPlaylistStore.cardInfos()
+        } catch {
+            // Keep the four cards visible with zero counts on failure.
+            smartCards = SmartPlaylistKind.allCases.map {
+                SmartPlaylistCardInfo(kind: $0, title: $0.rawValue, count: 0)
+            }
+            print("❌ MacPlaylistListView smart cardInfos failed: \(error)")
         }
     }
 }

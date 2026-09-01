@@ -476,3 +476,21 @@
 "search_section_albums" = "Альбомы";
 "search_section_artists" = "Исполнители";
 "search_section_playlists" = "Плейлисты";
+
+/* Smart playlists (automatic playlists) */
+"smart_recent_added" = "Недавно добавленные";
+"smart_recent_played" = "Недавно прослушанные";
+"smart_top_played" = "Часто слушаемые";
+"smart_decades" = "Десятилетия";
+"smart_songs_count" = "%d песен";
+"smart_decade_count" = "%d десятилетий";
+"smart_empty_recent_played" = "Пока нет прослушиваний. Послушайте несколько песен — и они появятся здесь.";
+"smart_empty_top_played" = "Пока нет прослушиваний. Послушайте несколько песен — и они появятся здесь.";
+"smart_empty_decade" = "В этом десятилетии нет песен";
+"smart_load_failed" = "Не удалось загрузить плейлист";
+
+// MARK: - Playlist management (macOS)
+"playlist_manage_play_all" = "Играть все";
+"playlist_manage_rename" = "Переименовать";
+"playlist_manage_remove_from_playlist" = "Удалить из плейлиста";
+"playlist_manage_empty" = "В этом плейлисте пока нет песен";

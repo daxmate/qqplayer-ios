@@ -14,9 +14,16 @@ struct MacTrackListView: View {
     let artistNameResolver: (Track) -> String?
     let onPlay: (Track) -> Void
     let onSelect: (Track) -> Void
+    /// Non-nil inside a playlist detail sheet: the context menu additionally
+    /// offers "remove from playlist" for the owning playlist.
+    var playlistId: Int64?
 
     @State private var selectedRows = Set<String>()
     @State private var favoriteIds: Set<String> = []
+    @State private var playlists: [Playlist] = []
+    @State private var showNewPlaylistAlert = false
+    @State private var newPlaylistName = ""
+    @State private var pendingTrack: Track?
 
     private var rows: [MacTrackRow] {
         tracks.map { MacTrackRow(id: $0.stableId, track: $0) }
@@ -106,6 +113,30 @@ struct MacTrackListView: View {
                         Label(isFavorite ? Localized.removeFromLikedSongs : Localized.addToLikedSongs,
                               systemImage: "heart.fill")
                     }
+
+                    if let playlistId {
+                        Divider()
+                        Button("playlist_manage_remove_from_playlist".localized, role: .destructive) {
+                            try? DatabaseManager.shared.removeFromPlaylist(playlistId: playlistId, trackStableId: track.stableId)
+                            NotificationCenter.default.post(name: NSNotification.Name("PlaylistsChanged"), object: nil)
+                        }
+                    }
+
+                    Divider()
+                    Menu("add_to_playlist".localized) {
+                        ForEach(playlists, id: \.id) { playlist in
+                            Button(playlist.title) {
+                                try? DatabaseManager.shared.addToPlaylist(playlistId: playlist.id ?? 0, trackStableId: track.stableId)
+                                NotificationCenter.default.post(name: NSNotification.Name("PlaylistsChanged"), object: nil)
+                            }
+                        }
+                        Divider()
+                        Button("create_new_playlist".localized) {
+                            pendingTrack = track
+                            newPlaylistName = ""
+                            showNewPlaylistAlert = true
+                        }
+                    }
                 }
             } primaryAction: { selectedIDs in
                 if let id = selectedIDs.first,
@@ -114,17 +145,42 @@ struct MacTrackListView: View {
                     onSelect(track)
                 }
             }
+            .alert("create_new_playlist".localized, isPresented: $showNewPlaylistAlert) {
+                TextField("playlist_name_placeholder".localized, text: $newPlaylistName)
+                Button("create".localized) { createPlaylistAndAdd() }
+                Button("cancel".localized, role: .cancel) {}
+            }
             .onAppear {
                 reloadFavorites()
+                reloadPlaylists()
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FavoritesChanged"))) { _ in
                 reloadFavorites()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("PlaylistsChanged"))) { _ in
+                reloadPlaylists()
             }
         }
     }
 
     private func reloadFavorites() {
         favoriteIds = Set((try? AppCoordinator.shared.getFavorites()) ?? [])
+    }
+
+    private func reloadPlaylists() {
+        playlists = (try? DatabaseManager.shared.getAllPlaylists()) ?? []
+    }
+
+    private func createPlaylistAndAdd() {
+        let title = newPlaylistName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, let track = pendingTrack else { return }
+        do {
+            let playlist = try DatabaseManager.shared.createPlaylist(title: title)
+            try DatabaseManager.shared.addToPlaylist(playlistId: playlist.id ?? 0, trackStableId: track.stableId)
+            NotificationCenter.default.post(name: NSNotification.Name("PlaylistsChanged"), object: nil)
+        } catch {
+            print("❌ MacTrackListView createPlaylistAndAdd failed: \(error)")
+        }
     }
 
     private func albumTitle(for track: Track) -> String {

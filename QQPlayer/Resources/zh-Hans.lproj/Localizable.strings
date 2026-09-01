@@ -533,3 +533,9 @@
 "search_section_albums" = "专辑";
 "search_section_artists" = "艺术家";
 "search_section_playlists" = "播放列表";
+
+// MARK: - Playlist management (macOS)
+"playlist_manage_play_all" = "播放全部";
+"playlist_manage_rename" = "重命名";
+"playlist_manage_remove_from_playlist" = "从歌单移除";
+"playlist_manage_empty" = "歌单里还没有歌曲";

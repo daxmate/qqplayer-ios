@@ -479,3 +479,21 @@
 "search_section_albums" = "Albums";
 "search_section_artists" = "Artistes";
 "search_section_playlists" = "Playlist";
+
+/* Smart playlists (automatic playlists) */
+"smart_recent_added" = "Ajouts récents";
+"smart_recent_played" = "Récemment écoutés";
+"smart_top_played" = "Plus écoutés";
+"smart_decades" = "Décennies";
+"smart_songs_count" = "%d chansons";
+"smart_decade_count" = "%d décennies";
+"smart_empty_recent_played" = "Aucune écoute pour l'instant. Écoutez quelques chansons et elles apparaîtront ici.";
+"smart_empty_top_played" = "Aucune écoute pour l'instant. Écoutez quelques chansons et elles apparaîtront ici.";
+"smart_empty_decade" = "Aucune chanson de cette décennie";
+"smart_load_failed" = "Impossible de charger cette playlist";
+
+// MARK: - Playlist management (macOS)
+"playlist_manage_play_all" = "Tout lire";
+"playlist_manage_rename" = "Renommer";
+"playlist_manage_remove_from_playlist" = "Retirer de la playlist";
+"playlist_manage_empty" = "Cette playlist est vide";

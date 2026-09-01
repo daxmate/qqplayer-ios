@@ -130,6 +130,10 @@ struct MacLibraryView: View {
             // 收藏变化后刷新“我喜欢的音乐”列表（含正在展示时的实时移除）
             reloadLikedTracks()
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("PlaylistsChanged"))) { _ in
+            // 歌单管理（新建/重命名/删除/增删曲目）后刷新歌单列表与自动歌单计数
+            reloadLibrary()
+        }
     }
 
     // MARK: - Sidebar
@@ -191,7 +195,8 @@ struct MacLibraryView: View {
                     isPlaying: player.isPlaying,
                     artistNameResolver: resolveArtistName,
                     onPlay: playFromTrackList,
-                    onSelect: { selectedTrackId = $0.stableId }
+                    onSelect: { selectedTrackId = $0.stableId },
+                    playlistId: nil
                 )
             case .likedSongs:
                 MacTrackListView(
@@ -200,7 +205,8 @@ struct MacLibraryView: View {
                     isPlaying: player.isPlaying,
                     artistNameResolver: resolveArtistName,
                     onPlay: playLikedTracks,
-                    onSelect: { selectedTrackId = $0.stableId }
+                    onSelect: { selectedTrackId = $0.stableId },
+                    playlistId: nil
                 )
             case .albums:
                 MacAlbumGridView(
@@ -221,7 +227,7 @@ struct MacLibraryView: View {
             case .playlists:
                 MacPlaylistListView(
                     playlists: playlists,
-                    onOpen: openPlaylist
+                    onPlay: openPlaylist
                 )
             }
         }

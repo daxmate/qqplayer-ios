@@ -497,3 +497,9 @@
 "search_section_albums" = "Albums";
 "search_section_artists" = "Artists";
 "search_section_playlists" = "Playlists";
+
+// MARK: - Playlist management (macOS)
+"playlist_manage_play_all" = "Play All";
+"playlist_manage_rename" = "Rename";
+"playlist_manage_remove_from_playlist" = "Remove from Playlist";
+"playlist_manage_empty" = "This playlist is empty";
