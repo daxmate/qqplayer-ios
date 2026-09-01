@@ -27,7 +27,11 @@ struct MacPlayerView: View {
     @State private var lyrics: Lyrics?
     @State private var lyricsLoading = false
     @State private var showLyrics = true
+    @State private var favoriteIds: Set<String> = []
+    @State private var sleepTimerEndDate: Date?
+    @State private var sleepTimerTask: Task<Void, Never>?
     @ObservedObject private var karaoke = KaraokeController.shared
+    @ObservedObject private var player = PlayerEngine.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -63,11 +67,16 @@ struct MacPlayerView: View {
                 showLyrics = true
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FavoritesChanged"))) { _ in
+            // 收藏在别处变更（列表心形/右键菜单）后同步当前曲目的心形状态
+            favoriteIds = Set((try? AppCoordinator.shared.getFavorites()) ?? [])
+        }
         .task(id: track?.stableId) {
             guard let track else {
                 artwork = nil
                 artworkTrackId = nil
                 lyrics = nil
+                favoriteIds = []
                 // 跟唱：无曲目时清空歌词注入 + 清 AB（对齐 iOS PlayerView 切歌语义）
                 KaraokeController.shared.setLyrics([])
                 KaraokeController.shared.resetForNewTrack()
@@ -76,6 +85,8 @@ struct MacPlayerView: View {
             let art = await ArtworkManager.shared.getArtwork(for: track)
             artwork = art
             artworkTrackId = track.stableId
+            // 切歌时刷新当前曲目的收藏状态
+            favoriteIds = Set((try? AppCoordinator.shared.getFavorites()) ?? [])
 
             // 歌词：优先缓存/本地，在线搜索失败不阻塞 UI（跟 iOS 语义一致）
             lyricsLoading = true
@@ -182,6 +193,52 @@ struct MacPlayerView: View {
 
                 Divider().frame(height: 24)
 
+                // 播放顺序四态：顺序 → 随机 → 循环列表 → 单曲循环
+                // （shuffle 分支必须走 toggleShuffle()：保存/恢复 originalQueue，测试锁定）
+                Button {
+                    player.cyclePlaybackOrderMode()
+                } label: {
+                    Image(systemName: playOrderIcon)
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(isPlayOrderActive ? .accentColor : .secondary)
+                .help(playOrderTitle)
+
+                // 当前曲目收藏（红心）
+                Button {
+                    guard let track else { return }
+                    try? AppCoordinator.shared.toggleFavorite(trackStableId: track.stableId)
+                } label: {
+                    Image(systemName: currentTrackIsFavorite ? "heart.fill" : "heart")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(currentTrackIsFavorite ? .pink : .secondary)
+                .disabled(track == nil)
+                .help(currentTrackIsFavorite ? "remove_from_liked_songs".localized : "add_to_liked_songs".localized)
+
+                // 睡眠定时器：15/30/45/60 分钟，激活后可取消（切歌不清除）
+                Menu {
+                    Button(Localized.sleepTimer15Minutes) { startSleepTimer(minutes: 15) }
+                    Button(Localized.sleepTimer30Minutes) { startSleepTimer(minutes: 30) }
+                    Button(Localized.sleepTimer45Minutes) { startSleepTimer(minutes: 45) }
+                    Button(Localized.sleepTimer60Minutes) { startSleepTimer(minutes: 60) }
+
+                    if sleepTimerEndDate != nil {
+                        Divider()
+                        Button(Localized.cancelSleepTimer, role: .destructive) { cancelSleepTimer() }
+                    }
+                } label: {
+                    Image(systemName: sleepTimerEndDate == nil ? "timer" : "timer.circle.fill")
+                        .font(.system(size: 16))
+                }
+                .menuStyle(.borderlessButton)
+                .foregroundColor(sleepTimerEndDate == nil ? .secondary : .accentColor)
+                .help("sleep_timer".localized)
+
+                Divider().frame(height: 24)
+
                 // 跟唱模式开关（双击歌词行的 iOS 语义在 Mac 上没有，给显式按钮）
                 Button {
                     karaoke.toggleKaraokeMode()
@@ -213,5 +270,62 @@ struct MacPlayerView: View {
         .padding(.top, 24)
         .padding(.horizontal, 32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Playback order
+
+    private var playOrderMode: PlaybackOrderMode {
+        player.playbackOrderMode
+    }
+
+    private var playOrderIcon: String {
+        switch playOrderMode {
+        case .sequential: return "arrow.right.to.line"
+        case .shuffle: return "shuffle"
+        case .repeatAll: return "repeat"
+        case .repeatOne: return "repeat.1"
+        }
+    }
+
+    private var playOrderTitle: String {
+        switch playOrderMode {
+        case .sequential: return Localized.playOrderSequential
+        case .shuffle: return Localized.playOrderShuffle
+        case .repeatAll: return Localized.playOrderRepeatAll
+        case .repeatOne: return Localized.playOrderRepeatOne
+        }
+    }
+
+    private var isPlayOrderActive: Bool {
+        playOrderMode != .sequential
+    }
+
+    // MARK: - Favorite
+
+    private var currentTrackIsFavorite: Bool {
+        guard let track else { return false }
+        return favoriteIds.contains(track.stableId)
+    }
+
+    // MARK: - Sleep timer
+
+    private func startSleepTimer(minutes: Int) {
+        sleepTimerTask?.cancel()
+        let endDate = Date().addingTimeInterval(TimeInterval(minutes * 60))
+        sleepTimerEndDate = endDate
+
+        sleepTimerTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(minutes) * 60_000_000_000)
+            guard !Task.isCancelled else { return }
+            player.pause()
+            sleepTimerEndDate = nil
+            sleepTimerTask = nil
+        }
+    }
+
+    private func cancelSleepTimer() {
+        sleepTimerTask?.cancel()
+        sleepTimerTask = nil
+        sleepTimerEndDate = nil
     }
 }

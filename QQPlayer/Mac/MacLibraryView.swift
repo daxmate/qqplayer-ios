@@ -13,6 +13,7 @@ import SwiftUI
 
 enum MacLibrarySection: String, CaseIterable, Identifiable {
     case tracks = "songs"
+    case likedSongs = "liked_songs"
     case albums = "albums"
     case artists = "artists"
     case playlists = "playlists"
@@ -25,6 +26,7 @@ enum MacLibrarySection: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .tracks: return "music.note.list"
+        case .likedSongs: return "heart.fill"
         case .albums: return "square.stack"
         case .artists: return "music.mic"
         case .playlists: return "list.bullet.rectangle"
@@ -39,6 +41,8 @@ struct MacLibraryView: View {
 
     @State private var section: MacLibrarySection = .tracks
     @State private var tracks: [Track] = []
+    @State private var likedTracks: [Track] = []
+    @State private var forceDark: Bool = DeleteSettings.load().forceDarkMode
     @State private var albums: [Album] = []
     @State private var artists: [Artist] = []
     @State private var playlists: [Playlist] = []
@@ -73,6 +77,20 @@ struct MacLibraryView: View {
         }
         .navigationTitle("QQPlayer")
         .frame(minWidth: 1000, minHeight: 640)
+        .toolbar {
+            ToolbarItem {
+                Button {
+                    forceDark.toggle()
+                    var settings = DeleteSettings.load()
+                    settings.forceDarkMode = forceDark
+                    settings.save()
+                } label: {
+                    Image(systemName: forceDark ? "sun.max.fill" : "moon.fill")
+                }
+                .help("force_dark_mode".localized)
+            }
+        }
+        .preferredColorScheme(forceDark ? .dark : nil)
         .task {
             reloadLibrary()
             if !indexer.isIndexing {
@@ -84,6 +102,10 @@ struct MacLibraryView: View {
             if !isIndexing {
                 reloadLibrary()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FavoritesChanged"))) { _ in
+            // 收藏变化后刷新“我喜欢的音乐”列表（含正在展示时的实时移除）
+            reloadLikedTracks()
         }
     }
 
@@ -133,6 +155,15 @@ struct MacLibraryView: View {
                 onPlay: playFromTrackList,
                 onSelect: { selectedTrackId = $0.stableId }
             )
+        case .likedSongs:
+            MacTrackListView(
+                tracks: likedTracks,
+                activeTrackId: player.currentTrack?.stableId,
+                isPlaying: player.isPlaying,
+                artistNameResolver: resolveArtistName,
+                onPlay: playLikedTracks,
+                onSelect: { selectedTrackId = $0.stableId }
+            )
         case .albums:
             MacAlbumGridView(
                 albums: albums,
@@ -170,6 +201,16 @@ struct MacLibraryView: View {
             loadError = "load_library_failed".localized(with: error.localizedDescription)
             print("❌ macOS reloadLibrary failed: \(error)")
         }
+        reloadLikedTracks()
+    }
+
+    private func reloadLikedTracks() {
+        do {
+            let favoriteIds = try AppCoordinator.shared.getFavorites()
+            likedTracks = tracks.filter { favoriteIds.contains($0.stableId) }
+        } catch {
+            print("❌ macOS reloadLikedTracks failed: \(error)")
+        }
     }
 
     private func resolveArtistName(for track: Track) -> String? {
@@ -189,6 +230,12 @@ struct MacLibraryView: View {
     private func playFromTrackList(_ track: Track) {
         Task {
             await player.playTrack(track, queue: tracks)
+        }
+    }
+
+    private func playLikedTracks(_ track: Track) {
+        Task {
+            await player.playTrack(track, queue: likedTracks)
         }
     }
 

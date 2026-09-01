@@ -16,6 +16,7 @@ struct MacTrackListView: View {
     let onSelect: (Track) -> Void
 
     @State private var selectedRows = Set<String>()
+    @State private var favoriteIds: Set<String> = []
 
     private var rows: [MacTrackRow] {
         tracks.map { MacTrackRow(id: $0.stableId, track: $0) }
@@ -71,6 +72,19 @@ struct MacTrackListView: View {
                         .monospacedDigit()
                 }
                 .width(56)
+
+                TableColumn("") { row in
+                    let isFavorite = favoriteIds.contains(row.track.stableId)
+                    Button {
+                        try? AppCoordinator.shared.toggleFavorite(trackStableId: row.track.stableId)
+                    } label: {
+                        Image(systemName: isFavorite ? "heart.fill" : "heart")
+                            .foregroundColor(isFavorite ? .pink : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(isFavorite ? "remove_from_liked_songs".localized : "add_to_liked_songs".localized)
+                }
+                .width(32)
             }
             // forSelectionType 必须传 selection 集合的元素类型（即行的 ID 类型），
             // 不能传数据元素类型——传元素类型时 macOS 上 contextMenu 整个不注册
@@ -82,6 +96,16 @@ struct MacTrackListView: View {
                     Button("play".localized) {
                         onPlay(track)
                     }
+
+                    Divider()
+
+                    let isFavorite = favoriteIds.contains(track.stableId)
+                    Button {
+                        try? AppCoordinator.shared.toggleFavorite(trackStableId: track.stableId)
+                    } label: {
+                        Label(isFavorite ? Localized.removeFromLikedSongs : Localized.addToLikedSongs,
+                              systemImage: "heart.fill")
+                    }
                 }
             } primaryAction: { selectedIDs in
                 if let id = selectedIDs.first,
@@ -90,7 +114,17 @@ struct MacTrackListView: View {
                     onSelect(track)
                 }
             }
+            .onAppear {
+                reloadFavorites()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FavoritesChanged"))) { _ in
+                reloadFavorites()
+            }
         }
+    }
+
+    private func reloadFavorites() {
+        favoriteIds = Set((try? AppCoordinator.shared.getFavorites()) ?? [])
     }
 
     private func albumTitle(for track: Track) -> String {
