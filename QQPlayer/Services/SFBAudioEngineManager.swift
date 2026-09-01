@@ -254,6 +254,122 @@ class SFBAudioEngineManager: NSObject, ObservableObject, AudioPlayer.Delegate {
         }
     }
 
+    /// 把 EQManager 的运行时数据（频率/增益/带宽）应用到 SFB 的 EQ 节点。
+    /// 平台无关（iOS/macOS 共用一份，行为单一事实源——2026-09-01 从 iOS 分支提取）。
+    private func configureSFBEQBands(_ equalizer: AVAudioUnitEQ) {
+        // Apply frequency-specific gains from EQManager
+        let eqFrequencies = eqManager.currentEQFrequencies
+        let eqGains = eqManager.currentEQGains
+        let eqBandwidths = eqManager.currentEQBandwidths
+
+        if !eqFrequencies.isEmpty && !eqGains.isEmpty {
+            // Use EQManager's exact frequencies and gains
+            let availableBands = equalizer.bands.count
+            let inputBandCount = min(eqFrequencies.count, eqGains.count)
+
+            if inputBandCount <= availableBands {
+                // Direct mapping - use exactly what we have
+                for i in 0 ..< inputBandCount {
+                    let band = equalizer.bands[i]
+                    band.frequency = Float(eqFrequencies[i])
+                    band.gain = Float(eqGains[i])
+                    let bandwidth = i < eqBandwidths.count ? eqBandwidths[i] : 1.0
+                    band.bandwidth = Float(max(0.05, min(5.0, bandwidth)))
+                    band.filterType = .parametric
+                    band.bypass = false
+                }
+
+                // Bypass remaining bands
+                for i in inputBandCount ..< availableBands {
+                    equalizer.bands[i].bypass = true
+                }
+
+                print("🎛️ Direct mapping: Using all \(inputBandCount) EQ bands")
+            } else {
+                // More input bands than available - group and average
+                print("🔄 Reducing \(inputBandCount) bands to \(availableBands) bands")
+
+                let bandsPerGroup = Double(inputBandCount) / Double(availableBands)
+
+                for i in 0 ..< availableBands {
+                    // Calculate the range of input bands for this output band
+                    let startIndex = Int(Double(i) * bandsPerGroup)
+                    let endIndex = min(Int(Double(i + 1) * bandsPerGroup), inputBandCount)
+
+                    // Average the frequencies and gains for this group
+                    var avgFrequency = 0.0
+                    var avgGain = 0.0
+                    var avgBandwidth = 0.0
+                    var groupSize = 0
+
+                    for j in startIndex ..< endIndex {
+                        if j < eqFrequencies.count && j < eqGains.count {
+                            avgFrequency += eqFrequencies[j]
+                            avgGain += eqGains[j]
+                            avgBandwidth += j < eqBandwidths.count ? eqBandwidths[j] : 1.0
+                            groupSize += 1
+                        }
+                    }
+
+                    if groupSize > 0 {
+                        avgFrequency /= Double(groupSize)
+                        avgGain /= Double(groupSize)
+                        avgBandwidth /= Double(groupSize)
+                    }
+
+                    let band = equalizer.bands[i]
+                    band.frequency = Float(avgFrequency)
+                    band.gain = Float(avgGain)
+                    band.bandwidth = Float(max(0.05, min(5.0, avgBandwidth)))
+                    band.filterType = .parametric
+                    band.bypass = false
+
+                    print("  Band \(i): \(Int(avgFrequency))Hz, \(String(format: "%.1f", avgGain))dB (avg of \(groupSize) bands)")
+                }
+
+                print("✅ Applied frequency grouping and averaging")
+            }
+        } else {
+            // No EQ data - configure with default geometric spacing
+            let minFreq = 20.0
+            let maxFreq = 20000.0
+            let bandCount = equalizer.bands.count
+
+            for i in 0 ..< bandCount {
+                let band = equalizer.bands[i]
+                let frequency = minFreq * pow(maxFreq / minFreq, Double(i) / Double(bandCount - 1))
+
+                band.frequency = Float(frequency)
+                band.gain = 0.0
+                band.bandwidth = 1.0
+                band.filterType = .parametric
+                band.bypass = false
+            }
+
+            print("🎛️ Configured \(bandCount) SFBAudioEngine EQ bands with default frequencies")
+        }
+    }
+
+    /// 把 EQ 开关/全局增益/预设数据应用到已 attach 的 SFB EQ 节点。
+    /// 平台无关（iOS/macOS 共用一份；EQManager 状态变化时被 updateEQSettings 调用）。
+    func applySFBEQSettings() {
+        guard let equalizer = sfbEqualizer else {
+            print("⚠️ No SFBAudioEngine equalizer to update")
+            return
+        }
+
+        // Apply enabled state
+        equalizer.bypass = !eqManager.isEnabled
+
+        // Apply global gain
+        equalizer.globalGain = Float(eqManager.globalGain)
+
+        // Reconfigure bands with current EQ settings
+        configureSFBEQBands(equalizer)
+
+        print("🎛️ SFBAudioEngine EQ updated: enabled=\(eqManager.isEnabled), globalGain=\(eqManager.globalGain)dB")
+    }
+
     // Store decoder properties for seeking when AudioFile properties are unavailable
     var decoderFrameLength: Int64 = 0
     var decoderSampleRate: Double = 0

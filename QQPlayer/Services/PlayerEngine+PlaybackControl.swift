@@ -1134,14 +1134,28 @@
             if !audioEngine.attachedNodes.contains(timePitchNode) {
                 audioEngine.attach(timePitchNode)
             }
+            // EQ 节点：首次创建并 attach（EQManager.setupEQNode 内部 attach 到 engine）。
+            // 只在节点不存在时调用——重复调用会新建 AVAudioUnitEQ 重复 attach（引擎图脏）。
+            // attach 必须在 engine 未运行时执行：首次 setup 发生在 play() 的 engine.start()
+            // 之前 ✓；后续 format 变化只 connect 不 attach（节点已在图上）。
+            if eqManager.currentEQNode == nil
+                || !audioEngine.attachedNodes.contains(eqManager.currentEQNode!) {
+                eqManager.setAudioEngine(audioEngine)
+            }
             // 同 format 已 connect 过：跳过重复 connect（幂等，但每次调用都同步等音频线程）
             if Self.macEngineGraphFormat == format {
                 return
             }
-            // playerNode → timePitch（倍速）→ mainMixer。AVAudioEngine owns the
-            // mainMixer → outputNode connection and negotiates the hardware format.
+            // playerNode → timePitch（倍速）→ EQ → mainMixer（EQ 节点存在时；
+            // 对齐 iOS connectPlaybackChain）。AVAudioEngine owns the mainMixer →
+            // outputNode connection and negotiates the hardware format.
             audioEngine.connect(playerNode, to: timePitchNode, format: format)
-            audioEngine.connect(timePitchNode, to: audioEngine.mainMixerNode, format: format)
+            if let eqNode = eqManager.currentEQNode {
+                audioEngine.connect(timePitchNode, to: eqNode, format: format)
+                audioEngine.connect(eqNode, to: audioEngine.mainMixerNode, format: format)
+            } else {
+                audioEngine.connect(timePitchNode, to: audioEngine.mainMixerNode, format: format)
+            }
             audioEngine.prepare()
             Self.macEngineGraphFormat = format
         }
